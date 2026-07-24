@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "brandsapp-builder",
+  "compatibility_date": "2025-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "worker/index.ts",
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "DOC_ROOM", "class_name": "DocRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DocRoom"] }],
+  "observability": { "enabled": true },
+  "vars": {
+    // Base URL of a tenant Worker's builder API, e.g. https://<slug>.brandsapp.io.
+    // The editor loads/saves a page's Doc through here. Overridden per-request by
+    // the ?tenant= param in dev.
+    "TENANT_API_BASE": ""
+    // BUILDER_SERVICE_TOKEN is a secret: `wrangler secret put BUILDER_SERVICE_TOKEN`
+  }
+}

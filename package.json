@@ -1,0 +1,32 @@
+{
+  "name": "brandsapp-builder",
+  "private": true,
+  "type": "module",
+  "description": "Central visual builder/editor for BrandsApp pages (P2). Hono + TanStack Router + Vite on Cloudflare Workers, with a Durable Object for realtime collaboration. Renders/previews with the shared builder-core engine. Polaris editor code moves in here later.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "vite build && wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "@tanstack/react-router": "^1.121.0",
+    "hono": "^4.7.10",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.7.0",
+    "@cloudflare/workers-types": "^4.20250510.0",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "wrangler": "^4.20.0"
+  }
+}
