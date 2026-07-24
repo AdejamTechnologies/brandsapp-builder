@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearch } from "@tanstack/react-router"
 
-import { htmlToDoc, parseDoc, type Doc, type Node } from "@brandsapp/builder-core"
+import {
+  extractFragment,
+  htmlToDoc,
+  parseDoc,
+  type Doc,
+  type Node,
+} from "@brandsapp/builder-core"
 import { insertChild, moveChild, removeNode, updateProps, updateStyle } from "../lib/doc-ops"
 import { preview, previewSrcDoc } from "../lib/preview"
 import { useDocRoom } from "../lib/realtime"
@@ -25,6 +31,7 @@ export function EditorPage() {
   const [status, setStatus] = useState("")
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState("")
+  const [exportJson, setExportJson] = useState<string | null>(null)
   const drag = useRef<{ parentId: string; index: number } | null>(null)
 
   useEffect(() => {
@@ -70,6 +77,18 @@ export function EditorPage() {
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "import failed")
     }
+  }
+  const doExport = () => {
+    const id = selectedId ?? doc.rootId
+    const node = doc.nodes[id]
+    const name = node?.label ?? node?.module ?? "Section"
+    const manifest = {
+      id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
+      name,
+      category: "section" as const,
+      version: "1.0.0",
+    }
+    setExportJson(JSON.stringify(extractFragment(doc, id, manifest), null, 2))
   }
 
   const rendered = useMemo(() => preview(doc), [doc])
@@ -129,6 +148,9 @@ export function EditorPage() {
           <button className="ghost" onClick={() => setImportOpen(true)}>
             Import HTML
           </button>
+          <button className="ghost" onClick={doExport} title="Export the selected layer as a marketplace Fragment">
+            Export Fragment
+          </button>
           {rendered.error && <span className="err">{rendered.error}</span>}
           {rendered.missing.length > 0 && <span className="warn">missing: {rendered.missing.join(", ")}</span>}
           <span className="spacer" />
@@ -172,6 +194,30 @@ export function EditorPage() {
                 Cancel
               </button>
               <button onClick={doImport}>Import</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {exportJson !== null && (
+        <div className="modal-backdrop" onClick={() => setExportJson(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="section-title">Fragment JSON — paste into the marketplace “Sell” form</div>
+            <textarea className="import-area" readOnly value={exportJson} />
+            <div className="modal-actions">
+              <button className="ghost" onClick={() => setExportJson(null)}>
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard?.writeText(exportJson).then(
+                    () => setStatus("Fragment copied ✓"),
+                    () => setStatus("Copy failed — select + copy manually"),
+                  )
+                }}
+              >
+                Copy
+              </button>
             </div>
           </div>
         </div>
