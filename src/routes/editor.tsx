@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearch } from "@tanstack/react-router"
 
-import { parseDoc, type Doc, type Node } from "@brandsapp/builder-core"
-import { insertChild, removeNode, updateProps, updateStyle } from "../lib/doc-ops"
+import { htmlToDoc, parseDoc, type Doc, type Node } from "@brandsapp/builder-core"
+import { insertChild, moveChild, removeNode, updateProps, updateStyle } from "../lib/doc-ops"
 import { preview, previewSrcDoc } from "../lib/preview"
 import { useDocRoom } from "../lib/realtime"
 import { moduleInfo, moduleList, type ModuleInfo } from "../lib/registry"
@@ -23,6 +23,9 @@ export function EditorPage() {
   const [selectedId, setSelectedId] = useState<string | null>(doc.rootId)
   const [showCode, setShowCode] = useState(false)
   const [status, setStatus] = useState("")
+  const [importOpen, setImportOpen] = useState(false)
+  const [importText, setImportText] = useState("")
+  const drag = useRef<{ parentId: string; index: number } | null>(null)
 
   useEffect(() => {
     if (!tenant || pageId === "sample") return
@@ -52,6 +55,21 @@ export function EditorPage() {
   const apply = (next: Doc) => {
     setDoc(next)
     send(JSON.stringify(next))
+  }
+
+  const reorder = (parentId: string, from: number, to: number) => {
+    if (from !== to) apply(moveChild(doc, parentId, from, to))
+  }
+  const doImport = () => {
+    try {
+      apply(parseDoc(htmlToDoc(importText)))
+      setSelectedId(null)
+      setImportOpen(false)
+      setImportText("")
+      setStatus("Imported ✓")
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "import failed")
+    }
   }
 
   const rendered = useMemo(() => preview(doc), [doc])
@@ -89,13 +107,27 @@ export function EditorPage() {
       <aside className="col left">
         <Palette onInsert={insert} />
         <div className="section-title">Layers</div>
-        <Tree doc={doc} nodeId={doc.rootId} depth={0} selectedId={selectedId} onSelect={setSelectedId} onDelete={del} />
+        <Tree
+          doc={doc}
+          nodeId={doc.rootId}
+          parentId={null}
+          index={0}
+          depth={0}
+          selectedId={selectedId}
+          drag={drag}
+          onSelect={setSelectedId}
+          onDelete={del}
+          onReorder={reorder}
+        />
       </aside>
 
       <main className="col center">
         <div className="toolbar">
           <button className="ghost" onClick={() => setShowCode((s) => !s)}>
             {showCode ? "Preview" : "Code"}
+          </button>
+          <button className="ghost" onClick={() => setImportOpen(true)}>
+            Import HTML
           </button>
           {rendered.error && <span className="err">{rendered.error}</span>}
           {rendered.missing.length > 0 && <span className="warn">missing: {rendered.missing.join(", ")}</span>}
@@ -124,6 +156,26 @@ export function EditorPage() {
       <aside className="col right">
         <Inspector doc={doc} node={selected} onChange={apply} />
       </aside>
+
+      {importOpen && (
+        <div className="modal-backdrop" onClick={() => setImportOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="section-title">Import HTML → Doc</div>
+            <textarea
+              className="import-area"
+              placeholder="Paste HTML here — it becomes an editable Doc."
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+            />
+            <div className="modal-actions">
+              <button className="ghost" onClick={() => setImportOpen(false)}>
+                Cancel
+              </button>
+              <button onClick={doImport}>Import</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -144,26 +196,51 @@ function Palette({ onInsert }: { onInsert: (m: ModuleInfo) => void }) {
   )
 }
 
-function Tree(props: {
+interface TreeProps {
   doc: Doc
   nodeId: string
+  parentId: string | null
+  index: number
   depth: number
   selectedId: string | null
+  drag: React.RefObject<{ parentId: string; index: number } | null>
   onSelect: (id: string) => void
   onDelete: (id: string) => void
-}) {
-  const { doc, nodeId, depth, selectedId, onSelect, onDelete } = props
+  onReorder: (parentId: string, from: number, to: number) => void
+}
+
+function Tree(props: TreeProps) {
+  const { doc, nodeId, parentId, index, depth, selectedId, drag, onSelect, onDelete, onReorder } = props
   const node = doc.nodes[nodeId]
   if (!node) return null
+  const isRoot = nodeId === doc.rootId
   return (
     <div>
       <div
         className={"tree-row" + (selectedId === nodeId ? " sel" : "")}
         style={{ paddingLeft: 8 + depth * 14 }}
         onClick={() => onSelect(nodeId)}
+        draggable={!isRoot}
+        onDragStart={(e) => {
+          if (parentId) {
+            drag.current = { parentId, index }
+            e.stopPropagation()
+          }
+        }}
+        onDragOver={(e) => {
+          if (drag.current && parentId === drag.current.parentId) e.preventDefault()
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          if (drag.current && parentId === drag.current.parentId) {
+            onReorder(parentId, drag.current.index, index)
+          }
+          drag.current = null
+        }}
       >
         <span className="tree-label">{node.label ?? node.module}</span>
-        {nodeId !== doc.rootId && (
+        {!isRoot && (
           <button
             className="tree-del"
             title="Delete"
@@ -176,8 +253,8 @@ function Tree(props: {
           </button>
         )}
       </div>
-      {node.children.map((cid) => (
-        <Tree key={cid} {...props} nodeId={cid} depth={depth + 1} />
+      {node.children.map((cid, i) => (
+        <Tree key={cid} {...props} nodeId={cid} parentId={nodeId} index={i} depth={depth + 1} />
       ))}
     </div>
   )
