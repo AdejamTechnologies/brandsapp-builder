@@ -52,3 +52,31 @@ textarea {
 }
 .pane-preview { background: #fff; }
 .pane-preview iframe { width: 100%; height: 100%; border: 0; }
+
+/* 3-pane visual editor */
+.editor3 { flex: 1; display: grid; grid-template-columns: 232px 1fr 288px; min-height: 0; }
+.col { min-height: 0; overflow: auto; background: #fff; }
+.col.left { border-right: 1px solid var(--line); }
+.col.right { border-left: 1px solid var(--line); }
+.col.center { display: flex; flex-direction: column; background: #f6f7f9; }
+.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding: 12px 12px 6px; }
+.palette-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 10px 10px; }
+.chip { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 8px; font-size: 12px; cursor: pointer; text-align: left; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.tree-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; font-size: 13px; cursor: pointer; border-radius: 6px; margin: 0 6px; }
+.tree-row:hover { background: #f2f3f5; }
+.tree-row.sel { background: color-mix(in srgb, var(--accent) 12%, #fff); color: var(--accent); }
+.tree-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-del { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
+.tree-del:hover { color: #dc2626; }
+.toolbar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: #fff; }
+.toolbar .spacer { flex: 1; }
+.toolbar button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 6px 14px; font-weight: 600; cursor: pointer; }
+.toolbar button.ghost { background: #eef0f3; color: #0c111d; }
+.col.center iframe { flex: 1; border: 0; width: 100%; background: #fff; }
+.col.center .code { flex: 1; border: 0; padding: 14px; font: 12px/1.5 ui-monospace, Menlo, monospace; }
+.inspector { padding-bottom: 24px; }
+.field { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 8px; padding: 4px 12px; font-size: 12px; }
+.field > span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.field input, .field select { border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; font-size: 12px; width: 100%; }
+.field input[type="checkbox"] { width: auto; }

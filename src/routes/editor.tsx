@@ -1,66 +1,82 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useSearch } from "@tanstack/react-router"
 
+import { parseDoc, type Doc, type Node } from "@brandsapp/builder-core"
+import { insertChild, removeNode, updateProps, updateStyle } from "../lib/doc-ops"
 import { preview, previewSrcDoc } from "../lib/preview"
 import { useDocRoom } from "../lib/realtime"
+import { moduleInfo, moduleList, type ModuleInfo } from "../lib/registry"
 import { SAMPLE_DOC } from "../lib/sample"
 
-/**
- * P2 editor SHELL. A working JSON ⇄ live-preview loop over the real engine, plus
- * realtime relay wiring. The visual canvas / drag-and-drop / properties panel is
- * what moves in from Polaris on top of this.
- */
+const STYLE_FIELDS = [
+  "background", "color", "padding", "margin", "gap", "display",
+  "flexDirection", "alignItems", "justifyContent", "textAlign",
+  "fontSize", "fontWeight", "borderRadius", "maxWidth", "width",
+]
+
 export function EditorPage() {
   const { pageId } = useParams({ from: "/edit/$pageId" })
-  // tenant base url comes from the querystring in dev (?tenant=https://…)
   const search = useSearch({ strict: false }) as { tenant?: string }
   const tenant = search.tenant ?? ""
 
-  const [text, setText] = useState(() => JSON.stringify(SAMPLE_DOC, null, 2))
-  const [status, setStatus] = useState<string>("")
+  const [doc, setDoc] = useState<Doc>(() => parseDoc(SAMPLE_DOC))
+  const [selectedId, setSelectedId] = useState<string | null>(doc.rootId)
+  const [showCode, setShowCode] = useState(false)
+  const [status, setStatus] = useState("")
 
-  // load the page's Doc from the tenant (via the worker proxy) if configured
   useEffect(() => {
     if (!tenant || pageId === "sample") return
-    const q = `?tenant=${encodeURIComponent(tenant)}`
-    fetch(`/api/pages/${encodeURIComponent(pageId)}${q}`)
+    fetch(`/api/pages/${encodeURIComponent(pageId)}?tenant=${encodeURIComponent(tenant)}`)
       .then((r) => (r.ok ? (r.json() as Promise<{ doc?: unknown }>) : null))
       .then((d) => {
-        if (d?.doc) setText(JSON.stringify(d.doc, null, 2))
+        if (d?.doc) {
+          try {
+            setDoc(parseDoc(d.doc))
+          } catch {
+            /* keep sample */
+          }
+        }
       })
       .catch(() => {})
   }, [tenant, pageId])
 
-  // realtime: broadcast local edits, apply remote ones
   const room = `${tenant || "local"}:${pageId}`
   const { send } = useDocRoom(room, (data) => {
-    if (data && data !== text) setText(data)
+    try {
+      setDoc(parseDoc(JSON.parse(data)))
+    } catch {
+      /* ignore malformed */
+    }
   })
 
-  const result = useMemo(() => {
-    try {
-      return preview(JSON.parse(text))
-    } catch (e) {
-      return { html: "", css: "", missing: [], error: e instanceof Error ? e.message : "invalid JSON" }
-    }
-  }, [text])
+  const apply = (next: Doc) => {
+    setDoc(next)
+    send(JSON.stringify(next))
+  }
 
-  const onChange = (v: string) => {
-    setText(v)
-    send(v)
+  const rendered = useMemo(() => preview(doc), [doc])
+  const selected: Node | undefined = selectedId ? doc.nodes[selectedId] : undefined
+
+  const insert = (m: ModuleInfo) => {
+    const canNest = selected && moduleInfo(selected.module)?.canHaveChildren
+    const parentId = canNest ? selected!.id : doc.rootId
+    const { doc: next, id } = insertChild(doc, parentId, m.name, m.defaults)
+    apply(next)
+    setSelectedId(id)
+  }
+  const del = (id: string) => {
+    apply(removeNode(doc, id))
+    setSelectedId(doc.rootId)
   }
 
   const save = async () => {
-    if (!tenant) {
-      setStatus("No tenant configured (add ?tenant=<url>).")
-      return
-    }
+    if (!tenant) return setStatus("Add ?tenant=<url> to save.")
     setStatus("Saving…")
     try {
       const res = await fetch(`/api/pages/${encodeURIComponent(pageId)}?tenant=${encodeURIComponent(tenant)}`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ doc: JSON.parse(text) }),
+        body: JSON.stringify({ doc }),
       })
       setStatus(res.ok ? "Saved ✓" : `Save failed (${res.status})`)
     } catch (e) {
@@ -69,24 +85,149 @@ export function EditorPage() {
   }
 
   return (
-    <div className="editor">
-      <div className="pane pane-code">
-        <div className="pane-head">
-          <strong>{pageId}</strong>
-          <div className="actions">
-            {result.error && <span className="err">{result.error}</span>}
-            {result.missing.length > 0 && (
-              <span className="warn">missing: {result.missing.join(", ")}</span>
-            )}
-            <span className="muted small">{status}</span>
-            <button onClick={save}>Save</button>
-          </div>
+    <div className="editor3">
+      <aside className="col left">
+        <Palette onInsert={insert} />
+        <div className="section-title">Layers</div>
+        <Tree doc={doc} nodeId={doc.rootId} depth={0} selectedId={selectedId} onSelect={setSelectedId} onDelete={del} />
+      </aside>
+
+      <main className="col center">
+        <div className="toolbar">
+          <button className="ghost" onClick={() => setShowCode((s) => !s)}>
+            {showCode ? "Preview" : "Code"}
+          </button>
+          {rendered.error && <span className="err">{rendered.error}</span>}
+          {rendered.missing.length > 0 && <span className="warn">missing: {rendered.missing.join(", ")}</span>}
+          <span className="spacer" />
+          <span className="muted small">{status}</span>
+          <button onClick={save}>Save</button>
         </div>
-        <textarea value={text} spellCheck={false} onChange={(e) => onChange(e.target.value)} />
+        {showCode ? (
+          <textarea
+            className="code"
+            spellCheck={false}
+            value={JSON.stringify(doc, null, 2)}
+            onChange={(e) => {
+              try {
+                apply(parseDoc(JSON.parse(e.target.value)))
+              } catch {
+                /* wait for valid JSON */
+              }
+            }}
+          />
+        ) : (
+          <iframe title="preview" srcDoc={previewSrcDoc(rendered)} />
+        )}
+      </main>
+
+      <aside className="col right">
+        <Inspector doc={doc} node={selected} onChange={apply} />
+      </aside>
+    </div>
+  )
+}
+
+function Palette({ onInsert }: { onInsert: (m: ModuleInfo) => void }) {
+  const mods = moduleList().filter((m) => m.name !== "page-root")
+  return (
+    <div className="palette">
+      <div className="section-title">Insert</div>
+      <div className="palette-grid">
+        {mods.map((m) => (
+          <button key={m.name} className="chip" onClick={() => onInsert(m)}>
+            {m.name}
+          </button>
+        ))}
       </div>
-      <div className="pane pane-preview">
-        <iframe title="preview" srcDoc={previewSrcDoc(result)} />
+    </div>
+  )
+}
+
+function Tree(props: {
+  doc: Doc
+  nodeId: string
+  depth: number
+  selectedId: string | null
+  onSelect: (id: string) => void
+  onDelete: (id: string) => void
+}) {
+  const { doc, nodeId, depth, selectedId, onSelect, onDelete } = props
+  const node = doc.nodes[nodeId]
+  if (!node) return null
+  return (
+    <div>
+      <div
+        className={"tree-row" + (selectedId === nodeId ? " sel" : "")}
+        style={{ paddingLeft: 8 + depth * 14 }}
+        onClick={() => onSelect(nodeId)}
+      >
+        <span className="tree-label">{node.label ?? node.module}</span>
+        {nodeId !== doc.rootId && (
+          <button
+            className="tree-del"
+            title="Delete"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(nodeId)
+            }}
+          >
+            ×
+          </button>
+        )}
       </div>
+      {node.children.map((cid) => (
+        <Tree key={cid} {...props} nodeId={cid} depth={depth + 1} />
+      ))}
+    </div>
+  )
+}
+
+function Inspector({ doc, node, onChange }: { doc: Doc; node?: Node; onChange: (d: Doc) => void }) {
+  if (!node) return <div className="inspector muted small">Select a layer to edit it.</div>
+  const info = moduleInfo(node.module)
+  const setProp = (key: string, value: unknown) => onChange(updateProps(doc, node.id, { [key]: value }))
+  const setStyle = (key: string, value: string) => onChange(updateStyle(doc, node.id, { [key]: value }))
+
+  return (
+    <div className="inspector">
+      <div className="section-title">{node.module}</div>
+      {info &&
+        Object.entries(info.schema).map(([key, control]) => {
+          const value = node.props[key]
+          return (
+            <label key={key} className="field">
+              <span>{control.label ?? key}</span>
+              {control.type === "boolean" ? (
+                <input type="checkbox" checked={Boolean(value)} onChange={(e) => setProp(key, e.target.checked)} />
+              ) : control.type === "number" ? (
+                <input
+                  type="number"
+                  value={value == null ? "" : String(value)}
+                  onChange={(e) => setProp(key, e.target.value === "" ? undefined : Number(e.target.value))}
+                />
+              ) : control.type === "select" && control.options ? (
+                <select value={String(value ?? "")} onChange={(e) => setProp(key, e.target.value)}>
+                  {control.options.map((o) => (
+                    <option key={String(o.value)} value={String(o.value)}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
+              )}
+            </label>
+          )
+        })}
+
+      <div className="section-title">Style</div>
+      {STYLE_FIELDS.map((key) => (
+        <label key={key} className="field">
+          <span>{key}</span>
+          <input value={node.style?.[key] ?? ""} placeholder="—" onChange={(e) => setStyle(key, e.target.value)} />
+        </label>
+      ))}
     </div>
   )
 }
