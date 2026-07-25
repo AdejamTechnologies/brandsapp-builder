@@ -1,5 +1,9 @@
 import { useState } from "react"
 
+import { Button } from "./ui/button"
+import { Dialog, DialogFooter } from "./ui/dialog"
+import { Input } from "./ui/input"
+
 interface MediaDialogProps {
   value: string
   onPick: (url: string) => void
@@ -16,57 +20,55 @@ export function MediaDialog({ value, onPick, onClose }: MediaDialogProps) {
   const [ok, setOk] = useState<boolean | null>(null)
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="section-title">Choose image</div>
-        <input
-          className="media-url"
-          autoFocus
-          placeholder="https://…/image.jpg"
-          value={url}
-          onChange={(e) => {
-            setUrl(e.target.value)
-            setOk(null)
-          }}
-        />
-        <div className="media-preview">
-          {url ? (
-            <img
-              src={url}
-              alt="preview"
-              onLoad={() => setOk(true)}
-              onError={() => setOk(false)}
-            />
-          ) : (
-            <span className="muted small">No image</span>
-          )}
-          {ok === false && <span className="media-warn">Couldn’t load that URL</span>}
-        </div>
-        <div className="modal-actions">
-          <button className="ghost" onClick={onClose}>
-            Cancel
-          </button>
-          {value && (
-            <button
-              className="ghost"
-              onClick={() => {
-                onPick("")
-                onClose()
-              }}
-            >
-              Clear
-            </button>
-          )}
-          <button
+    <Dialog open onClose={onClose} title="Choose image">
+      <Input
+        className="h-9 text-sm"
+        autoFocus
+        placeholder="https://…/image.jpg"
+        value={url}
+        onChange={(e) => {
+          setUrl(e.target.value)
+          setOk(null)
+        }}
+      />
+      <div className="mt-3 flex min-h-40 flex-col items-center justify-center gap-2 overflow-hidden rounded-lg bg-canvas">
+        {url ? (
+          <img
+            src={url}
+            alt="preview"
+            className="max-h-72 max-w-full object-contain"
+            onLoad={() => setOk(true)}
+            onError={() => setOk(false)}
+          />
+        ) : (
+          <span className="text-xs text-subtle">No image</span>
+        )}
+        {ok === false && <span className="text-xs text-red-600">Couldn’t load that URL</span>}
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        {value && (
+          <Button
+            variant="ghost"
             onClick={() => {
-              onPick(url.trim())
+              onPick("")
               onClose()
             }}
           >
-            Use image
-          </button>
-        </div>
-      </div>
-    </div>
+            Clear
+          </Button>
+        )}
+        <Button
+          onClick={() => {
+            onPick(url.trim())
+            onClose()
+          }}
+        >
+          Use image
+        </Button>
+      </DialogFooter>
+    </Dialog>
   )
 }

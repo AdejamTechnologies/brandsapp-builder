@@ -1,5 +1,9 @@
 import { useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
+import { ArrowRight, MousePointerClick } from "lucide-react"
+
+import { Button } from "../components/ui/button"
+import { Input } from "../components/ui/input"
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -17,43 +21,59 @@ export function HomePage() {
   }
 
   return (
-    <main className="home">
-      <h1>Central Builder</h1>
-      <p className="muted">
+    <main className="mx-auto w-full max-w-2xl px-6 py-14">
+      <h1 className="text-2xl font-semibold tracking-tight text-ink">Central Builder</h1>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
         The shared visual editor for BrandsApp pages. The canvas renders with the same{" "}
-        <code>builder-core</code> engine the tenant Workers publish with — what you see is what ships.
+        <code className="rounded bg-canvas px-1 py-0.5 text-[12px]">builder-core</code> engine the tenant
+        Workers publish with — what you see is what ships.
       </p>
 
-      <div className="cards">
-        <Link to="/edit/$pageId" params={{ pageId: "sample" }} className="card">
-          <strong>Open the sample page →</strong>
-          <span className="muted">A local playground — drag, edit, and style with no sign-in.</span>
-        </Link>
-      </div>
+      <Link
+        to="/edit/$pageId"
+        params={{ pageId: "sample" }}
+        className="group mt-6 flex items-center justify-between rounded-xl border border-line bg-panel p-4 transition-colors hover:border-accent"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-accent-soft text-accent">
+            <MousePointerClick className="size-4.5" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-ink">Open the sample page</div>
+            <div className="text-xs text-muted">A local playground — drag, edit, style. No sign-in.</div>
+          </div>
+        </div>
+        <ArrowRight className="size-4 text-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
+      </Link>
 
-      <div className="card" style={{ marginTop: 12 }}>
-        <strong>Open a tenant page</strong>
-        <span className="muted small">
-          Loads and saves against a live tenant. Provide the page id and the tenant’s app URL.
-        </span>
-        <div className="home-open">
-          <input placeholder="page id" value={pageId} onChange={(e) => setPageId(e.target.value)} />
-          <input
-            placeholder="tenant url (https://acme.brandsapp.io)"
+      <div className="mt-3 rounded-xl border border-line bg-panel p-4">
+        <div className="text-sm font-semibold text-ink">Open a tenant page</div>
+        <p className="mt-0.5 text-xs text-muted">
+          Loads and saves against a live tenant — provide the page id and the tenant’s app URL.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Input
+            className="w-32"
+            placeholder="page id"
+            value={pageId}
+            onChange={(e) => setPageId(e.target.value)}
+          />
+          <Input
+            className="min-w-64 flex-1"
+            placeholder="https://acme.brandsapp.io"
             value={tenant}
             onChange={(e) => setTenant(e.target.value)}
-            style={{ minWidth: 260 }}
           />
-          <button onClick={open} disabled={!pageId.trim()}>
+          <Button onClick={open} disabled={!pageId.trim()}>
             Open
-          </button>
+          </Button>
         </div>
       </div>
 
-      <p className="muted small" style={{ marginTop: 16 }}>
-        Editing: click to select, double-click text to edit, drag palette chips or existing layers on the
-        canvas, ⌘Z/⌘⇧Z to undo/redo, ⌘D duplicate, ⌘C/⌘V copy-paste, Delete to remove. Realtime collab
-        runs through the DocRoom DO. Sign-in gating comes later.
+      <p className="mt-6 text-xs leading-relaxed text-subtle">
+        Click to select · double-click text to edit · drag palette chips or layers onto the canvas · ⌘Z/⌘⇧Z
+        undo/redo · ⌘D duplicate · ⌘C/⌘V copy-paste · Delete to remove. Realtime collab runs through the
+        DocRoom DO; sign-in gating comes later.
       </p>
     </main>
   )

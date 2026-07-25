@@ -1,6 +1,9 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 
 import type { ThemeTokens } from "@brandsapp/builder-core"
+import { Button } from "./ui/button"
+import { Dialog } from "./ui/dialog"
+import { Input } from "./ui/input"
 
 interface ThemeDialogProps {
   theme: ThemeTokens
@@ -10,10 +13,21 @@ interface ThemeDialogProps {
 
 const isHex = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)
 
+const GroupTitle = ({ children }: { children: string }) => (
+  <div className="mb-1.5 mt-4 text-[11px] font-semibold uppercase tracking-wide text-subtle first:mt-0">
+    {children}
+  </div>
+)
+const Row = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div className="mb-1.5 flex items-center gap-3">
+    <span className="w-16 shrink-0 text-xs text-muted">{label}</span>
+    <div className="flex flex-1 items-center gap-2">{children}</div>
+  </div>
+)
+
 /** Edit the doc theme — colors, fonts, radii. Changes apply live to the canvas. */
 export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
   const [newColorKey, setNewColorKey] = useState("")
-
   const colors = theme.colors ?? {}
   const radius = theme.radius ?? {}
 
@@ -27,71 +41,69 @@ export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
   const setFont = (which: "display" | "body", v: string) =>
     onChange({ fonts: { ...theme.fonts, [which]: v || undefined } }, `theme:font:${which}`)
 
+  const swatch = (k: string, v: string) => (
+    <>
+      <input
+        type="color"
+        value={isHex(v) ? v : "#000000"}
+        onChange={(e) => setColor(k, e.target.value)}
+        className="size-7 shrink-0 cursor-pointer rounded-md border border-line p-0"
+      />
+      <Input value={v} onChange={(e) => setColor(k, e.target.value)} />
+    </>
+  )
+
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="section-title">Theme</div>
+    <Dialog open onClose={onClose} title="Theme">
+      <GroupTitle>Colors</GroupTitle>
+      {Object.entries(colors).map(([k, v]) => (
+        <Row key={k} label={k}>
+          {swatch(k, v)}
+          <button className="shrink-0 px-1 text-subtle hover:text-red-600" onClick={() => removeColor(k)} title="Remove">
+            ×
+          </button>
+        </Row>
+      ))}
+      <Row label="add">
+        <Input placeholder="name (e.g. accent)" value={newColorKey} onChange={(e) => setNewColorKey(e.target.value)} />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const k = newColorKey.trim()
+            if (k) {
+              setColor(k, "#4f46e5")
+              setNewColorKey("")
+            }
+          }}
+        >
+          Add
+        </Button>
+      </Row>
 
-        <div className="group-title">Colors</div>
-        {Object.entries(colors).map(([k, v]) => (
-          <div key={k} className="field">
-            <span>{k}</span>
-            <div className="color-row">
-              <input type="color" value={isHex(v) ? v : "#000000"} onChange={(e) => setColor(k, e.target.value)} />
-              <input value={v} onChange={(e) => setColor(k, e.target.value)} />
-              <button className="mini" onClick={() => removeColor(k)} title="Remove">
-                ×
-              </button>
-            </div>
-          </div>
-        ))}
-        <div className="field">
-          <span>add</span>
-          <div className="color-row">
-            <input placeholder="name (e.g. accent)" value={newColorKey} onChange={(e) => setNewColorKey(e.target.value)} />
-            <button
-              className="mini"
-              onClick={() => {
-                const k = newColorKey.trim()
-                if (k) {
-                  setColor(k, "#4f46e5")
-                  setNewColorKey("")
-                }
-              }}
-            >
-              Add
-            </button>
-          </div>
-        </div>
+      <GroupTitle>Fonts</GroupTitle>
+      <Row label="display">
+        <Input value={theme.fonts?.display ?? ""} placeholder="Georgia, serif" onChange={(e) => setFont("display", e.target.value)} />
+      </Row>
+      <Row label="body">
+        <Input value={theme.fonts?.body ?? ""} placeholder="Inter, sans-serif" onChange={(e) => setFont("body", e.target.value)} />
+      </Row>
 
-        <div className="group-title">Fonts</div>
-        <label className="field">
-          <span>display</span>
-          <input value={theme.fonts?.display ?? ""} placeholder="e.g. Georgia, serif" onChange={(e) => setFont("display", e.target.value)} />
-        </label>
-        <label className="field">
-          <span>body</span>
-          <input value={theme.fonts?.body ?? ""} placeholder="e.g. Inter, sans-serif" onChange={(e) => setFont("body", e.target.value)} />
-        </label>
+      <GroupTitle>Radius</GroupTitle>
+      {Object.entries(radius).map(([k, v]) => (
+        <Row key={k} label={k}>
+          <Input value={v} onChange={(e) => setRadius(k, e.target.value)} />
+        </Row>
+      ))}
+      {Object.keys(radius).length === 0 && (
+        <Row label="base">
+          <Input placeholder="e.g. 10px" onChange={(e) => setRadius("base", e.target.value)} />
+        </Row>
+      )}
 
-        <div className="group-title">Radius</div>
-        {Object.entries(radius).map(([k, v]) => (
-          <label key={k} className="field">
-            <span>{k}</span>
-            <input value={v} onChange={(e) => setRadius(k, e.target.value)} />
-          </label>
-        ))}
-        {Object.keys(radius).length === 0 && (
-          <label className="field">
-            <span>base</span>
-            <input placeholder="e.g. 10px" onChange={(e) => setRadius("base", e.target.value)} />
-          </label>
-        )}
-
-        <div className="modal-actions">
-          <button onClick={onClose}>Done</button>
-        </div>
+      <div className="mt-4 flex justify-end">
+        <Button onClick={onClose}>Done</Button>
       </div>
-    </div>
+    </Dialog>
   )
 }

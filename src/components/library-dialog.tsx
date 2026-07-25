@@ -2,6 +2,9 @@ import { useState } from "react"
 
 import { fragment as fragmentSchema, type Fragment } from "@brandsapp/builder-core"
 import { TEMPLATES } from "../lib/templates"
+import { Button } from "./ui/button"
+import { Dialog, DialogFooter } from "./ui/dialog"
+import { Textarea } from "./ui/textarea"
 
 interface LibraryDialogProps {
   onInsert: (frag: Fragment) => void
@@ -24,48 +27,46 @@ export function LibraryDialog({ onInsert, onClose }: LibraryDialogProps) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="section-title">Add a section</div>
-        <div className="tpl-grid">
-          {TEMPLATES.map((t) => (
-            <button
-              key={t.name}
-              className="tpl-card"
-              onClick={() => {
-                onInsert(t.make())
-                onClose()
-              }}
-            >
-              {t.name}
-            </button>
-          ))}
-        </div>
-
-        <div className="section-title">Install a Fragment</div>
-        <p className="muted small" style={{ margin: "0 0 8px" }}>
-          Paste Fragment JSON (from the editor’s Export, or a marketplace listing).
-        </p>
-        <textarea
-          className="import-area"
-          style={{ height: 160 }}
-          placeholder='{"version":1,"rootId":"…","nodes":{…},"styles":{…},"manifest":{…}}'
-          value={json}
-          onChange={(e) => {
-            setJson(e.target.value)
-            setErr("")
-          }}
-        />
-        {err && <div className="media-warn">{err}</div>}
-        <div className="modal-actions">
-          <button className="ghost" onClick={onClose}>
-            Close
+    <Dialog open onClose={onClose} title="Add a section" className="max-w-2xl">
+      <div className="grid grid-cols-2 gap-2">
+        {TEMPLATES.map((t) => (
+          <button
+            key={t.name}
+            className="rounded-lg border border-line bg-panel p-4 text-left text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
+            onClick={() => {
+              onInsert(t.make())
+              onClose()
+            }}
+          >
+            {t.name}
           </button>
-          <button onClick={install} disabled={!json.trim()}>
-            Install
-          </button>
-        </div>
+        ))}
       </div>
-    </div>
+
+      <div className="mt-5 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+        Install a Fragment
+      </div>
+      <p className="mb-2 text-xs text-muted">
+        Paste Fragment JSON (from the editor’s Export, or a marketplace listing).
+      </p>
+      <Textarea
+        className="h-36 font-mono text-[11px]"
+        placeholder='{"version":1,"rootId":"…","nodes":{…},"styles":{…},"manifest":{…}}'
+        value={json}
+        onChange={(e) => {
+          setJson(e.target.value)
+          setErr("")
+        }}
+      />
+      {err && <div className="mt-1 text-xs text-red-600">{err}</div>}
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          Close
+        </Button>
+        <Button onClick={install} disabled={!json.trim()}>
+          Install
+        </Button>
+      </DialogFooter>
+    </Dialog>
   )
 }

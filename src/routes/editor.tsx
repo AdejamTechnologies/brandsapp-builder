@@ -15,6 +15,8 @@ import {
 } from "lucide-react"
 
 import { Button } from "../components/ui/button"
+import { Dialog, DialogFooter } from "../components/ui/dialog"
+import { Textarea } from "../components/ui/textarea"
 import { cn } from "../lib/utils"
 
 import {
@@ -372,48 +374,40 @@ export function EditorPage() {
         <Inspector doc={doc} node={selected} onChange={apply} activeBp={activeBp} />
       </aside>
 
-      {importOpen && (
-        <div className="modal-backdrop" onClick={() => setImportOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="section-title">Import HTML → Doc</div>
-            <textarea
-              className="import-area"
-              placeholder="Paste HTML here — it becomes an editable Doc."
-              value={importText}
-              onChange={(e) => setImportText(e.target.value)}
-            />
-            <div className="modal-actions">
-              <button className="ghost" onClick={() => setImportOpen(false)}>
-                Cancel
-              </button>
-              <button onClick={doImport}>Import</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog open={importOpen} onClose={() => setImportOpen(false)} title="Import HTML → Doc">
+        <Textarea
+          className="h-72 font-mono text-[11px]"
+          placeholder="Paste HTML here — it becomes an editable Doc."
+          value={importText}
+          onChange={(e) => setImportText(e.target.value)}
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setImportOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={doImport}>Import</Button>
+        </DialogFooter>
+      </Dialog>
 
       {exportJson !== null && (
-        <div className="modal-backdrop" onClick={() => setExportJson(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="section-title">Fragment JSON — paste into the marketplace “Sell” form</div>
-            <textarea className="import-area" readOnly value={exportJson} />
-            <div className="modal-actions">
-              <button className="ghost" onClick={() => setExportJson(null)}>
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  navigator.clipboard?.writeText(exportJson).then(
-                    () => setStatus("Fragment copied ✓"),
-                    () => setStatus("Copy failed — select + copy manually"),
-                  )
-                }}
-              >
-                Copy
-              </button>
-            </div>
-          </div>
-        </div>
+        <Dialog open onClose={() => setExportJson(null)} title="Fragment JSON — paste into the marketplace “Sell” form">
+          <Textarea className="h-72 font-mono text-[11px]" readOnly value={exportJson} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportJson(null)}>
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                navigator.clipboard?.writeText(exportJson).then(
+                  () => setStatus("Fragment copied ✓"),
+                  () => setStatus("Copy failed — select + copy manually")
+                )
+              }}
+            >
+              Copy
+            </Button>
+          </DialogFooter>
+        </Dialog>
       )}
 
       {libraryOpen && <LibraryDialog onInsert={installFragment} onClose={() => setLibraryOpen(false)} />}

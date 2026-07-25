@@ -1,4 +1,7 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, type ReactNode } from "react"
+
+import { Button } from "./ui/button"
+import { Dialog, DialogFooter } from "./ui/dialog"
 
 interface RichTextDialogProps {
   html: string
@@ -19,55 +22,47 @@ export function RichTextDialog({ html, onSave, onClose }: RichTextDialogProps) {
     ref.current?.focus()
   }, [html])
 
+  const btn = (label: ReactNode, title: string, run: () => void) => (
+    <button
+      className="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-line bg-panel px-2 text-[13px] text-ink hover:border-accent"
+      title={title}
+      onMouseDown={(e) => {
+        e.preventDefault()
+        run()
+      }}
+    >
+      {label}
+    </button>
+  )
+
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="section-title">Edit rich text</div>
-        <div className="rt-toolbar">
-          <button className="rt-btn" title="Bold" onMouseDown={(e) => (e.preventDefault(), exec("bold"))}>
-            <b>B</b>
-          </button>
-          <button className="rt-btn" title="Italic" onMouseDown={(e) => (e.preventDefault(), exec("italic"))}>
-            <i>I</i>
-          </button>
-          <button className="rt-btn" title="Underline" onMouseDown={(e) => (e.preventDefault(), exec("underline"))}>
-            <u>U</u>
-          </button>
-          <button className="rt-btn" title="Heading" onMouseDown={(e) => (e.preventDefault(), exec("formatBlock", "H2"))}>
-            H2
-          </button>
-          <button className="rt-btn" title="Paragraph" onMouseDown={(e) => (e.preventDefault(), exec("formatBlock", "P"))}>
-            ¶
-          </button>
-          <button className="rt-btn" title="Bulleted list" onMouseDown={(e) => (e.preventDefault(), exec("insertUnorderedList"))}>
-            • ⋯
-          </button>
-          <button className="rt-btn" title="Numbered list" onMouseDown={(e) => (e.preventDefault(), exec("insertOrderedList"))}>
-            1.
-          </button>
-          <button
-            className="rt-btn"
-            title="Link"
-            onMouseDown={(e) => {
-              e.preventDefault()
-              const href = window.prompt("Link URL")
-              if (href) exec("createLink", href)
-            }}
-          >
-            🔗
-          </button>
-          <button className="rt-btn" title="Clear formatting" onMouseDown={(e) => (e.preventDefault(), exec("removeFormat"))}>
-            ⌫
-          </button>
-        </div>
-        <div ref={ref} className="rt-area" contentEditable suppressContentEditableWarning />
-        <div className="modal-actions">
-          <button className="ghost" onClick={onClose}>
-            Cancel
-          </button>
-          <button onClick={() => onSave(ref.current?.innerHTML ?? "")}>Save</button>
-        </div>
+    <Dialog open onClose={onClose} title="Edit rich text" className="max-w-3xl">
+      <div className="mb-2.5 flex flex-wrap gap-1">
+        {btn(<b>B</b>, "Bold", () => exec("bold"))}
+        {btn(<i>I</i>, "Italic", () => exec("italic"))}
+        {btn(<u>U</u>, "Underline", () => exec("underline"))}
+        {btn("H2", "Heading", () => exec("formatBlock", "H2"))}
+        {btn("¶", "Paragraph", () => exec("formatBlock", "P"))}
+        {btn("• ⋯", "Bulleted list", () => exec("insertUnorderedList"))}
+        {btn("1.", "Numbered list", () => exec("insertOrderedList"))}
+        {btn("🔗", "Link", () => {
+          const href = window.prompt("Link URL")
+          if (href) exec("createLink", href)
+        })}
+        {btn("⌫", "Clear formatting", () => exec("removeFormat"))}
       </div>
-    </div>
+      <div
+        ref={ref}
+        className="max-h-[50vh] min-h-64 overflow-auto rounded-lg border border-line px-3.5 py-3 text-[15px] leading-relaxed outline-none focus:border-accent"
+        contentEditable
+        suppressContentEditableWarning
+      />
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={() => onSave(ref.current?.innerHTML ?? "")}>Save</Button>
+      </DialogFooter>
+    </Dialog>
   )
 }
