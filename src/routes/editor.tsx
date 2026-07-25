@@ -14,9 +14,10 @@ import {
   Undo2,
 } from "lucide-react"
 
-import { Button } from "../components/ui/button"
+import { Button, type ButtonProps } from "../components/ui/button"
 import { Dialog, DialogFooter } from "../components/ui/dialog"
 import { Textarea } from "../components/ui/textarea"
+import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip"
 import { cn } from "../lib/utils"
 
 import {
@@ -46,6 +47,16 @@ const BREAKPOINTS: { id: string | null; label: string; width?: number }[] = [
   { id: "tablet", label: "Tablet", width: 834 },
   { id: "mobile", label: "Mobile", width: 390 },
 ]
+
+/** A ghost icon button with a Base UI tooltip. */
+function IconButton({ tip, children, ...props }: ButtonProps & { tip: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<Button variant="ghost" size="iconSm" {...props} />}>{children}</TooltipTrigger>
+      <TooltipContent>{tip}</TooltipContent>
+    </Tooltip>
+  )
+}
 
 export function EditorPage() {
   const { pageId } = useParams({ from: "/edit/$pageId" })
@@ -289,12 +300,12 @@ export function EditorPage() {
 
       <main className="col center">
         <div className="flex items-center gap-1 h-12 px-3 border-b border-border bg-background shrink-0">
-          <Button variant="ghost" size="iconSm" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">
+          <IconButton tip="Undo (⌘Z)" onClick={undo} disabled={!canUndo}>
             <Undo2 className="size-4" />
-          </Button>
-          <Button variant="ghost" size="iconSm" onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)">
+          </IconButton>
+          <IconButton tip="Redo (⌘⇧Z)" onClick={redo} disabled={!canRedo}>
             <Redo2 className="size-4" />
-          </Button>
+          </IconButton>
           <div className="mx-1 h-5 w-px bg-border" />
           <Button variant={showCode ? "soft" : "ghost"} size="sm" onClick={() => setShowCode((s) => !s)}>
             <Code2 className="size-4" />
@@ -304,17 +315,22 @@ export function EditorPage() {
             {BREAKPOINTS.map((b) => {
               const Icon = b.id === null ? Monitor : b.id === "tablet" ? Tablet : Smartphone
               return (
-                <button
-                  key={b.label}
-                  onClick={() => setActiveBp(b.id)}
-                  title={`${b.label}${b.width ? ` (${b.width}px)` : ""}`}
-                  className={cn(
-                    "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground",
-                    activeBp === b.id && "bg-background text-foreground shadow-sm"
-                  )}
-                >
-                  <Icon className="size-4" />
-                </button>
+                <Tooltip key={b.label}>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        onClick={() => setActiveBp(b.id)}
+                        className={cn(
+                          "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground",
+                          activeBp === b.id && "bg-background text-foreground shadow-sm"
+                        )}
+                      />
+                    }
+                  >
+                    <Icon className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>{`${b.label}${b.width ? ` (${b.width}px)` : ""}`}</TooltipContent>
+                </Tooltip>
               )
             })}
           </div>

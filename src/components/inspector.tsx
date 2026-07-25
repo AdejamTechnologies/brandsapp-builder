@@ -5,6 +5,8 @@ import { updateProps, updateResponsiveStyle } from "../lib/doc-ops"
 import { moduleInfo } from "../lib/registry"
 import { MediaDialog } from "./media-dialog"
 import { RichTextDialog } from "./richtext-dialog"
+import { Select } from "./ui/select"
+import { Switch } from "./ui/switch"
 
 interface InspectorProps {
   doc: Doc
@@ -132,25 +134,35 @@ export function Inspector({ doc, node, onChange, activeBp }: InspectorProps) {
               </div>
             )
           }
+          if (control.type === "boolean") {
+            return (
+              <div key={key} className="field">
+                <span>{label}</span>
+                <Switch checked={Boolean(value)} onCheckedChange={(c: boolean) => setProp(key, c)} />
+              </div>
+            )
+          }
+          if (control.type === "select" && control.options) {
+            return (
+              <div key={key} className="field">
+                <span>{label}</span>
+                <Select
+                  value={String(value ?? "")}
+                  onValueChange={(v) => setProp(key, v)}
+                  options={control.options.map((o) => ({ value: String(o.value), label: o.label }))}
+                />
+              </div>
+            )
+          }
           return (
             <label key={key} className="field">
               <span>{label}</span>
-              {control.type === "boolean" ? (
-                <input type="checkbox" checked={Boolean(value)} onChange={(e) => setProp(key, e.target.checked)} />
-              ) : control.type === "number" ? (
+              {control.type === "number" ? (
                 <input
                   type="number"
                   value={value == null ? "" : String(value)}
                   onChange={(e) => setProp(key, e.target.value === "" ? undefined : Number(e.target.value))}
                 />
-              ) : control.type === "select" && control.options ? (
-                <select value={String(value ?? "")} onChange={(e) => setProp(key, e.target.value)}>
-                  {control.options.map((o) => (
-                    <option key={String(o.value)} value={String(o.value)}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
               ) : (
                 <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
               )}
@@ -165,18 +177,20 @@ export function Inspector({ doc, node, onChange, activeBp }: InspectorProps) {
       {GROUPS.map((g) => (
         <div key={g.title} className="field-group">
           <div className="group-title">{g.title}</div>
-          {g.fields.map((f) => (
-            <label key={f.key} className="field">
-              <span>{f.key}</span>
-              {f.kind === "select" ? (
-                <select value={styleVal(f.key)} onChange={(e) => setStyle(f.key, e.target.value)}>
-                  {(SELECTS[f.key] ?? [""]).map((o) => (
-                    <option key={o} value={o}>
-                      {o || "—"}
-                    </option>
-                  ))}
-                </select>
-              ) : f.kind === "color" ? (
+          {g.fields.map((f) =>
+            f.kind === "select" ? (
+              <div key={f.key} className="field">
+                <span>{f.key}</span>
+                <Select
+                  value={styleVal(f.key)}
+                  onValueChange={(v) => setStyle(f.key, v)}
+                  options={(SELECTS[f.key] ?? [""]).map((o) => ({ value: o, label: o || "—" }))}
+                />
+              </div>
+            ) : (
+              <label key={f.key} className="field">
+                <span>{f.key}</span>
+                {f.kind === "color" ? (
                 <div className="color-row">
                   <input
                     type="color"
