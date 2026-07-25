@@ -423,4 +423,26 @@ export const TEMPLATES: Template[] = [
       </div>
     </div>`
   ),
+
+  // ── daisyUI component classes (via @unocss/preset-daisy) ───────────────────
+  fromHtml(
+    "daisyUI",
+    "Hero",
+    `<div class="hero bg-base-200 py-24"><div class="hero-content text-center"><div class="max-w-md"><h1 class="text-5xl font-bold">Hello there</h1><p class="py-6">A daisyUI hero — component classes generated at render time, fully editable.</p><a href="#" class="btn btn-primary">Get started</a></div></div></div>`
+  ),
+  fromHtml(
+    "daisyUI",
+    "Stats",
+    `<div class="px-6 py-16 flex justify-center"><div class="stats shadow"><div class="stat"><div class="stat-title">Downloads</div><div class="stat-value">31K</div><div class="stat-desc">Jan 1st - Feb 1st</div></div><div class="stat"><div class="stat-title">New users</div><div class="stat-value">4,200</div><div class="stat-desc">↗ 400 (22%)</div></div><div class="stat"><div class="stat-title">New orders</div><div class="stat-value">1,200</div><div class="stat-desc">↘ 90 (14%)</div></div></div></div>`
+  ),
+  fromHtml(
+    "daisyUI",
+    "Buttons & badges",
+    `<div class="px-6 py-12 flex flex-wrap gap-3 items-center justify-center"><a href="#" class="btn">Default</a><a href="#" class="btn btn-primary">Primary</a><a href="#" class="btn btn-secondary">Secondary</a><a href="#" class="btn btn-accent">Accent</a><a href="#" class="btn btn-outline">Outline</a><span class="badge">Badge</span><span class="badge badge-primary">Primary</span><span class="badge badge-outline">Outline</span></div>`
+  ),
+  fromHtml(
+    "daisyUI",
+    "Card",
+    `<div class="px-6 py-16 flex justify-center"><div class="card w-96 bg-base-100 shadow-xl"><div class="card-body"><h2 class="card-title">Card title</h2><p>Supporting text for this daisyUI card component.</p><div class="card-actions justify-end"><a href="#" class="btn btn-primary">Buy now</a></div></div></div></div>`
+  ),
 ]

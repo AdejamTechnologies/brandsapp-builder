@@ -19,11 +19,13 @@
     "@unocss/preset-wind3": "^66.7.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "daisyui": "^3.9.4",
     "hono": "^4.7.10",
     "lucide-react": "^1.26.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.6.0",
+    "unocss-preset-daisy": "^7.0.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
