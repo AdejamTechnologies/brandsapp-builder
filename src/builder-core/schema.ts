@@ -30,6 +30,14 @@ export const node = z.object({
   styleIds: z.array(id).default([]),
   style: cssBag.optional(), // per-node local base style
   classes: z.string().optional(), // utility classes (Tailwind-style, generated at render time)
+  anim: z
+    .object({
+      effect: z.string(),
+      trigger: z.enum(["load", "scroll"]).optional(),
+      duration: z.number().optional(),
+      delay: z.number().optional(),
+    })
+    .optional(), // entrance animation (see anim.ts)
   responsive: z
     .record(
       id, // breakpoint id

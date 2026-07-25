@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from "react"
 
-import { generateUtilityCss, renderDocToReact, type Doc } from "@brandsapp/builder-core"
+import { ANIMATION_KEYFRAMES, generateUtilityCss, renderDocToReact, type Doc } from "@brandsapp/builder-core"
 import { resolveDrop, type DropIndicator, type DropTarget } from "./canvas-dnd"
 import { registry } from "./registry"
 import { SelectionOverlay } from "./selection-overlay"
@@ -190,6 +190,7 @@ export function Canvas({
       >
         <style>{result.css}</style>
         <style>{utilCss}</style>
+        <style>{ANIMATION_KEYFRAMES}</style>
         <div className="canvas-page" style={width ? { width, margin: "0 auto" } : undefined}>
           {result.node}
         </div>

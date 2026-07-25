@@ -132,6 +132,15 @@ export function EditorPage() {
   }
   const setTheme = (patch: Partial<Doc["theme"]>, coalesceKey?: string) =>
     apply(updateTheme(docRef.current, patch), coalesceKey)
+  // Play a node's animation once in the canvas (Inspector preview).
+  const previewAnim = (nodeId: string, anim: { effect: string; duration?: number; delay?: number }) => {
+    const el = scrollRef.current?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(nodeId)}"]`)
+    if (!el) return
+    el.style.animation = "none"
+    void el.offsetWidth // reflow so it restarts
+    el.style.animation = `bapp-${anim.effect} ${anim.duration ?? 600}ms cubic-bezier(.16,1,.3,1) ${anim.delay ?? 0}ms both`
+    window.setTimeout(() => (el.style.animation = ""), (anim.duration ?? 600) + (anim.delay ?? 0) + 200)
+  }
   const doImport = () => {
     try {
       apply(parseDoc(htmlToDoc(importText)))
@@ -431,7 +440,7 @@ export function EditorPage() {
       </main>
 
       <aside className="col right">
-        <Inspector doc={doc} node={selected} onChange={apply} activeBp={activeBp} />
+        <Inspector doc={doc} node={selected} onChange={apply} activeBp={activeBp} onPreview={previewAnim} />
       </aside>
 
       <Dialog open={importOpen} onClose={() => setImportOpen(false)} title="Import HTML → Doc">

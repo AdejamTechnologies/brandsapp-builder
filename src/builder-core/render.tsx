@@ -9,6 +9,7 @@
 import { createElement, Fragment as RFragment, type ReactNode } from "react"
 import { renderToString } from "react-dom/server"
 
+import { animCss, ANIMATION_KEYFRAMES } from "./anim"
 import { applyBindings, emptyDataContext, type DataContext } from "./binding"
 import { escapeByControl } from "./escape"
 import { migrateDoc } from "./migrate"
@@ -71,6 +72,15 @@ class RenderCtx {
   classes = new Set<string>()
   /** a runtime-driven module (e.g. tabs) is present → host should inject BUILDER_RUNTIME. */
   usesRuntime = false
+  /** a node animates → include the shared keyframes. */
+  usesAnim = false
+
+  useNodeAnim(node: Node): void {
+    if (!node.anim) return
+    this.usesAnim = true
+    if (node.anim.trigger === "scroll") this.usesRuntime = true
+    this.cssParts.push(animCss(node.id, node.anim))
+  }
   private seenStyle = new Set<string>()
   private seenNode = new Set<string>()
   constructor(
@@ -124,6 +134,12 @@ function classNamesFor(node: Node, ctx: RenderCtx): string {
   if (node.classes) {
     classes.push(node.classes)
     for (const c of node.classes.split(/\s+/)) if (c) ctx.classes.add(c)
+  }
+  // Entrance animations are publish-only (editor stays static + editable).
+  if (node.anim && !ctx.isEditor) {
+    classes.push("bapp-anim", classForNode(node.id))
+    if (node.anim.trigger === "scroll") classes.push("bapp-reveal")
+    ctx.useNodeAnim(node)
   }
   return classes.join(" ")
 }
@@ -220,7 +236,7 @@ export function renderDocToReact(input: unknown, opts: RenderOptions): ReactRend
   const rootEl = renderNode(parsed.rootId, ctx, data, parsed.rootId)
   const node = createElement("div", { className: ROOT_CLASS }, rootEl)
   const themeCss = themeToCss(parsed.theme, `.${ROOT_CLASS}`)
-  const css = [themeCss, ...ctx.cssParts].filter(Boolean).join("")
+  const css = [themeCss, ctx.usesAnim ? ANIMATION_KEYFRAMES : "", ...ctx.cssParts].filter(Boolean).join("")
   return { node, css, missing: ctx.missing, classes: [...ctx.classes], usesRuntime: ctx.usesRuntime }
 }
 

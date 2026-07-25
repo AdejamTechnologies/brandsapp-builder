@@ -5,8 +5,20 @@ import { updateProps, updateResponsiveStyle } from "../lib/doc-ops"
 import { moduleInfo } from "../lib/registry"
 import { MediaDialog } from "./media-dialog"
 import { RichTextDialog } from "./richtext-dialog"
+import { Button } from "./ui/button"
 import { Select } from "./ui/select"
 import { Switch } from "./ui/switch"
+
+type Anim = NonNullable<Node["anim"]>
+const ANIM_OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "fade", label: "Fade" },
+  { value: "fade-up", label: "Fade up" },
+  { value: "fade-down", label: "Fade down" },
+  { value: "fade-left", label: "Fade left" },
+  { value: "fade-right", label: "Fade right" },
+  { value: "zoom", label: "Zoom" },
+]
 
 interface InspectorProps {
   doc: Doc
@@ -14,6 +26,8 @@ interface InspectorProps {
   onChange: (d: Doc, coalesceKey?: string) => void
   /** Active breakpoint id, or null for the base layer. Style edits target it. */
   activeBp: string | null
+  /** Play the selected node's animation once in the canvas (preview). */
+  onPreview?: (nodeId: string, anim: Anim) => void
 }
 
 const SELECTS: Record<string, string[]> = {
@@ -63,7 +77,7 @@ const GROUPS: { title: string; fields: { key: string; kind: "text" | "select" | 
 
 const isHex = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)
 
-export function Inspector({ doc, node, onChange, activeBp }: InspectorProps) {
+export function Inspector({ doc, node, onChange, activeBp, onPreview }: InspectorProps) {
   const [mediaKey, setMediaKey] = useState<string | null>(null)
   const [richKey, setRichKey] = useState<string | null>(null)
 
@@ -76,6 +90,11 @@ export function Inspector({ doc, node, onChange, activeBp }: InspectorProps) {
     onChange(updateResponsiveStyle(doc, node.id, activeBp, { [key]: value }), `style:${node.id}:${activeBp ?? "base"}:${key}`)
   const patch = (p: Partial<Node>, key?: string) =>
     onChange({ ...doc, nodes: { ...doc.nodes, [node.id]: { ...node, ...p } } }, key)
+  const animKey = `anim:${node.id}`
+  const setEffect = (e: string) =>
+    patch({ anim: e === "none" ? undefined : { trigger: "load", duration: 600, delay: 0, ...node.anim, effect: e } }, animKey)
+  const setAnim = (field: keyof Anim, val: string | number) =>
+    patch({ anim: { effect: "fade", ...node.anim, [field]: val } as Anim }, animKey)
 
   // Style value for the active layer; when on a breakpoint show the base as placeholder.
   const baseStyle = (k: string) => node.style?.[k] ?? ""
@@ -214,6 +233,41 @@ export function Inspector({ doc, node, onChange, activeBp }: InspectorProps) {
           ))}
         </div>
       ))}
+
+      <div className="section-title">Animation</div>
+      <div className="field">
+        <span>effect</span>
+        <Select value={node.anim?.effect ?? "none"} onValueChange={setEffect} options={ANIM_OPTIONS} />
+      </div>
+      {node.anim && (
+        <>
+          <div className="field">
+            <span>trigger</span>
+            <Select
+              value={node.anim.trigger ?? "load"}
+              onValueChange={(v) => setAnim("trigger", v)}
+              options={[
+                { value: "load", label: "On load" },
+                { value: "scroll", label: "On scroll" },
+              ]}
+            />
+          </div>
+          <label className="field">
+            <span>duration</span>
+            <input type="number" value={node.anim.duration ?? 600} onChange={(e) => setAnim("duration", Number(e.target.value) || 600)} />
+          </label>
+          <label className="field">
+            <span>delay</span>
+            <input type="number" value={node.anim.delay ?? 0} onChange={(e) => setAnim("delay", Number(e.target.value) || 0)} />
+          </label>
+          <div className="field">
+            <span />
+            <Button variant="outline" size="sm" onClick={() => onPreview?.(node.id, node.anim!)}>
+              ▶ Play
+            </Button>
+          </div>
+        </>
+      )}
 
       {mediaKey && (
         <MediaDialog
