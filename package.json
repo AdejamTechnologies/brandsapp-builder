@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "deploy": "vite build && wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "sync:builder-core": "rm -rf src/builder-core && cp -R ../brandsapp-multitenant/lib/builder-core src/builder-core && cp VENDORED.builder-core.md src/builder-core/VENDORED.md"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.121.0",

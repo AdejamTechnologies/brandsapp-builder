@@ -11,10 +11,11 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(here, "src"),
-      // Shared engine — single source of truth. Points at the sibling repo until
-      // builder-core is extracted to its own package (spec §11). Same source, so
-      // no duplication.
-      "@brandsapp/builder-core": resolve(here, "../brandsapp-multitenant/lib/builder-core"),
+      // Shared engine, VENDORED into this repo (src/builder-core) so CI — which
+      // only checks out this repo — can build it standalone. Canonical source is
+      // brandsapp-multitenant/lib/builder-core; re-sync with `pnpm sync:builder-core`.
+      // (spec §11 will replace this with a published package.)
+      "@brandsapp/builder-core": resolve(here, "src/builder-core"),
     },
   },
 })
