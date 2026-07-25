@@ -1,7 +1,7 @@
-import { useMemo, useRef, type MouseEvent, type RefObject } from "react"
+import { useMemo, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from "react"
 
 import { renderDocToReact, type Doc } from "@brandsapp/builder-core"
-import type { DropIndicator } from "./canvas-dnd"
+import { resolveDrop, type DropIndicator, type DropTarget } from "./canvas-dnd"
 import { registry } from "./registry"
 import { SelectionOverlay } from "./selection-overlay"
 
@@ -11,21 +11,39 @@ interface CanvasProps {
   onSelect: (id: string | null) => void
   /** Commit inline-edited text back to the node's prop. */
   onCommitText: (nodeId: string, prop: string, value: string) => void
+  /** Re-parent an existing node (canvas drag-to-reorder). */
+  onMoveNode: (id: string, parentId: string, index: number) => void
   /** Shared with the editor so palette drag can measure/insert into this canvas. */
   scrollRef: RefObject<HTMLDivElement | null>
-  /** Insertion line shown while dragging a palette chip over the canvas. */
+  /** Insertion bar shown while dragging a palette chip over the canvas. */
   dropIndicator?: DropIndicator | null
+  /** Fixed page width in px (breakpoint preview); undefined = fill. */
+  width?: number
 }
 
 /**
  * The live editing canvas: renders the Doc as a real in-page React tree (NOT an
  * iframe) using the same engine that publishes, so what you see is what ships.
- * Every node carries `data-node-id` (editor mode), so a single delegated handler
- * maps a click to its node, and double-click makes text editable in place.
+ * Every node carries `data-node-id` (editor mode): one delegated handler maps a
+ * click to its node, double-click makes text editable in place, and press-drag
+ * re-parents a node.
  */
-export function Canvas({ doc, selectedId, onSelect, onCommitText, scrollRef, dropIndicator }: CanvasProps) {
+export function Canvas({
+  doc,
+  selectedId,
+  onSelect,
+  onCommitText,
+  onMoveNode,
+  scrollRef,
+  dropIndicator,
+  width,
+}: CanvasProps) {
   // nodeId currently in contentEditable — clicks are ignored while editing.
   const editingRef = useRef<string | null>(null)
+  // suppress the click that follows a drag gesture so it doesn't reselect
+  const suppressClick = useRef(false)
+  const dragTarget = useRef<DropTarget | null>(null)
+  const [nodeIndicator, setNodeIndicator] = useState<DropIndicator | null>(null)
 
   const result = useMemo(() => {
     try {
@@ -43,8 +61,46 @@ export function Canvas({ doc, selectedId, onSelect, onCommitText, scrollRef, dro
   const onClick = (e: MouseEvent) => {
     // Stop authored anchors/buttons from navigating/submitting inside the editor.
     e.preventDefault()
-    if (editingRef.current) return
+    if (suppressClick.current || editingRef.current) return
     onSelect(nodeIdAt(e.target))
+  }
+
+  // Press a node and move to re-parent it; a press without movement is a click.
+  const onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0 || editingRef.current) return
+    const el = (e.target as HTMLElement).closest("[data-node-id]") as HTMLElement | null
+    const id = el?.dataset.nodeId
+    if (!id || id === doc.rootId) return
+    const start = { x: e.clientX, y: e.clientY }
+    let active = false
+    const move = (ev: globalThis.PointerEvent) => {
+      if (!active) {
+        if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 5) return
+        active = true
+        suppressClick.current = true
+        document.body.style.cursor = "grabbing"
+        document.body.style.userSelect = "none"
+      }
+      const t = resolveDrop(scrollRef.current, ev.clientX, ev.clientY, doc, doc.nodes[id].module, id)
+      dragTarget.current = t
+      setNodeIndicator(t?.indicator ?? null)
+    }
+    const up = () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+      if (active) {
+        const t = dragTarget.current
+        if (t) onMoveNode(id, t.parentId, t.index)
+        // release the click suppressor after the trailing click has fired
+        setTimeout(() => (suppressClick.current = false), 0)
+      }
+      dragTarget.current = null
+      setNodeIndicator(null)
+    }
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
   }
 
   const onDoubleClick = (e: MouseEvent) => {
@@ -95,17 +151,31 @@ export function Canvas({ doc, selectedId, onSelect, onCommitText, scrollRef, dro
     el.addEventListener("keydown", onKey)
   }
 
+  const indicator = dropIndicator ?? nodeIndicator
+
   return (
     <div className="canvas-wrap">
-      <div className="canvas-scroll" ref={scrollRef} onClick={onClick} onDoubleClick={onDoubleClick}>
+      <div
+        className="canvas-scroll"
+        ref={scrollRef}
+        onClick={onClick}
+        onPointerDown={onPointerDown}
+        onDoubleClick={onDoubleClick}
+      >
         <style>{result.css}</style>
-        {result.node}
+        <div className="canvas-page" style={width ? { width, margin: "0 auto" } : undefined}>
+          {result.node}
+        </div>
       </div>
       <SelectionOverlay scrollRef={scrollRef} selectedId={selectedId} label={doc.nodes[selectedId ?? ""]?.module} />
-      {dropIndicator && (
+      {indicator && (
         <div
           className="drop-indicator"
-          style={{ transform: `translate(${dropIndicator.x}px, ${dropIndicator.y}px)`, width: dropIndicator.w }}
+          style={{
+            transform: `translate(${indicator.x}px, ${indicator.y}px)`,
+            width: indicator.w,
+            height: indicator.h,
+          }}
         />
       )}
       {result.error && <div className="canvas-error">render error: {result.error}</div>}

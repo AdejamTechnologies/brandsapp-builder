@@ -12,7 +12,7 @@ import {
 import { copyNode, duplicateNode, pasteFragment } from "../lib/actions"
 import { Canvas } from "../lib/canvas"
 import { resolveDrop, type DropIndicator, type DropTarget } from "../lib/canvas-dnd"
-import { insertChild, insertChildAt, moveChild, removeNode, updateProps, updateStyle } from "../lib/doc-ops"
+import { insertChild, insertChildAt, moveChild, moveNode, removeNode, updateProps, updateStyle } from "../lib/doc-ops"
 import { useHistory } from "../lib/history"
 import { useDocRoom } from "../lib/realtime"
 import { moduleInfo, moduleList, type ModuleInfo } from "../lib/registry"
@@ -79,6 +79,10 @@ export function EditorPage() {
 
   const reorder = (parentId: string, from: number, to: number) => {
     if (from !== to) apply(moveChild(doc, parentId, from, to))
+  }
+  const doMoveNode = (id: string, parentId: string, index: number) => {
+    const next = moveNode(docRef.current, id, parentId, index)
+    if (next !== docRef.current) apply(next)
   }
   const doImport = () => {
     try {
@@ -286,6 +290,7 @@ export function EditorPage() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             onCommitText={commitText}
+            onMoveNode={doMoveNode}
             scrollRef={scrollRef}
             dropIndicator={dropIndicator}
           />

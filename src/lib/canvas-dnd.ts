@@ -1,13 +1,14 @@
 import type { Doc } from "@brandsapp/builder-core"
 
-import { parentOf } from "./doc-ops"
+import { isDescendant, parentOf } from "./doc-ops"
 import { registry } from "./registry"
 
-/** A horizontal insertion line, in coordinates relative to the canvas wrapper. */
+/** An insertion bar, in coordinates relative to the canvas wrapper. */
 export interface DropIndicator {
   x: number
   y: number
   w: number
+  h: number
 }
 export interface DropTarget {
   parentId: string
@@ -15,26 +16,37 @@ export interface DropTarget {
   indicator: DropIndicator
 }
 
-const MAX_EDGE = 16
+const MAX_EDGE = 18
+const BAR = 3
 
 function elFor(scrollEl: HTMLElement, nodeId: string): HTMLElement | null {
   return scrollEl.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(nodeId)}"]`)
 }
 
+/** Does this element lay its children out horizontally (row flex, or multi-col grid)? */
+function isRow(el: HTMLElement): boolean {
+  const cs = getComputedStyle(el)
+  if (cs.display.includes("grid")) {
+    return cs.gridTemplateColumns.split(" ").filter((c) => c && c !== "none").length > 1
+  }
+  return cs.display.includes("flex") && cs.flexDirection.startsWith("row")
+}
+
 /**
- * Given a pointer position over the canvas, work out where a new `dragModule`
- * would land. Borrowed from Instatic's canvasDnd: the node under the pointer is
- * the deepest `[data-node-id]` (via elementFromPoint); its top/bottom edge-zones
- * mean "drop as a sibling before/after", the middle band means "drop inside" (if
- * the module's contentModel allows the child). Returns the parent + index to
- * insert at, plus a horizontal indicator line. `null` = not a legal drop here.
+ * Where would `dragModule` land if dropped at (clientX, clientY)? Instatic-style:
+ * the deepest node under the pointer decides — its leading/trailing edge-zone means
+ * "sibling before/after", the middle means "inside" (contentModel permitting). The
+ * axis follows the container's real layout direction (row vs column), so drops feel
+ * right in flex/grid rows too. `excludeId` (set when dragging an existing node) skips
+ * that node's own subtree as a target. Returns null when there's no legal drop.
  */
 export function resolveDrop(
   scrollEl: HTMLDivElement | null,
   clientX: number,
   clientY: number,
   doc: Doc,
-  dragModule: string
+  dragModule: string,
+  excludeId?: string
 ): DropTarget | null {
   const wrap = scrollEl?.parentElement
   if (!scrollEl || !wrap) return null
@@ -42,8 +54,11 @@ export function resolveDrop(
   if (clientX < wb.left || clientX > wb.right || clientY < wb.top || clientY > wb.bottom) return null
 
   const hit = document.elementFromPoint(clientX, clientY) as HTMLElement | null
-  const el = hit?.closest<HTMLElement>("[data-node-id]")
-  // Over empty canvas (padding, or below the page) → append to the page root.
+  let el = hit?.closest<HTMLElement>("[data-node-id]") ?? null
+  // Climb out of the dragged node's own subtree — you can't drop a node into itself.
+  while (el && excludeId && el.dataset.nodeId && isDescendant(doc, excludeId, el.dataset.nodeId)) {
+    el = el.parentElement?.closest<HTMLElement>("[data-node-id]") ?? null
+  }
   if (!el || !scrollEl.contains(el)) return appendToRoot(scrollEl, doc, dragModule, wb)
 
   const hoveredId = el.dataset.nodeId
@@ -51,64 +66,87 @@ export function resolveDrop(
   if (!hoveredId || !hovered) return null
 
   const rect = el.getBoundingClientRect()
-  const allowInside =
-    !!registry.get(hovered.module) && registry.allowsChild(hovered.module, dragModule)
-  const edge = Math.min(MAX_EDGE, rect.height * 0.25)
-  const relY = clientY - rect.top
+  const allowInside = !!registry.get(hovered.module) && registry.allowsChild(hovered.module, dragModule)
+  const parent = parentOf(doc, hoveredId)
+  const parentEl = parent ? elFor(scrollEl, parent.id) : null
+  const siblingRow = parentEl ? isRow(parentEl) : false
 
+  // decide zone along the sibling axis
+  const pos = siblingRow ? clientX - rect.left : clientY - rect.top
+  const span = siblingRow ? rect.width : rect.height
+  const edge = Math.min(MAX_EDGE, span * 0.25)
   let zone: "before" | "after" | "inside"
   if (hoveredId === doc.rootId) zone = "inside"
-  else if (relY < edge) zone = "before"
-  else if (relY > rect.height - edge) zone = "after"
-  else zone = allowInside ? "inside" : relY < rect.height / 2 ? "before" : "after"
+  else if (pos < edge) zone = "before"
+  else if (pos > span - edge) zone = "after"
+  else zone = allowInside ? "inside" : pos < span / 2 ? "before" : "after"
 
   if (zone === "inside") {
     if (!allowInside) return null
-    const { index, lineY } = insideIndex(scrollEl, hovered.children, rect, clientY)
-    return {
-      parentId: hoveredId,
-      index,
-      indicator: { x: rect.left - wb.left + 8, y: lineY - wb.top, w: Math.max(24, rect.width - 16) },
-    }
+    const insideRow = isRow(el)
+    const { index, line } = insideTarget(scrollEl, hovered.children, rect, clientX, clientY, insideRow)
+    return { parentId: hoveredId, index, indicator: toWrap(line, wb) }
   }
 
-  // sibling before/after — needs a parent that accepts the child
-  const parent = parentOf(doc, hoveredId)
-  if (!parent || !registry.get(parent.module) || !registry.allowsChild(parent.module, dragModule)) {
-    return null
-  }
+  // sibling before/after
+  if (!parent || !registry.get(parent.module) || !registry.allowsChild(parent.module, dragModule)) return null
   const refIndex = parent.children.indexOf(hoveredId)
   const index = zone === "before" ? refIndex : refIndex + 1
-  const lineY = zone === "before" ? rect.top : rect.bottom
-  return { parentId: parent.id, index, indicator: { x: rect.left - wb.left, y: lineY - wb.top, w: rect.width } }
+  const line = siblingRow
+    ? { x: zone === "before" ? rect.left : rect.right, y: rect.top, w: BAR, h: rect.height }
+    : { x: rect.left, y: zone === "before" ? rect.top : rect.bottom, w: rect.width, h: BAR }
+  return { parentId: parent.id, index, indicator: toWrap(line, wb) }
 }
 
-/** Pick the insertion index among a container's children by pointer y, + the line's y. */
-function insideIndex(
+interface Line {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+/** Pick the insertion index among a container's children by pointer position + the bar. */
+function insideTarget(
   scrollEl: HTMLElement,
   children: string[],
-  containerRect: DOMRect,
-  clientY: number
-): { index: number; lineY: number } {
-  let lastBottom = containerRect.top + 8
+  cRect: DOMRect,
+  clientX: number,
+  clientY: number,
+  row: boolean
+): { index: number; line: Line } {
+  const pad = 8
+  let trailing = row ? cRect.left + pad : cRect.top + pad
   for (let i = 0; i < children.length; i++) {
     const cel = elFor(scrollEl, children[i])
     if (!cel) continue
     const cr = cel.getBoundingClientRect()
-    if (clientY < cr.top + cr.height / 2) return { index: i, lineY: cr.top }
-    lastBottom = cr.bottom
+    const mid = row ? cr.left + cr.width / 2 : cr.top + cr.height / 2
+    if ((row ? clientX : clientY) < mid) {
+      const line = row
+        ? { x: cr.left, y: cr.top, w: BAR, h: cr.height }
+        : { x: cr.left, y: cr.top, w: cr.width, h: BAR }
+      return { index: i, line }
+    }
+    trailing = row ? cr.right : cr.bottom
   }
-  return { index: children.length, lineY: lastBottom }
+  const line = row
+    ? { x: trailing, y: cRect.top + pad, w: BAR, h: Math.max(24, cRect.height - pad * 2) }
+    : { x: cRect.left + pad, y: trailing, w: Math.max(24, cRect.width - pad * 2), h: BAR }
+  return { index: children.length, line }
 }
 
 function appendToRoot(scrollEl: HTMLElement, doc: Doc, dragModule: string, wb: DOMRect): DropTarget | null {
   const root = doc.nodes[doc.rootId]
   if (!root || !registry.allowsChild(root.module, dragModule)) return null
   const rootEl = elFor(scrollEl, doc.rootId)
-  const rr = rootEl?.getBoundingClientRect()
-  const index = root.children.length
-  const { lineY } = insideIndex(scrollEl, root.children, rr ?? new DOMRect(wb.x, wb.y, wb.width, wb.height), Infinity)
-  const x = rr ? rr.left - wb.left + 8 : 8
-  const w = rr ? Math.max(24, rr.width - 16) : wb.width - 16
-  return { parentId: doc.rootId, index, indicator: { x, y: lineY - wb.top, w } }
+  const rr = rootEl?.getBoundingClientRect() ?? new DOMRect(wb.x, wb.y, wb.width, wb.height)
+  const { index, line } = insideTarget(scrollEl, root.children, rr, Infinity, Infinity, false)
+  return { parentId: doc.rootId, index, indicator: toWrap(line, wb) }
+}
+
+function toWrap(line: Line, wb: DOMRect): DropIndicator {
+  // center the bar on the edge it marks
+  const cx = line.w <= BAR ? line.x - BAR / 2 : line.x
+  const cy = line.h <= BAR ? line.y - BAR / 2 : line.y
+  return { x: cx - wb.left, y: cy - wb.top, w: line.w, h: line.h }
 }
