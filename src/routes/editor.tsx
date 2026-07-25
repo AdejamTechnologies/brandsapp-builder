@@ -9,19 +9,22 @@ import {
   type Fragment,
   type Node,
 } from "@brandsapp/builder-core"
+import { Inspector } from "../components/inspector"
 import { copyNode, duplicateNode, pasteFragment } from "../lib/actions"
 import { Canvas } from "../lib/canvas"
 import { resolveDrop, type DropIndicator, type DropTarget } from "../lib/canvas-dnd"
-import { insertChild, insertChildAt, moveChild, moveNode, removeNode, updateProps, updateStyle } from "../lib/doc-ops"
+import { insertChild, insertChildAt, moveChild, moveNode, removeNode, updateProps } from "../lib/doc-ops"
 import { useHistory } from "../lib/history"
 import { useDocRoom } from "../lib/realtime"
 import { moduleInfo, moduleList, type ModuleInfo } from "../lib/registry"
 import { SAMPLE_DOC } from "../lib/sample"
 
-const STYLE_FIELDS = [
-  "background", "color", "padding", "margin", "gap", "display",
-  "flexDirection", "alignItems", "justifyContent", "textAlign",
-  "fontSize", "fontWeight", "borderRadius", "maxWidth", "width",
+// Breakpoint id `null` = the base (desktop) layer; the others match responsive
+// override keys and set the canvas preview width.
+const BREAKPOINTS: { id: string | null; label: string; width?: number }[] = [
+  { id: null, label: "Desktop" },
+  { id: "tablet", label: "Tablet", width: 834 },
+  { id: "mobile", label: "Mobile", width: 390 },
 ]
 
 export function EditorPage() {
@@ -35,6 +38,7 @@ export function EditorPage() {
   const { doc, apply, undo, redo, canUndo, canRedo, reset } = useHistory(initialDoc, commit)
   const [selectedId, setSelectedId] = useState<string | null>(initialDoc.rootId)
   const [showCode, setShowCode] = useState(false)
+  const [activeBp, setActiveBp] = useState<string | null>(null)
   const clipboard = useRef<Fragment | null>(null)
   const [status, setStatus] = useState("")
   const [importOpen, setImportOpen] = useState(false)
@@ -261,6 +265,18 @@ export function EditorPage() {
           <button className="ghost" onClick={() => setShowCode((s) => !s)}>
             {showCode ? "Preview" : "Code"}
           </button>
+          <span className="bp-switch">
+            {BREAKPOINTS.map((b) => (
+              <button
+                key={b.label}
+                className={"ghost" + (activeBp === b.id ? " on" : "")}
+                onClick={() => setActiveBp(b.id)}
+                title={`${b.label}${b.width ? ` (${b.width}px)` : ""}`}
+              >
+                {b.label}
+              </button>
+            ))}
+          </span>
           <button className="ghost" onClick={() => setImportOpen(true)}>
             Import HTML
           </button>
@@ -293,12 +309,13 @@ export function EditorPage() {
             onMoveNode={doMoveNode}
             scrollRef={scrollRef}
             dropIndicator={dropIndicator}
+            width={BREAKPOINTS.find((b) => b.id === activeBp)?.width}
           />
         )}
       </main>
 
       <aside className="col right">
-        <Inspector doc={doc} node={selected} onChange={apply} />
+        <Inspector doc={doc} node={selected} onChange={apply} activeBp={activeBp} />
       </aside>
 
       {importOpen && (
@@ -429,55 +446,6 @@ function Tree(props: TreeProps) {
       </div>
       {node.children.map((cid, i) => (
         <Tree key={cid} {...props} nodeId={cid} parentId={nodeId} index={i} depth={depth + 1} />
-      ))}
-    </div>
-  )
-}
-
-function Inspector({ doc, node, onChange }: { doc: Doc; node?: Node; onChange: (d: Doc) => void }) {
-  if (!node) return <div className="inspector muted small">Select a layer to edit it.</div>
-  const info = moduleInfo(node.module)
-  const setProp = (key: string, value: unknown) => onChange(updateProps(doc, node.id, { [key]: value }))
-  const setStyle = (key: string, value: string) => onChange(updateStyle(doc, node.id, { [key]: value }))
-
-  return (
-    <div className="inspector">
-      <div className="section-title">{node.module}</div>
-      {info &&
-        Object.entries(info.schema).map(([key, control]) => {
-          const value = node.props[key]
-          return (
-            <label key={key} className="field">
-              <span>{control.label ?? key}</span>
-              {control.type === "boolean" ? (
-                <input type="checkbox" checked={Boolean(value)} onChange={(e) => setProp(key, e.target.checked)} />
-              ) : control.type === "number" ? (
-                <input
-                  type="number"
-                  value={value == null ? "" : String(value)}
-                  onChange={(e) => setProp(key, e.target.value === "" ? undefined : Number(e.target.value))}
-                />
-              ) : control.type === "select" && control.options ? (
-                <select value={String(value ?? "")} onChange={(e) => setProp(key, e.target.value)}>
-                  {control.options.map((o) => (
-                    <option key={String(o.value)} value={String(o.value)}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
-              )}
-            </label>
-          )
-        })}
-
-      <div className="section-title">Style</div>
-      {STYLE_FIELDS.map((key) => (
-        <label key={key} className="field">
-          <span>{key}</span>
-          <input value={node.style?.[key] ?? ""} placeholder="—" onChange={(e) => setStyle(key, e.target.value)} />
-        </label>
       ))}
     </div>
   )
