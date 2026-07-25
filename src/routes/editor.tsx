@@ -10,10 +10,12 @@ import {
   type Node,
 } from "@brandsapp/builder-core"
 import { Inspector } from "../components/inspector"
+import { LibraryDialog } from "../components/library-dialog"
+import { ThemeDialog } from "../components/theme-dialog"
 import { copyNode, duplicateNode, pasteFragment } from "../lib/actions"
 import { Canvas } from "../lib/canvas"
 import { resolveDrop, type DropIndicator, type DropTarget } from "../lib/canvas-dnd"
-import { insertChild, insertChildAt, moveChild, moveNode, removeNode, updateProps } from "../lib/doc-ops"
+import { insertChild, insertChildAt, moveChild, moveNode, removeNode, updateProps, updateTheme } from "../lib/doc-ops"
 import { useHistory } from "../lib/history"
 import { useDocRoom } from "../lib/realtime"
 import { moduleInfo, moduleList, type ModuleInfo } from "../lib/registry"
@@ -39,6 +41,8 @@ export function EditorPage() {
   const [selectedId, setSelectedId] = useState<string | null>(initialDoc.rootId)
   const [showCode, setShowCode] = useState(false)
   const [activeBp, setActiveBp] = useState<string | null>(null)
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [themeOpen, setThemeOpen] = useState(false)
   const clipboard = useRef<Fragment | null>(null)
   const [status, setStatus] = useState("")
   const [importOpen, setImportOpen] = useState(false)
@@ -88,6 +92,14 @@ export function EditorPage() {
     const next = moveNode(docRef.current, id, parentId, index)
     if (next !== docRef.current) apply(next)
   }
+  const installFragment = (frag: Fragment) => {
+    const { doc: next, id } = pasteFragment(docRef.current, frag, selectedId)
+    if (id) {
+      apply(next)
+      setSelectedId(id)
+    }
+  }
+  const setTheme = (patch: Partial<Doc["theme"]>) => apply(updateTheme(docRef.current, patch))
   const doImport = () => {
     try {
       apply(parseDoc(htmlToDoc(importText)))
@@ -277,6 +289,12 @@ export function EditorPage() {
               </button>
             ))}
           </span>
+          <button className="ghost" onClick={() => setLibraryOpen(true)}>
+            ＋ Section
+          </button>
+          <button className="ghost" onClick={() => setThemeOpen(true)}>
+            Theme
+          </button>
           <button className="ghost" onClick={() => setImportOpen(true)}>
             Import HTML
           </button>
@@ -361,6 +379,9 @@ export function EditorPage() {
           </div>
         </div>
       )}
+
+      {libraryOpen && <LibraryDialog onInsert={installFragment} onClose={() => setLibraryOpen(false)} />}
+      {themeOpen && <ThemeDialog theme={doc.theme} onChange={setTheme} onClose={() => setThemeOpen(false)} />}
 
       {ghost && (
         <div className="drag-ghost" style={{ left: ghost.x + 12, top: ghost.y + 12 }}>

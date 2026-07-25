@@ -141,4 +141,14 @@ textarea {
 .rt-btn:hover { border-color: var(--accent); }
 .rt-area { min-height: 260px; max-height: 50vh; overflow: auto; border: 1px solid var(--line); border-radius: 10px; padding: 14px; font-size: 15px; line-height: 1.6; outline: none; }
 .rt-area:focus { border-color: var(--accent); }
+
+/* section templates */
+.tpl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px; }
+.tpl-card { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 16px; font-size: 13px; font-weight: 600; cursor: pointer; text-align: left; }
+.tpl-card:hover { border-color: var(--accent); color: var(--accent); }
+
+/* start screen */
+.home-open { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.home-open input { border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; font-size: 13px; }
+.home-open button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 16px; font-weight: 600; cursor: pointer; }
 .tree-row[draggable="true"] { cursor: grab; }

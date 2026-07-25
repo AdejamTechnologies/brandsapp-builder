@@ -32,6 +32,9 @@ const indexRoute = createRoute({
 const editRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/edit/$pageId",
+  validateSearch: (search: Record<string, unknown>): { tenant?: string } => ({
+    tenant: typeof search.tenant === "string" ? search.tenant : undefined,
+  }),
   component: EditorPage,
 })
 
