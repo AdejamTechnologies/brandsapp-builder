@@ -12,11 +12,11 @@ import { HomePage } from "./routes/home"
 const rootRoute = createRootRoute({
   component: () => (
     <div className="app">
-      <header className="topbar">
-        <Link to="/" className="brand">
-          BrandsApp <span>Builder</span>
+      <header className="flex items-center gap-2.5 h-12 px-4 border-b border-line bg-panel shrink-0">
+        <Link to="/" className="font-semibold tracking-tight text-ink">
+          BrandsApp <span className="text-accent">Builder</span>
         </Link>
-        <span className="tag">central editor · P2</span>
+        <span className="text-xs text-subtle">central editor</span>
       </header>
       <Outlet />
     </div>

@@ -14,18 +14,24 @@
   },
   "dependencies": {
     "@tanstack/react-router": "^1.121.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "hono": "^4.7.10",
+    "lucide-react": "^1.26.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "tailwind-merge": "^3.6.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.7.0",
     "@cloudflare/workers-types": "^4.20250510.0",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.4.1",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "wrangler": "^4.20.0"

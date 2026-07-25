@@ -1,13 +1,14 @@
 import { resolve } from "node:path"
 
 import { cloudflare } from "@cloudflare/vite-plugin"
+import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
 const here = import.meta.dirname
 
 export default defineConfig({
-  plugins: [react(), cloudflare()],
+  plugins: [react(), tailwindcss(), cloudflare()],
   resolve: {
     alias: {
       "@": resolve(here, "src"),

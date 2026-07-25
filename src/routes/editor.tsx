@@ -1,5 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams, useSearch } from "@tanstack/react-router"
+import {
+  Code2,
+  Download,
+  FileInput,
+  Monitor,
+  Palette as PaletteIcon,
+  Plus,
+  Redo2,
+  Save,
+  Smartphone,
+  Tablet,
+  Undo2,
+} from "lucide-react"
+
+import { Button } from "../components/ui/button"
+import { cn } from "../lib/utils"
 
 import {
   extractFragment,
@@ -268,43 +284,59 @@ export function EditorPage() {
       </aside>
 
       <main className="col center">
-        <div className="toolbar">
-          <button className="ghost" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">
-            ↶
-          </button>
-          <button className="ghost" onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)">
-            ↷
-          </button>
-          <button className="ghost" onClick={() => setShowCode((s) => !s)}>
-            {showCode ? "Preview" : "Code"}
-          </button>
-          <span className="bp-switch">
-            {BREAKPOINTS.map((b) => (
-              <button
-                key={b.label}
-                className={"ghost" + (activeBp === b.id ? " on" : "")}
-                onClick={() => setActiveBp(b.id)}
-                title={`${b.label}${b.width ? ` (${b.width}px)` : ""}`}
-              >
-                {b.label}
-              </button>
-            ))}
-          </span>
-          <button className="ghost" onClick={() => setLibraryOpen(true)}>
-            ＋ Section
-          </button>
-          <button className="ghost" onClick={() => setThemeOpen(true)}>
+        <div className="flex items-center gap-1 h-12 px-3 border-b border-line bg-panel shrink-0">
+          <Button variant="ghost" size="iconSm" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">
+            <Undo2 className="size-4" />
+          </Button>
+          <Button variant="ghost" size="iconSm" onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)">
+            <Redo2 className="size-4" />
+          </Button>
+          <div className="mx-1 h-5 w-px bg-line" />
+          <Button variant={showCode ? "soft" : "ghost"} size="sm" onClick={() => setShowCode((s) => !s)}>
+            <Code2 className="size-4" />
+            {showCode ? "Canvas" : "Code"}
+          </Button>
+          <div className="ml-1 inline-flex items-center gap-0.5 rounded-[var(--radius)] bg-canvas p-0.5">
+            {BREAKPOINTS.map((b) => {
+              const Icon = b.id === null ? Monitor : b.id === "tablet" ? Tablet : Smartphone
+              return (
+                <button
+                  key={b.label}
+                  onClick={() => setActiveBp(b.id)}
+                  title={`${b.label}${b.width ? ` (${b.width}px)` : ""}`}
+                  className={cn(
+                    "inline-flex size-7 items-center justify-center rounded-md text-muted transition-colors hover:text-ink",
+                    activeBp === b.id && "bg-panel text-accent shadow-sm"
+                  )}
+                >
+                  <Icon className="size-4" />
+                </button>
+              )
+            })}
+          </div>
+          <div className="mx-1 h-5 w-px bg-line" />
+          <Button variant="ghost" size="sm" onClick={() => setLibraryOpen(true)}>
+            <Plus className="size-4" />
+            Section
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setThemeOpen(true)}>
+            <PaletteIcon className="size-4" />
             Theme
-          </button>
-          <button className="ghost" onClick={() => setImportOpen(true)}>
-            Import HTML
-          </button>
-          <button className="ghost" onClick={doExport} title="Export the selected layer as a marketplace Fragment">
-            Export Fragment
-          </button>
-          <span className="spacer" />
-          <span className="muted small">{status}</span>
-          <button onClick={save}>Save</button>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setImportOpen(true)}>
+            <FileInput className="size-4" />
+            Import
+          </Button>
+          <Button variant="ghost" size="sm" onClick={doExport} title="Export the selected layer as a marketplace Fragment">
+            <Download className="size-4" />
+            Export
+          </Button>
+          <div className="flex-1" />
+          {status && <span className="mr-1 text-xs text-muted">{status}</span>}
+          <Button size="sm" onClick={save}>
+            <Save className="size-4" />
+            Save
+          </Button>
         </div>
         {showCode ? (
           <textarea
