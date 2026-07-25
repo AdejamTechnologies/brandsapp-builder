@@ -303,4 +303,124 @@ export const TEMPLATES: Template[] = [
       </div>
     </div>`
   ),
+
+  // ── MIT-style Tailwind blocks (HyperUI / Meraki / Flowbite-core inspired) ──
+  fromHtml(
+    "Navigation",
+    "Announcement bar",
+    `<div class="bg-slate-900 text-white text-center text-sm px-6 py-3"><span>New: interactive components are here — </span><a href="#" class="underline font-medium">learn more</a></div>`
+  ),
+  fromHtml(
+    "Layout",
+    "Alert",
+    `<div class="max-w-3xl mx-auto px-6 py-6">
+      <div class="flex gap-3 p-4 rounded-xl border border-blue-200 bg-blue-50">
+        <div class="w-5 h-5 rounded-full bg-blue-500 shrink-0"></div>
+        <div><h3 class="text-sm font-semibold text-blue-900 m-0">Heads up</h3><p class="text-sm text-blue-800 m-0">This is an informational alert with a short supporting message.</p></div>
+      </div>
+    </div>`
+  ),
+  fromHtml(
+    "Content",
+    "Feature + image",
+    `<div class="grid grid-cols-1 md:grid-cols-2 gap-10 items-center max-w-6xl mx-auto px-6 py-20">
+      <img src="https://placehold.co/560x420/e2e8f0/94a3b8?text=Image" alt="" class="w-full rounded-2xl border border-slate-200"/>
+      <div>
+        <span class="inline-block px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold mb-4">WHY US</span>
+        <h2 class="text-3xl font-bold text-slate-900 mb-4">Built for speed and control</h2>
+        <p class="text-slate-500 mb-6">Explain the core benefit here with a sentence or two that connects to your visitor's goal.</p>
+        <div class="flex flex-col gap-3">
+          <div class="flex gap-3"><div class="w-6 h-6 rounded-full bg-slate-900 shrink-0"></div><p class="text-slate-700 text-sm m-0">First key benefit stated plainly.</p></div>
+          <div class="flex gap-3"><div class="w-6 h-6 rounded-full bg-slate-900 shrink-0"></div><p class="text-slate-700 text-sm m-0">Second benefit that builds trust.</p></div>
+        </div>
+      </div>
+    </div>`
+  ),
+  fromHtml(
+    "Content",
+    "Testimonial grid",
+    `<div class="max-w-6xl mx-auto px-6 py-20">
+      <h2 class="text-3xl font-bold text-center text-slate-900 mb-10">Loved by teams</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="p-6 rounded-2xl border border-slate-200"><p class="text-slate-700 mb-5">"A short, punchy quote about the impact your product had."</p><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-full bg-slate-200"></div><div><div class="text-sm font-semibold text-slate-900">Ada N.</div><div class="text-xs text-slate-500">Founder, Kito</div></div></div></div>
+        <div class="p-6 rounded-2xl border border-slate-200"><p class="text-slate-700 mb-5">"Setup took minutes and the results were immediate."</p><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-full bg-slate-200"></div><div><div class="text-sm font-semibold text-slate-900">Tunde B.</div><div class="text-xs text-slate-500">Ops, Zola</div></div></div></div>
+        <div class="p-6 rounded-2xl border border-slate-200"><p class="text-slate-700 mb-5">"Exactly the flexibility we needed, none of the bloat."</p><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-full bg-slate-200"></div><div><div class="text-sm font-semibold text-slate-900">Mei L.</div><div class="text-xs text-slate-500">CTO, Arc</div></div></div></div>
+      </div>
+    </div>`
+  ),
+  fromHtml(
+    "Content",
+    "Blog cards",
+    `<div class="max-w-6xl mx-auto px-6 py-20">
+      <h2 class="text-3xl font-bold text-slate-900 mb-10">From the blog</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="rounded-2xl border border-slate-200 overflow-hidden"><img src="https://placehold.co/400x240/e2e8f0/94a3b8?text=Post" alt="" class="w-full"/><div class="p-5"><div class="text-xs font-semibold text-slate-500 mb-2">PRODUCT</div><h3 class="text-lg font-semibold text-slate-900 mb-2">A compelling post title goes here</h3><p class="text-slate-500 text-sm m-0">A one-line summary that makes readers want to click through.</p></div></div>
+        <div class="rounded-2xl border border-slate-200 overflow-hidden"><img src="https://placehold.co/400x240/e2e8f0/94a3b8?text=Post" alt="" class="w-full"/><div class="p-5"><div class="text-xs font-semibold text-slate-500 mb-2">ENGINEERING</div><h3 class="text-lg font-semibold text-slate-900 mb-2">How we made publishing instant</h3><p class="text-slate-500 text-sm m-0">A one-line summary that makes readers want to click through.</p></div></div>
+        <div class="rounded-2xl border border-slate-200 overflow-hidden"><img src="https://placehold.co/400x240/e2e8f0/94a3b8?text=Post" alt="" class="w-full"/><div class="p-5"><div class="text-xs font-semibold text-slate-500 mb-2">DESIGN</div><h3 class="text-lg font-semibold text-slate-900 mb-2">Designing for African SMEs</h3><p class="text-slate-500 text-sm m-0">A one-line summary that makes readers want to click through.</p></div></div>
+      </div>
+    </div>`
+  ),
+  fromHtml(
+    "Content",
+    "Gallery",
+    `<div class="max-w-6xl mx-auto px-6 py-16">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <img src="https://placehold.co/300x300/e2e8f0/94a3b8?text=1" alt="" class="w-full aspect-square object-cover rounded-xl"/>
+        <img src="https://placehold.co/300x300/e2e8f0/94a3b8?text=2" alt="" class="w-full aspect-square object-cover rounded-xl"/>
+        <img src="https://placehold.co/300x300/e2e8f0/94a3b8?text=3" alt="" class="w-full aspect-square object-cover rounded-xl"/>
+        <img src="https://placehold.co/300x300/e2e8f0/94a3b8?text=4" alt="" class="w-full aspect-square object-cover rounded-xl"/>
+        <img src="https://placehold.co/300x300/e2e8f0/94a3b8?text=5" alt="" class="w-full aspect-square object-cover rounded-xl"/>
+        <img src="https://placehold.co/300x300/e2e8f0/94a3b8?text=6" alt="" class="w-full aspect-square object-cover rounded-xl"/>
+        <img src="https://placehold.co/300x300/e2e8f0/94a3b8?text=7" alt="" class="w-full aspect-square object-cover rounded-xl"/>
+        <img src="https://placehold.co/300x300/e2e8f0/94a3b8?text=8" alt="" class="w-full aspect-square object-cover rounded-xl"/>
+      </div>
+    </div>`
+  ),
+  fromHtml(
+    "Content",
+    "Stats band",
+    `<div class="bg-slate-900 px-6 py-16">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl mx-auto text-center">
+        <div><div class="text-4xl font-extrabold text-white">10k+</div><div class="text-slate-400 text-sm mt-1">Active users</div></div>
+        <div><div class="text-4xl font-extrabold text-white">120+</div><div class="text-slate-400 text-sm mt-1">Countries</div></div>
+        <div><div class="text-4xl font-extrabold text-white">99.9%</div><div class="text-slate-400 text-sm mt-1">Uptime</div></div>
+        <div><div class="text-4xl font-extrabold text-white">4.9/5</div><div class="text-slate-400 text-sm mt-1">Rating</div></div>
+      </div>
+    </div>`
+  ),
+  fromHtml(
+    "Commerce",
+    "Pricing — 2 tiers",
+    `<div class="max-w-3xl mx-auto px-6 py-20">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="p-8 rounded-2xl border border-slate-200"><h3 class="text-lg font-semibold text-slate-900 mb-1">Monthly</h3><div class="flex items-end gap-1 mb-4"><span class="text-4xl font-extrabold text-slate-900">$12</span><span class="text-slate-500 mb-1">/mo</span></div><p class="text-slate-500 text-sm mb-6">Billed monthly. Cancel anytime.</p><a href="#" class="inline-flex items-center justify-center w-full px-5 py-2.5 rounded-lg border border-slate-300 text-slate-900 text-sm font-medium">Choose</a></div>
+        <div class="p-8 rounded-2xl border-2 border-slate-900"><h3 class="text-lg font-semibold text-slate-900 mb-1">Yearly</h3><div class="flex items-end gap-1 mb-4"><span class="text-4xl font-extrabold text-slate-900">$9</span><span class="text-slate-500 mb-1">/mo</span></div><p class="text-slate-500 text-sm mb-6">Billed yearly. Save 25%.</p><a href="#" class="inline-flex items-center justify-center w-full px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-medium">Choose</a></div>
+      </div>
+    </div>`
+  ),
+  fromHtml(
+    "Commerce",
+    "Product cards",
+    `<div class="max-w-6xl mx-auto px-6 py-16">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
+        <div><div class="w-full aspect-square rounded-xl bg-slate-100 mb-3"></div><h3 class="text-sm font-semibold text-slate-900 m-0">Product name</h3><div class="flex items-center justify-between mt-1"><span class="text-slate-500 text-sm">₦12,000</span><a href="#" class="text-xs font-medium text-slate-900 underline">Add</a></div></div>
+        <div><div class="w-full aspect-square rounded-xl bg-slate-100 mb-3"></div><h3 class="text-sm font-semibold text-slate-900 m-0">Product name</h3><div class="flex items-center justify-between mt-1"><span class="text-slate-500 text-sm">₦8,500</span><a href="#" class="text-xs font-medium text-slate-900 underline">Add</a></div></div>
+        <div><div class="w-full aspect-square rounded-xl bg-slate-100 mb-3"></div><h3 class="text-sm font-semibold text-slate-900 m-0">Product name</h3><div class="flex items-center justify-between mt-1"><span class="text-slate-500 text-sm">₦20,000</span><a href="#" class="text-xs font-medium text-slate-900 underline">Add</a></div></div>
+        <div><div class="w-full aspect-square rounded-xl bg-slate-100 mb-3"></div><h3 class="text-sm font-semibold text-slate-900 m-0">Product name</h3><div class="flex items-center justify-between mt-1"><span class="text-slate-500 text-sm">₦15,000</span><a href="#" class="text-xs font-medium text-slate-900 underline">Add</a></div></div>
+      </div>
+    </div>`
+  ),
+  fromHtml(
+    "Call to action",
+    "Contact",
+    `<div class="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-5xl mx-auto px-6 py-20">
+      <div><h2 class="text-3xl font-bold text-slate-900 mb-3">Get in touch</h2><p class="text-slate-500 m-0">Tell us what you need and we'll get back within one business day.</p></div>
+      <div class="flex flex-col gap-3">
+        <div class="h-11 rounded-lg border border-slate-300 bg-white"></div>
+        <div class="h-11 rounded-lg border border-slate-300 bg-white"></div>
+        <div class="h-28 rounded-lg border border-slate-300 bg-white"></div>
+        <a href="#" class="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-medium">Send message</a>
+      </div>
+    </div>`
+  ),
 ]
