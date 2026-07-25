@@ -1,4 +1,5 @@
 import { buildFragment, el, extractFragment, htmlToDoc, type Fragment, type NodeSpec } from "@brandsapp/builder-core"
+import blocksData from "./blocks-data.json"
 
 const rand = () => crypto.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10)
 
@@ -28,7 +29,9 @@ function fromHtml(category: string, name: string, html: string): Template {
     name,
     make: () => {
       const doc = htmlToDoc(html)
-      const sectionId = doc.nodes[doc.rootId]?.children[0] ?? doc.rootId
+      const root = doc.nodes[doc.rootId]
+      // single top-level element → that IS the section; multiple → keep the wrapper.
+      const sectionId = root && root.children.length === 1 ? root.children[0] : doc.rootId
       return extractFragment(doc, sectionId, { id: rand(), name, category: "section", version: "1.0.0" })
     },
   }
@@ -472,3 +475,11 @@ export const COMPONENTS: Template[] = [
   fromHtml("Navigation", "Tabs", `<div class="tabs tabs-boxed"><a class="tab">Tab 1</a><a class="tab tab-active">Tab 2</a><a class="tab">Tab 3</a></div>`),
   fromHtml("Navigation", "Navbar", `<div class="navbar bg-base-100 rounded-box"><div class="flex-1"><a class="btn btn-ghost text-xl">Brand</a></div><div class="flex-none"><a class="btn btn-primary">Sign in</a></div></div>`),
 ]
+
+/** Imported MIT blocks (HyperUI + Meraki UI), generated from their repos → htmlToDoc. */
+export const EXTERNAL_BLOCKS: Template[] = (blocksData as { category: string; name: string; html: string }[]).map(
+  (b) => fromHtml(b.category, b.name, b.html)
+)
+
+/** Everything shown in the Sections tab: hand-authored + imported MIT blocks. */
+export const SECTIONS: Template[] = [...TEMPLATES, ...EXTERNAL_BLOCKS]

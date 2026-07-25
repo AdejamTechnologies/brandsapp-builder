@@ -20,7 +20,7 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from "../components/ui/tabs"
 import { Textarea } from "../components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip"
 import { cn } from "../lib/utils"
-import { COMPONENTS, TEMPLATES, type Template } from "../lib/templates"
+import { COMPONENTS, SECTIONS, type Template } from "../lib/templates"
 
 import {
   extractFragment,
@@ -322,7 +322,7 @@ export function EditorPage() {
             <SectionPalette items={COMPONENTS} onDragStart={startSectionDrag} />
           </TabsPanel>
           <TabsPanel value="sections">
-            <SectionPalette items={TEMPLATES} onDragStart={startSectionDrag} />
+            <SectionPalette items={SECTIONS} onDragStart={startSectionDrag} searchable />
           </TabsPanel>
         </Tabs>
         <div className="border-t border-border px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -499,26 +499,53 @@ function Palette({ onDragStart }: { onDragStart: (m: ModuleInfo, e: React.Pointe
   )
 }
 
-function SectionPalette({ items, onDragStart }: { items: Template[]; onDragStart: (t: Template, e: React.PointerEvent) => void }) {
-  const categories = [...new Set(items.map((t) => t.category))]
+function SectionPalette({
+  items,
+  onDragStart,
+  searchable,
+}: {
+  items: Template[]
+  onDragStart: (t: Template, e: React.PointerEvent) => void
+  searchable?: boolean
+}) {
+  const [q, setQ] = useState("")
+  const CAP = 150
+  const query = q.trim().toLowerCase()
+  const filtered = query ? items.filter((t) => `${t.name} ${t.category}`.toLowerCase().includes(query)) : items
+  const shown = filtered.slice(0, CAP)
+  const categories = [...new Set(shown.map((t) => t.category))]
   return (
     <div className="p-3">
+      {searchable && (
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={`Search ${items.length} blocks…`}
+          className="mb-3 h-8 w-full rounded-md border border-border bg-background px-2.5 text-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20"
+        />
+      )}
       {categories.map((cat) => (
         <div key={cat} className="mb-3">
           <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{cat}</div>
           <div className="flex flex-col gap-1.5">
-            {items.filter((t) => t.category === cat).map((t) => (
-              <button
-                key={t.name}
-                onPointerDown={(e) => onDragStart(t, e)}
-                className="flex cursor-grab items-center rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground transition-colors hover:border-ring active:cursor-grabbing"
-              >
-                {t.name}
-              </button>
-            ))}
+            {shown
+              .filter((t) => t.category === cat)
+              .map((t, i) => (
+                <button
+                  key={`${cat}:${t.name}:${i}`}
+                  onPointerDown={(e) => onDragStart(t, e)}
+                  className="flex cursor-grab items-center rounded-md border border-border bg-background px-2.5 py-2 text-left text-xs text-foreground transition-colors hover:border-ring active:cursor-grabbing"
+                >
+                  {t.name}
+                </button>
+              ))}
           </div>
         </div>
       ))}
+      {filtered.length > CAP && (
+        <div className="px-1 py-2 text-[11px] text-muted-foreground">+{filtered.length - CAP} more — refine your search</div>
+      )}
+      {filtered.length === 0 && <div className="px-1 py-4 text-xs text-muted-foreground">No blocks match “{q}”.</div>}
     </div>
   )
 }
