@@ -1,4 +1,4 @@
-import { buildFragment, el, type Fragment, type NodeSpec } from "@brandsapp/builder-core"
+import { buildFragment, el, extractFragment, htmlToDoc, type Fragment, type NodeSpec } from "@brandsapp/builder-core"
 
 const rand = () => crypto.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10)
 
@@ -13,6 +13,24 @@ function tpl(category: string, name: string, root: NodeSpec): Template {
     category,
     name,
     make: () => buildFragment(root, { manifest: { id: rand(), name, category: "section", version: "1.0.0" } }),
+  }
+}
+
+/**
+ * A block authored as Tailwind HTML (Preline-style) → imported via htmlToDoc, which
+ * now preserves `class` as node.classes. The first top-level element becomes the
+ * section root. This is the same path the Import HTML button uses, so any external
+ * Tailwind/Preline block can be added the same way.
+ */
+function fromHtml(category: string, name: string, html: string): Template {
+  return {
+    category,
+    name,
+    make: () => {
+      const doc = htmlToDoc(html)
+      const sectionId = doc.nodes[doc.rootId]?.children[0] ?? doc.rootId
+      return extractFragment(doc, sectionId, { id: rand(), name, category: "section", version: "1.0.0" })
+    },
   }
 }
 
@@ -192,5 +210,67 @@ export const TEMPLATES: Template[] = [
         btn("Contact sales", "inline-flex items-center justify-center px-5 py-2.5 rounded-lg border border-white/30 text-white text-sm font-medium hover:bg-white/10")
       )
     )
+  ),
+
+  // ── imported Tailwind (Preline-style) blocks, via htmlToDoc ────────────────
+  fromHtml(
+    "Content",
+    "FAQ",
+    `<div class="max-w-3xl mx-auto px-6 py-20">
+      <h2 class="text-3xl font-bold text-center text-slate-900 mb-10">Frequently asked questions</h2>
+      <div class="flex flex-col gap-3">
+        <div class="p-5 rounded-xl border border-slate-200">
+          <h3 class="font-semibold text-slate-900 mb-1">What is included?</h3>
+          <p class="text-slate-500 text-sm">Everything you need to build and publish your pages — no add-ons.</p>
+        </div>
+        <div class="p-5 rounded-xl border border-slate-200">
+          <h3 class="font-semibold text-slate-900 mb-1">Can I cancel anytime?</h3>
+          <p class="text-slate-500 text-sm">Yes. Upgrade, downgrade, or cancel from your dashboard whenever you like.</p>
+        </div>
+        <div class="p-5 rounded-xl border border-slate-200">
+          <h3 class="font-semibold text-slate-900 mb-1">Do you offer support?</h3>
+          <p class="text-slate-500 text-sm">Every plan includes support; higher tiers get priority response times.</p>
+        </div>
+      </div>
+    </div>`
+  ),
+  fromHtml(
+    "Content",
+    "Team",
+    `<div class="max-w-5xl mx-auto px-6 py-20">
+      <h2 class="text-3xl font-bold text-center text-slate-900 mb-10">Meet the team</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+        <div><div class="w-20 h-20 rounded-full bg-slate-200 mx-auto mb-3"></div><h3 class="font-semibold text-slate-900">Jane Doe</h3><p class="text-slate-500 text-sm">CEO</p></div>
+        <div><div class="w-20 h-20 rounded-full bg-slate-200 mx-auto mb-3"></div><h3 class="font-semibold text-slate-900">John Smith</h3><p class="text-slate-500 text-sm">CTO</p></div>
+        <div><div class="w-20 h-20 rounded-full bg-slate-200 mx-auto mb-3"></div><h3 class="font-semibold text-slate-900">Amara Okoye</h3><p class="text-slate-500 text-sm">Design</p></div>
+        <div><div class="w-20 h-20 rounded-full bg-slate-200 mx-auto mb-3"></div><h3 class="font-semibold text-slate-900">Liu Wei</h3><p class="text-slate-500 text-sm">Engineering</p></div>
+      </div>
+    </div>`
+  ),
+  fromHtml(
+    "Content",
+    "Logo cloud",
+    `<div class="px-6 py-16 text-center">
+      <p class="text-sm text-slate-500 mb-8">Trusted by teams at</p>
+      <div class="flex flex-wrap items-center justify-center gap-x-12 gap-y-6">
+        <div class="text-xl font-bold text-slate-400">Acme</div>
+        <div class="text-xl font-bold text-slate-400">Globex</div>
+        <div class="text-xl font-bold text-slate-400">Umbrella</div>
+        <div class="text-xl font-bold text-slate-400">Initech</div>
+        <div class="text-xl font-bold text-slate-400">Hooli</div>
+      </div>
+    </div>`
+  ),
+  fromHtml(
+    "Call to action",
+    "Newsletter",
+    `<div class="mx-6 my-12 px-8 py-14 rounded-3xl bg-slate-50 text-center">
+      <h2 class="text-2xl font-bold text-slate-900 mb-2">Stay in the loop</h2>
+      <p class="text-slate-500 mb-6">Product updates and tips. No spam, unsubscribe anytime.</p>
+      <div class="flex items-center justify-center gap-2 max-w-md mx-auto">
+        <div class="flex-1 h-11 rounded-lg border border-slate-300 bg-white"></div>
+        <a href="#" class="inline-flex items-center justify-center px-5 h-11 rounded-lg bg-slate-900 text-white text-sm font-medium">Subscribe</a>
+      </div>
+    </div>`
   ),
 ]

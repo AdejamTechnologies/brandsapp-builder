@@ -103,6 +103,9 @@ export function htmlToDoc(html: string): Doc {
     const props: Record<string, unknown> = {}
     const children: string[] = []
     const style = el.attrs.style ? parseStyleAttr(el.attrs.style) : undefined
+    // Preserve utility classes (Tailwind/Preline) — the renderer turns them into
+    // CSS at render time (UnoCSS), so an imported block keeps its styling.
+    const classes = el.attrs.class?.trim() || undefined
 
     if (module === "heading") props.level = el.tag.replace("h", "")
     if (module === "image") {
@@ -122,7 +125,7 @@ export function htmlToDoc(html: string): Doc {
     for (const c of el.children) {
       if (typeof c !== "string") children.push(walk(c))
     }
-    nodes[id] = { id, module, props, styleIds: [], children, ...(style ? { style } : {}) }
+    nodes[id] = { id, module, props, styleIds: [], children, ...(style ? { style } : {}), ...(classes ? { classes } : {}) }
     return id
   }
 
