@@ -16,9 +16,11 @@ import {
 
 import { Button, type ButtonProps } from "../components/ui/button"
 import { Dialog, DialogFooter } from "../components/ui/dialog"
+import { Tabs, TabsList, TabsPanel, TabsTab } from "../components/ui/tabs"
 import { Textarea } from "../components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip"
 import { cn } from "../lib/utils"
+import { TEMPLATES, type Template } from "../lib/templates"
 
 import {
   extractFragment,
@@ -31,7 +33,7 @@ import {
 import { Inspector } from "../components/inspector"
 import { LibraryDialog } from "../components/library-dialog"
 import { ThemeDialog } from "../components/theme-dialog"
-import { copyNode, duplicateNode, pasteFragment } from "../lib/actions"
+import { copyNode, duplicateNode, insertFragmentAt, pasteFragment } from "../lib/actions"
 import { Canvas } from "../lib/canvas"
 import { resolveDrop, type DropIndicator, type DropTarget } from "../lib/canvas-dnd"
 import { insertChild, insertChildAt, moveChild, moveNode, removeNode, updateProps, updateTheme } from "../lib/doc-ops"
@@ -84,7 +86,7 @@ export function EditorPage() {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const docRef = useRef(doc)
   docRef.current = doc
-  const [ghost, setGhost] = useState<{ module: string; x: number; y: number } | null>(null)
+  const [ghost, setGhost] = useState<{ label: string; x: number; y: number } | null>(null)
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null)
   const dropTargetRef = useRef<DropTarget | null>(null)
 
@@ -227,17 +229,20 @@ export function EditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, undo, redo])
 
-  // Press a palette chip and drag onto the canvas to insert at a real position.
-  // A press without movement falls back to click-insert (into the selection).
-  const startPaletteDrag = (m: ModuleInfo, e: React.PointerEvent) => {
+  // Generic press-drag-onto-canvas insert (shared by the Components and Sections
+  // tabs). A press without movement falls back to click-insert.
+  const startDrag = (
+    spec: { label: string; dragModule: string; insert: (parentId: string, index: number) => { doc: Doc; id: string }; onClick: () => void },
+    e: React.PointerEvent
+  ) => {
     e.preventDefault()
     const start = { x: e.clientX, y: e.clientY }
     let active = false
     const move = (ev: PointerEvent) => {
       if (!active && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 5) return
       active = true
-      setGhost({ module: m.name, x: ev.clientX, y: ev.clientY })
-      const t = resolveDrop(scrollRef.current, ev.clientX, ev.clientY, docRef.current, m.name)
+      setGhost({ label: spec.label, x: ev.clientX, y: ev.clientY })
+      const t = resolveDrop(scrollRef.current, ev.clientX, ev.clientY, docRef.current, spec.dragModule)
       dropTargetRef.current = t
       setDropIndicator(t?.indicator ?? null)
     }
@@ -247,12 +252,14 @@ export function EditorPage() {
       if (active) {
         const t = dropTargetRef.current
         if (t) {
-          const { doc: next, id } = insertChildAt(docRef.current, t.parentId, t.index, m.name, m.defaults, m.defaultClasses)
-          apply(next)
-          setSelectedId(id)
+          const { doc: next, id } = spec.insert(t.parentId, t.index)
+          if (id) {
+            apply(next)
+            setSelectedId(id)
+          }
         }
       } else {
-        insert(m) // treat as a click
+        spec.onClick()
       }
       setGhost(null)
       setDropIndicator(null)
@@ -260,6 +267,30 @@ export function EditorPage() {
     }
     window.addEventListener("pointermove", move)
     window.addEventListener("pointerup", up)
+  }
+
+  const startModuleDrag = (m: ModuleInfo, e: React.PointerEvent) =>
+    startDrag(
+      {
+        label: m.name,
+        dragModule: m.name,
+        insert: (pid, idx) => insertChildAt(docRef.current, pid, idx, m.name, m.defaults, m.defaultClasses),
+        onClick: () => insert(m),
+      },
+      e
+    )
+
+  const startSectionDrag = (t: Template, e: React.PointerEvent) => {
+    const frag = t.make()
+    startDrag(
+      {
+        label: t.name,
+        dragModule: frag.nodes[frag.rootId]?.module ?? "box",
+        insert: (pid, idx) => insertFragmentAt(docRef.current, frag, pid, idx),
+        onClick: () => installFragment(t.make()),
+      },
+      e
+    )
   }
 
   const save = async () => {
@@ -280,7 +311,18 @@ export function EditorPage() {
   return (
     <div className="editor3">
       <aside className="col left">
-        <Palette onDragStart={startPaletteDrag} />
+        <Tabs defaultValue="components">
+          <TabsList className="border-b border-border p-2">
+            <TabsTab value="components">Components</TabsTab>
+            <TabsTab value="sections">Sections</TabsTab>
+          </TabsList>
+          <TabsPanel value="components">
+            <Palette onDragStart={startModuleDrag} />
+          </TabsPanel>
+          <TabsPanel value="sections">
+            <SectionPalette onDragStart={startSectionDrag} />
+          </TabsPanel>
+        </Tabs>
         <div className="border-t border-border px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Layers
         </div>
@@ -431,7 +473,7 @@ export function EditorPage() {
 
       {ghost && (
         <div className="drag-ghost" style={{ left: ghost.x + 12, top: ghost.y + 12 }}>
-          {ghost.module}
+          {ghost.label}
         </div>
       )}
     </div>
@@ -441,19 +483,40 @@ export function EditorPage() {
 function Palette({ onDragStart }: { onDragStart: (m: ModuleInfo, e: React.PointerEvent) => void }) {
   const mods = moduleList().filter((m) => m.name !== "page-root")
   return (
+    <div className="grid grid-cols-2 gap-1.5 p-3">
+      {mods.map((m) => (
+        <button
+          key={m.name}
+          onPointerDown={(e) => onDragStart(m, e)}
+          className="flex cursor-grab items-center rounded-md border border-border bg-background px-2.5 py-2 text-xs capitalize text-foreground transition-colors hover:border-ring hover:text-foreground active:cursor-grabbing"
+        >
+          {m.name}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function SectionPalette({ onDragStart }: { onDragStart: (t: Template, e: React.PointerEvent) => void }) {
+  const categories = [...new Set(TEMPLATES.map((t) => t.category))]
+  return (
     <div className="p-3">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Insert</div>
-      <div className="grid grid-cols-2 gap-1.5">
-        {mods.map((m) => (
-          <button
-            key={m.name}
-            onPointerDown={(e) => onDragStart(m, e)}
-            className="flex cursor-grab items-center rounded-md border border-border bg-background px-2.5 py-2 text-xs capitalize text-foreground transition-colors hover:border-ring hover:text-foreground active:cursor-grabbing"
-          >
-            {m.name}
-          </button>
-        ))}
-      </div>
+      {categories.map((cat) => (
+        <div key={cat} className="mb-3">
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{cat}</div>
+          <div className="flex flex-col gap-1.5">
+            {TEMPLATES.filter((t) => t.category === cat).map((t) => (
+              <button
+                key={t.name}
+                onPointerDown={(e) => onDragStart(t, e)}
+                className="flex cursor-grab items-center rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground transition-colors hover:border-ring active:cursor-grabbing"
+              >
+                {t.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

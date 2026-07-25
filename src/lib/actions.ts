@@ -19,7 +19,7 @@ const throwawayManifest = (name: string): FragmentManifest => ({
 })
 
 /** Insert a fragment's subtree under `parentId` at `index`, returning the new root id. */
-function insertFragment(doc: Doc, fragment: Fragment, parentId: string, index?: number): { doc: Doc; id: string } {
+export function insertFragmentAt(doc: Doc, fragment: Fragment, parentId: string, index?: number): { doc: Doc; id: string } {
   const fresh = reIdFragment(fragment, rand())
   const parent = doc.nodes[parentId]
   if (!parent) return { doc, id: "" }
@@ -51,7 +51,7 @@ export function duplicateNode(doc: Doc, id: string): { doc: Doc; id: string } {
   if (!parent) return { doc, id: "" }
   const frag = extractFragment(doc, id, throwawayManifest(node.module))
   const index = parent.children.indexOf(id) + 1
-  return insertFragment(doc, frag, parent.id, index)
+  return insertFragmentAt(doc, frag, parent.id, index)
 }
 
 /**
@@ -63,15 +63,15 @@ export function pasteFragment(doc: Doc, frag: Fragment, targetId: string | null)
   const target = targetId ? doc.nodes[targetId] : undefined
   if (target && targetId) {
     if (registry.get(target.module) && registry.allowsChild(target.module, rootModule)) {
-      return insertFragment(doc, frag, targetId)
+      return insertFragmentAt(doc, frag, targetId)
     }
     const parent = parentOf(doc, targetId)
     if (parent && registry.allowsChild(parent.module, rootModule)) {
-      return insertFragment(doc, frag, parent.id, parent.children.indexOf(targetId) + 1)
+      return insertFragmentAt(doc, frag, parent.id, parent.children.indexOf(targetId) + 1)
     }
   }
   if (registry.allowsChild(doc.nodes[doc.rootId].module, rootModule)) {
-    return insertFragment(doc, frag, doc.rootId)
+    return insertFragmentAt(doc, frag, doc.rootId)
   }
   return { doc, id: "" }
 }
