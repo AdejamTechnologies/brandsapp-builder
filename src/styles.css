@@ -73,6 +73,7 @@ textarea {
 .toolbar .spacer { flex: 1; }
 .toolbar button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 6px 14px; font-weight: 600; cursor: pointer; }
 .toolbar button.ghost { background: #eef0f3; color: #0c111d; }
+.toolbar button:disabled { opacity: 0.4; cursor: default; }
 .col.center iframe { flex: 1; border: 0; width: 100%; background: #fff; }
 .col.center .code { flex: 1; border: 0; padding: 14px; font: 12px/1.5 ui-monospace, Menlo, monospace; }
 

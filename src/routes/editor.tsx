@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams, useSearch } from "@tanstack/react-router"
 
 import {
@@ -6,11 +6,14 @@ import {
   htmlToDoc,
   parseDoc,
   type Doc,
+  type Fragment,
   type Node,
 } from "@brandsapp/builder-core"
+import { copyNode, duplicateNode, pasteFragment } from "../lib/actions"
 import { Canvas } from "../lib/canvas"
 import { resolveDrop, type DropIndicator, type DropTarget } from "../lib/canvas-dnd"
 import { insertChild, insertChildAt, moveChild, removeNode, updateProps, updateStyle } from "../lib/doc-ops"
+import { useHistory } from "../lib/history"
 import { useDocRoom } from "../lib/realtime"
 import { moduleInfo, moduleList, type ModuleInfo } from "../lib/registry"
 import { SAMPLE_DOC } from "../lib/sample"
@@ -26,9 +29,13 @@ export function EditorPage() {
   const search = useSearch({ strict: false }) as { tenant?: string }
   const tenant = search.tenant ?? ""
 
-  const [doc, setDoc] = useState<Doc>(() => parseDoc(SAMPLE_DOC))
-  const [selectedId, setSelectedId] = useState<string | null>(doc.rootId)
+  const [initialDoc] = useState(() => parseDoc(SAMPLE_DOC))
+  const sendRef = useRef<(s: string) => void>(() => {})
+  const commit = useCallback((d: Doc) => sendRef.current(JSON.stringify(d)), [])
+  const { doc, apply, undo, redo, canUndo, canRedo, reset } = useHistory(initialDoc, commit)
+  const [selectedId, setSelectedId] = useState<string | null>(initialDoc.rootId)
   const [showCode, setShowCode] = useState(false)
+  const clipboard = useRef<Fragment | null>(null)
   const [status, setStatus] = useState("")
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState("")
@@ -51,28 +58,24 @@ export function EditorPage() {
       .then((d) => {
         if (d?.doc) {
           try {
-            setDoc(parseDoc(d.doc))
+            reset(parseDoc(d.doc))
           } catch {
             /* keep sample */
           }
         }
       })
       .catch(() => {})
-  }, [tenant, pageId])
+  }, [tenant, pageId, reset])
 
   const room = `${tenant || "local"}:${pageId}`
   const { send } = useDocRoom(room, (data) => {
     try {
-      setDoc(parseDoc(JSON.parse(data)))
+      reset(parseDoc(JSON.parse(data)))
     } catch {
       /* ignore malformed */
     }
   })
-
-  const apply = (next: Doc) => {
-    setDoc(next)
-    send(JSON.stringify(next))
-  }
+  sendRef.current = send
 
   const reorder = (parentId: string, from: number, to: number) => {
     if (from !== to) apply(moveChild(doc, parentId, from, to))
@@ -113,9 +116,66 @@ export function EditorPage() {
     setSelectedId(id)
   }
   const del = (id: string) => {
-    apply(removeNode(doc, id))
-    setSelectedId(doc.rootId)
+    if (id === docRef.current.rootId) return
+    apply(removeNode(docRef.current, id))
+    setSelectedId(docRef.current.rootId)
   }
+
+  // Keyboard: undo/redo, delete, duplicate, copy/paste, deselect. Ignored while a
+  // form field or contentEditable has focus so typing isn't hijacked.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
+      const mod = e.metaKey || e.ctrlKey
+      const k = e.key.toLowerCase()
+      if (mod && k === "z") {
+        e.preventDefault()
+        e.shiftKey ? redo() : undo()
+        return
+      }
+      if (mod && k === "y") {
+        e.preventDefault()
+        redo()
+        return
+      }
+      const sel = selectedId
+      if (mod && k === "c") {
+        if (sel) clipboard.current = copyNode(docRef.current, sel)
+        return
+      }
+      if (mod && k === "v") {
+        if (clipboard.current) {
+          e.preventDefault()
+          const { doc: next, id } = pasteFragment(docRef.current, clipboard.current, sel)
+          if (id) {
+            apply(next)
+            setSelectedId(id)
+          }
+        }
+        return
+      }
+      if (!sel) return
+      if (mod && k === "d") {
+        e.preventDefault()
+        const { doc: next, id } = duplicateNode(docRef.current, sel)
+        if (id) {
+          apply(next)
+          setSelectedId(id)
+        }
+        return
+      }
+      if (k === "delete" || k === "backspace") {
+        e.preventDefault()
+        del(sel)
+        return
+      }
+      if (k === "escape") setSelectedId(null)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, undo, redo])
 
   // Press a palette chip and drag onto the canvas to insert at a real position.
   // A press without movement falls back to click-insert (into the selection).
@@ -188,6 +248,12 @@ export function EditorPage() {
 
       <main className="col center">
         <div className="toolbar">
+          <button className="ghost" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">
+            ↶
+          </button>
+          <button className="ghost" onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)">
+            ↷
+          </button>
           <button className="ghost" onClick={() => setShowCode((s) => !s)}>
             {showCode ? "Preview" : "Code"}
           </button>

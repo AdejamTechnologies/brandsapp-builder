@@ -105,3 +105,70 @@ export function moveChild(doc: Doc, parentId: string, from: number, to: number):
   children.splice(to, 0, m)
   return { ...doc, nodes: { ...doc.nodes, [parentId]: { ...parent, children } } }
 }
+
+/** Is `maybe` the same node as `ancestor`, or somewhere in its subtree? */
+export function isDescendant(doc: Doc, ancestor: string, maybe: string): boolean {
+  if (ancestor === maybe) return true
+  const stack = [...(doc.nodes[ancestor]?.children ?? [])]
+  while (stack.length) {
+    const cur = stack.pop()!
+    if (cur === maybe) return true
+    stack.push(...(doc.nodes[cur]?.children ?? []))
+  }
+  return false
+}
+
+/**
+ * Re-parent `id` under `newParentId` at `index` (used by canvas drag-to-reorder).
+ * No-ops on illegal moves: moving the root, or dropping a node into its own
+ * subtree. Index is measured in the target parent AFTER the node is detached.
+ */
+export function moveNode(doc: Doc, id: string, newParentId: string, index: number): Doc {
+  if (id === doc.rootId) return doc
+  if (isDescendant(doc, id, newParentId)) return doc
+  const oldParent = parentOf(doc, id)
+  const newParent = doc.nodes[newParentId]
+  if (!oldParent || !newParent) return doc
+
+  const nodes = { ...doc.nodes }
+  const fromIdx = oldParent.children.indexOf(id)
+  const oldChildren = oldParent.children.filter((c) => c !== id)
+  // If moving within the same parent and removing an earlier item shifts the
+  // target left, account for it.
+  let at = Math.max(0, Math.min(index, (newParentId === oldParent.id ? oldChildren : newParent.children).length))
+  if (newParentId === oldParent.id && fromIdx < index) at = Math.max(0, at - 1)
+
+  if (newParentId === oldParent.id) {
+    const children = [...oldChildren]
+    children.splice(at, 0, id)
+    nodes[oldParent.id] = { ...oldParent, children }
+  } else {
+    nodes[oldParent.id] = { ...oldParent, children: oldChildren }
+    const children = [...newParent.children]
+    children.splice(at, 0, id)
+    nodes[newParentId] = { ...newParent, children }
+  }
+  return { ...doc, nodes }
+}
+
+/** Update the doc's theme tokens (merged shallow-ish per section). */
+export function updateTheme(doc: Doc, patch: Partial<Doc["theme"]>): Doc {
+  return { ...doc, theme: { ...doc.theme, ...patch } }
+}
+
+/** Write a style key at the active breakpoint: base (bp null) or node.responsive[bp]. */
+export function updateResponsiveStyle(
+  doc: Doc,
+  id: string,
+  bp: string | null,
+  style: Record<string, string>
+): Doc {
+  if (!bp) return updateStyle(doc, id, style)
+  const node = doc.nodes[id]
+  if (!node) return doc
+  const prev = node.responsive?.[bp]?.style ?? {}
+  const merged = { ...prev, ...style }
+  for (const k of Object.keys(merged)) if (merged[k] === "") delete merged[k]
+  const responsive = { ...(node.responsive ?? {}), [bp]: { ...(node.responsive?.[bp] ?? {}), style: merged } }
+  return { ...doc, nodes: { ...doc.nodes, [id]: { ...node, responsive } } }
+}
