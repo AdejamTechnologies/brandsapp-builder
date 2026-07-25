@@ -26,24 +26,33 @@ export function LibraryDialog({ onInsert, onClose }: LibraryDialogProps) {
     }
   }
 
+  const categories = [...new Set(TEMPLATES.map((t) => t.category))]
+
   return (
     <Dialog open onClose={onClose} title="Add a section" className="max-w-2xl">
-      <div className="grid grid-cols-2 gap-2">
-        {TEMPLATES.map((t) => (
-          <button
-            key={t.name}
-            className="rounded-lg border border-border bg-background p-4 text-left text-sm font-semibold text-foreground transition-colors hover:border-ring hover:text-foreground"
-            onClick={() => {
-              onInsert(t.make())
-              onClose()
-            }}
-          >
-            {t.name}
-          </button>
+      <div className="max-h-[55vh] overflow-y-auto pr-1">
+        {categories.map((cat) => (
+          <div key={cat} className="mb-4">
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{cat}</div>
+            <div className="grid grid-cols-2 gap-2">
+              {TEMPLATES.filter((t) => t.category === cat).map((t) => (
+                <button
+                  key={t.name}
+                  className="rounded-lg border border-border bg-background p-3.5 text-left text-sm font-medium text-foreground transition-colors hover:border-ring hover:bg-muted/50"
+                  onClick={() => {
+                    onInsert(t.make())
+                    onClose()
+                  }}
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 
-      <div className="mt-5 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="mt-2 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         Install a Fragment
       </div>
       <p className="mb-2 text-xs text-muted-foreground">
