@@ -446,3 +446,29 @@ export const TEMPLATES: Template[] = [
     `<div class="px-6 py-16 flex justify-center"><div class="card w-96 bg-base-100 shadow-xl"><div class="card-body"><h2 class="card-title">Card title</h2><p>Supporting text for this daisyUI card component.</p><div class="card-actions justify-end"><a href="#" class="btn btn-primary">Buy now</a></div></div></div></div>`
   ),
 ]
+
+/**
+ * Individual UI components (daisyUI classes → themeable via the Theme dialog).
+ * Rendered in the Components tab; drag onto the canvas like anything else.
+ */
+export const COMPONENTS: Template[] = [
+  fromHtml("Buttons", "Button", `<a class="btn btn-primary">Button</a>`),
+  fromHtml("Buttons", "Button outline", `<a class="btn btn-outline">Button</a>`),
+  fromHtml("Buttons", "Button ghost", `<a class="btn btn-ghost">Button</a>`),
+  fromHtml("Buttons", "Button secondary", `<a class="btn btn-secondary">Button</a>`),
+  fromHtml("Badges", "Badge", `<span class="badge badge-primary">Badge</span>`),
+  fromHtml("Badges", "Badge outline", `<span class="badge badge-outline">Badge</span>`),
+  fromHtml("Alerts", "Alert", `<div class="alert"><span>A default alert message.</span></div>`),
+  fromHtml("Alerts", "Alert success", `<div class="alert alert-success"><span>Saved successfully.</span></div>`),
+  fromHtml("Alerts", "Alert warning", `<div class="alert alert-warning"><span>Please double-check this.</span></div>`),
+  fromHtml("Alerts", "Alert error", `<div class="alert alert-error"><span>Something went wrong.</span></div>`),
+  fromHtml("Cards", "Card", `<div class="card w-96 bg-base-100 shadow-xl"><div class="card-body"><h2 class="card-title">Card title</h2><p>Supporting text.</p><div class="card-actions justify-end"><a class="btn btn-primary">Action</a></div></div></div>`),
+  fromHtml("Cards", "Card + image", `<div class="card w-96 bg-base-100 shadow-xl"><figure><img src="https://placehold.co/400x200/e2e8f0/94a3b8?text=Image" alt=""/></figure><div class="card-body"><h2 class="card-title">Card title</h2><p>Supporting text for this card.</p></div></div>`),
+  fromHtml("Data", "Stat", `<div class="stats shadow"><div class="stat"><div class="stat-title">Total</div><div class="stat-value">89,400</div><div class="stat-desc">21% more than last month</div></div></div>`),
+  fromHtml("Data", "Avatar", `<div class="avatar"><div class="w-16 rounded-full"><img src="https://placehold.co/64x64/e2e8f0/94a3b8?text=A" alt=""/></div></div>`),
+  fromHtml("Feedback", "Loading", `<span class="loading loading-spinner loading-lg"></span>`),
+  fromHtml("Navigation", "Breadcrumbs", `<div class="breadcrumbs text-sm"><ul><li><a>Home</a></li><li><a>Docs</a></li><li>Current</li></ul></div>`),
+  fromHtml("Navigation", "Menu", `<ul class="menu bg-base-200 rounded-box w-56"><li><a>Dashboard</a></li><li><a>Settings</a></li><li><a>Billing</a></li></ul>`),
+  fromHtml("Navigation", "Tabs", `<div class="tabs tabs-boxed"><a class="tab">Tab 1</a><a class="tab tab-active">Tab 2</a><a class="tab">Tab 3</a></div>`),
+  fromHtml("Navigation", "Navbar", `<div class="navbar bg-base-100 rounded-box"><div class="flex-1"><a class="btn btn-ghost text-xl">Brand</a></div><div class="flex-none"><a class="btn btn-primary">Sign in</a></div></div>`),
+]

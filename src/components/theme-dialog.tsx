@@ -55,8 +55,18 @@ export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
 
   return (
     <Dialog open onClose={onClose} title="Theme">
+      <GroupTitle>Brand</GroupTitle>
+      <p className="mb-2 -mt-1 text-[11px] text-muted-foreground">Drives daisyUI components (buttons, cards, badges…) across the page.</p>
+      {(["primary", "secondary", "accent", "neutral"] as const).map((key) => (
+        <Row key={key} label={key}>
+          {swatch(key, colors[key] ?? "")}
+        </Row>
+      ))}
+
       <GroupTitle>Colors</GroupTitle>
-      {Object.entries(colors).map(([k, v]) => (
+      {Object.entries(colors)
+        .filter(([k]) => !["primary", "secondary", "accent", "neutral"].includes(k))
+        .map(([k, v]) => (
         <Row key={k} label={k}>
           {swatch(k, v)}
           <button className="shrink-0 px-1 text-muted-foreground hover:text-red-600" onClick={() => removeColor(k)} title="Remove">

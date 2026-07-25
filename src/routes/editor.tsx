@@ -20,7 +20,7 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from "../components/ui/tabs"
 import { Textarea } from "../components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip"
 import { cn } from "../lib/utils"
-import { TEMPLATES, type Template } from "../lib/templates"
+import { COMPONENTS, TEMPLATES, type Template } from "../lib/templates"
 
 import {
   extractFragment,
@@ -318,9 +318,11 @@ export function EditorPage() {
           </TabsList>
           <TabsPanel value="components">
             <Palette onDragStart={startModuleDrag} />
+            <div className="border-t border-border" />
+            <SectionPalette items={COMPONENTS} onDragStart={startSectionDrag} />
           </TabsPanel>
           <TabsPanel value="sections">
-            <SectionPalette onDragStart={startSectionDrag} />
+            <SectionPalette items={TEMPLATES} onDragStart={startSectionDrag} />
           </TabsPanel>
         </Tabs>
         <div className="border-t border-border px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -497,15 +499,15 @@ function Palette({ onDragStart }: { onDragStart: (m: ModuleInfo, e: React.Pointe
   )
 }
 
-function SectionPalette({ onDragStart }: { onDragStart: (t: Template, e: React.PointerEvent) => void }) {
-  const categories = [...new Set(TEMPLATES.map((t) => t.category))]
+function SectionPalette({ items, onDragStart }: { items: Template[]; onDragStart: (t: Template, e: React.PointerEvent) => void }) {
+  const categories = [...new Set(items.map((t) => t.category))]
   return (
     <div className="p-3">
       {categories.map((cat) => (
         <div key={cat} className="mb-3">
           <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{cat}</div>
           <div className="flex flex-col gap-1.5">
-            {TEMPLATES.filter((t) => t.category === cat).map((t) => (
+            {items.filter((t) => t.category === cat).map((t) => (
               <button
                 key={t.name}
                 onPointerDown={(e) => onDragStart(t, e)}
