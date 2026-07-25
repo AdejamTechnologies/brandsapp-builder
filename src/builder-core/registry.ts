@@ -53,6 +53,13 @@ export interface ModuleDefinition {
    * or removable afterwards via the Inspector.
    */
   defaultClasses?: string
+  /**
+   * This module is interactive on the published page via the shared vanilla-JS
+   * runtime (BUILDER_RUNTIME) — e.g. tabs. The renderer flags `usesRuntime` so the
+   * host injects the script. Static/native-interactive modules (a `<details>`
+   * accordion) don't need this.
+   */
+  needsRuntime?: boolean
   Component: ComponentType<ModuleRenderProps>
 }
 

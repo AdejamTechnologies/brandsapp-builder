@@ -212,6 +212,36 @@ export const TEMPLATES: Template[] = [
     )
   ),
 
+  tpl(
+    "Interactive",
+    "Tabs",
+    box(
+      "px-6 py-16 max-w-3xl mx-auto",
+      el(
+        "tabs",
+        {},
+        el("tab-panel", { props: { title: "Overview" }, classes: "pt-2" }, p("Everything at a glance — describe the first tab here.", "text-slate-600 leading-relaxed m-0")),
+        el("tab-panel", { props: { title: "Features" }, classes: "pt-2" }, p("List what makes this great in the second tab.", "text-slate-600 leading-relaxed m-0")),
+        el("tab-panel", { props: { title: "Pricing" }, classes: "pt-2" }, p("Plans and pricing details go in the third tab.", "text-slate-600 leading-relaxed m-0"))
+      )
+    )
+  ),
+  tpl(
+    "Interactive",
+    "Accordion (FAQ)",
+    box(
+      "px-6 py-16 max-w-3xl mx-auto",
+      h("Frequently asked questions", "2", "text-3xl font-bold text-slate-900 mb-8 text-center"),
+      el(
+        "accordion",
+        { classes: "flex flex-col gap-2" },
+        el("accordion-item", { props: { title: "What is included?" }, classes: "border border-slate-200 rounded-xl px-4" }, p("Everything you need to build and publish your pages.", "text-slate-500 text-sm m-0")),
+        el("accordion-item", { props: { title: "Can I cancel anytime?" }, classes: "border border-slate-200 rounded-xl px-4" }, p("Yes — manage your plan from the dashboard whenever you like.", "text-slate-500 text-sm m-0")),
+        el("accordion-item", { props: { title: "Do you offer support?" }, classes: "border border-slate-200 rounded-xl px-4" }, p("Every plan includes support; higher tiers get priority.", "text-slate-500 text-sm m-0"))
+      )
+    )
+  ),
+
   // ── imported Tailwind (Preline-style) blocks, via htmlToDoc ────────────────
   fromHtml(
     "Content",

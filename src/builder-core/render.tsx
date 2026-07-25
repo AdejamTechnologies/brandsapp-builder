@@ -46,6 +46,8 @@ export interface RenderResult {
   missing: string[]
   /** utility-class tokens used — feed to generateUtilityCss for the atomic CSS. */
   classes: string[]
+  /** a runtime-driven module is present → inject BUILDER_RUNTIME on the page. */
+  usesRuntime: boolean
 }
 
 export interface ReactRenderResult {
@@ -56,6 +58,8 @@ export interface ReactRenderResult {
   missing: string[]
   /** utility-class tokens used — feed to generateUtilityCss for the atomic CSS. */
   classes: string[]
+  /** a runtime-driven module is present → inject BUILDER_RUNTIME on the page. */
+  usesRuntime: boolean
 }
 
 const ROOT_CLASS = "bapp-root"
@@ -65,6 +69,8 @@ class RenderCtx {
   missing: string[] = []
   /** utility-class tokens present in the render (for render-time UnoCSS generation). */
   classes = new Set<string>()
+  /** a runtime-driven module (e.g. tabs) is present → host should inject BUILDER_RUNTIME. */
+  usesRuntime = false
   private seenStyle = new Set<string>()
   private seenNode = new Set<string>()
   constructor(
@@ -160,6 +166,7 @@ function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string):
     ctx.missing.push(raw.module)
     return null
   }
+  if (def.needsRuntime && !ctx.isEditor) ctx.usesRuntime = true
   const node = effectiveNode(raw, ctx.previewBreakpoint)
   const children = node.children.length
     ? createElement(
@@ -214,11 +221,11 @@ export function renderDocToReact(input: unknown, opts: RenderOptions): ReactRend
   const node = createElement("div", { className: ROOT_CLASS }, rootEl)
   const themeCss = themeToCss(parsed.theme, `.${ROOT_CLASS}`)
   const css = [themeCss, ...ctx.cssParts].filter(Boolean).join("")
-  return { node, css, missing: ctx.missing, classes: [...ctx.classes] }
+  return { node, css, missing: ctx.missing, classes: [...ctx.classes], usesRuntime: ctx.usesRuntime }
 }
 
 /** Render a Doc (unknown, will be migrated + validated) to HTML + CSS. */
 export function renderDoc(input: unknown, opts: RenderOptions): RenderResult {
-  const { node, css, missing, classes } = renderDocToReact(input, opts)
-  return { html: renderToString(node), css, missing, classes }
+  const { node, css, missing, classes, usesRuntime } = renderDocToReact(input, opts)
+  return { html: renderToString(node), css, missing, classes, usesRuntime }
 }
