@@ -46,6 +46,7 @@ function compileTree(root: NodeSpec, prefix: string): { nodes: Record<string, No
       children,
       ...(spec.style ? { style: spec.style } : {}),
       ...(spec.classes ? { classes: spec.classes } : {}),
+      ...(spec.anim ? { anim: spec.anim } : {}),
       ...(spec.bindings ? { bindings: spec.bindings } : {}),
     }
     return id
@@ -58,6 +59,7 @@ export interface NodeSpec {
   props?: Record<string, unknown>
   style?: Record<string, string>
   classes?: string
+  anim?: { effect: string; trigger?: "load" | "scroll"; duration?: number; delay?: number }
   styleIds?: string[]
   bindings?: Record<string, PropBinding>
   children?: NodeSpec[]
