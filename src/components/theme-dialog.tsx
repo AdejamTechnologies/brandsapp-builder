@@ -14,13 +14,13 @@ interface ThemeDialogProps {
 const isHex = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)
 
 const GroupTitle = ({ children }: { children: string }) => (
-  <div className="mb-1.5 mt-4 text-[11px] font-semibold uppercase tracking-wide text-subtle first:mt-0">
+  <div className="mb-1.5 mt-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground first:mt-0">
     {children}
   </div>
 )
 const Row = ({ label, children }: { label: string; children: ReactNode }) => (
   <div className="mb-1.5 flex items-center gap-3">
-    <span className="w-16 shrink-0 text-xs text-muted">{label}</span>
+    <span className="w-16 shrink-0 text-xs text-muted-foreground">{label}</span>
     <div className="flex flex-1 items-center gap-2">{children}</div>
   </div>
 )
@@ -47,7 +47,7 @@ export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
         type="color"
         value={isHex(v) ? v : "#000000"}
         onChange={(e) => setColor(k, e.target.value)}
-        className="size-7 shrink-0 cursor-pointer rounded-md border border-line p-0"
+        className="size-7 shrink-0 cursor-pointer rounded-md border border-border p-0"
       />
       <Input value={v} onChange={(e) => setColor(k, e.target.value)} />
     </>
@@ -59,7 +59,7 @@ export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
       {Object.entries(colors).map(([k, v]) => (
         <Row key={k} label={k}>
           {swatch(k, v)}
-          <button className="shrink-0 px-1 text-subtle hover:text-red-600" onClick={() => removeColor(k)} title="Remove">
+          <button className="shrink-0 px-1 text-muted-foreground hover:text-red-600" onClick={() => removeColor(k)} title="Remove">
             ×
           </button>
         </Row>

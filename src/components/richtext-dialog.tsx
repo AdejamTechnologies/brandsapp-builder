@@ -24,7 +24,7 @@ export function RichTextDialog({ html, onSave, onClose }: RichTextDialogProps) {
 
   const btn = (label: ReactNode, title: string, run: () => void) => (
     <button
-      className="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-line bg-panel px-2 text-[13px] text-ink hover:border-accent"
+      className="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-border bg-background px-2 text-[13px] text-foreground hover:border-ring"
       title={title}
       onMouseDown={(e) => {
         e.preventDefault()
@@ -53,7 +53,7 @@ export function RichTextDialog({ html, onSave, onClose }: RichTextDialogProps) {
       </div>
       <div
         ref={ref}
-        className="max-h-[50vh] min-h-64 overflow-auto rounded-lg border border-line px-3.5 py-3 text-[15px] leading-relaxed outline-none focus:border-accent"
+        className="max-h-[50vh] min-h-64 overflow-auto rounded-lg border border-border px-3.5 py-3 text-[15px] leading-relaxed outline-none focus:border-ring"
         contentEditable
         suppressContentEditableWarning
       />

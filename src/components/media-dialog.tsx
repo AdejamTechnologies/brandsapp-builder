@@ -31,7 +31,7 @@ export function MediaDialog({ value, onPick, onClose }: MediaDialogProps) {
           setOk(null)
         }}
       />
-      <div className="mt-3 flex min-h-40 flex-col items-center justify-center gap-2 overflow-hidden rounded-lg bg-canvas">
+      <div className="mt-3 flex min-h-40 flex-col items-center justify-center gap-2 overflow-hidden rounded-lg bg-muted">
         {url ? (
           <img
             src={url}
@@ -41,7 +41,7 @@ export function MediaDialog({ value, onPick, onClose }: MediaDialogProps) {
             onError={() => setOk(false)}
           />
         ) : (
-          <span className="text-xs text-subtle">No image</span>
+          <span className="text-xs text-muted-foreground">No image</span>
         )}
         {ok === false && <span className="text-xs text-red-600">Couldn’t load that URL</span>}
       </div>

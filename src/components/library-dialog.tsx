@@ -32,7 +32,7 @@ export function LibraryDialog({ onInsert, onClose }: LibraryDialogProps) {
         {TEMPLATES.map((t) => (
           <button
             key={t.name}
-            className="rounded-lg border border-line bg-panel p-4 text-left text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
+            className="rounded-lg border border-border bg-background p-4 text-left text-sm font-semibold text-foreground transition-colors hover:border-ring hover:text-foreground"
             onClick={() => {
               onInsert(t.make())
               onClose()
@@ -43,10 +43,10 @@ export function LibraryDialog({ onInsert, onClose }: LibraryDialogProps) {
         ))}
       </div>
 
-      <div className="mt-5 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+      <div className="mt-5 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         Install a Fragment
       </div>
-      <p className="mb-2 text-xs text-muted">
+      <p className="mb-2 text-xs text-muted-foreground">
         Paste Fragment JSON (from the editor’s Export, or a marketplace listing).
       </p>
       <Textarea

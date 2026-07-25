@@ -270,7 +270,7 @@ export function EditorPage() {
     <div className="editor3">
       <aside className="col left">
         <Palette onDragStart={startPaletteDrag} />
-        <div className="border-t border-line px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+        <div className="border-t border-border px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Layers
         </div>
         <Tree
@@ -288,19 +288,19 @@ export function EditorPage() {
       </aside>
 
       <main className="col center">
-        <div className="flex items-center gap-1 h-12 px-3 border-b border-line bg-panel shrink-0">
+        <div className="flex items-center gap-1 h-12 px-3 border-b border-border bg-background shrink-0">
           <Button variant="ghost" size="iconSm" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">
             <Undo2 className="size-4" />
           </Button>
           <Button variant="ghost" size="iconSm" onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)">
             <Redo2 className="size-4" />
           </Button>
-          <div className="mx-1 h-5 w-px bg-line" />
+          <div className="mx-1 h-5 w-px bg-border" />
           <Button variant={showCode ? "soft" : "ghost"} size="sm" onClick={() => setShowCode((s) => !s)}>
             <Code2 className="size-4" />
             {showCode ? "Canvas" : "Code"}
           </Button>
-          <div className="ml-1 inline-flex items-center gap-0.5 rounded-[var(--radius)] bg-canvas p-0.5">
+          <div className="ml-1 inline-flex items-center gap-0.5 rounded-[var(--radius)] bg-muted p-0.5">
             {BREAKPOINTS.map((b) => {
               const Icon = b.id === null ? Monitor : b.id === "tablet" ? Tablet : Smartphone
               return (
@@ -309,8 +309,8 @@ export function EditorPage() {
                   onClick={() => setActiveBp(b.id)}
                   title={`${b.label}${b.width ? ` (${b.width}px)` : ""}`}
                   className={cn(
-                    "inline-flex size-7 items-center justify-center rounded-md text-muted transition-colors hover:text-ink",
-                    activeBp === b.id && "bg-panel text-accent shadow-sm"
+                    "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground",
+                    activeBp === b.id && "bg-background text-foreground shadow-sm"
                   )}
                 >
                   <Icon className="size-4" />
@@ -318,7 +318,7 @@ export function EditorPage() {
               )
             })}
           </div>
-          <div className="mx-1 h-5 w-px bg-line" />
+          <div className="mx-1 h-5 w-px bg-border" />
           <Button variant="ghost" size="sm" onClick={() => setLibraryOpen(true)}>
             <Plus className="size-4" />
             Section
@@ -336,7 +336,7 @@ export function EditorPage() {
             Export
           </Button>
           <div className="flex-1" />
-          {status && <span className="mr-1 text-xs text-muted">{status}</span>}
+          {status && <span className="mr-1 text-xs text-muted-foreground">{status}</span>}
           <Button size="sm" onClick={save}>
             <Save className="size-4" />
             Save
@@ -426,13 +426,13 @@ function Palette({ onDragStart }: { onDragStart: (m: ModuleInfo, e: React.Pointe
   const mods = moduleList().filter((m) => m.name !== "page-root")
   return (
     <div className="p-3">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-subtle">Insert</div>
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Insert</div>
       <div className="grid grid-cols-2 gap-1.5">
         {mods.map((m) => (
           <button
             key={m.name}
             onPointerDown={(e) => onDragStart(m, e)}
-            className="flex cursor-grab items-center rounded-md border border-line bg-panel px-2.5 py-2 text-xs capitalize text-ink transition-colors hover:border-accent hover:text-accent active:cursor-grabbing"
+            className="flex cursor-grab items-center rounded-md border border-border bg-background px-2.5 py-2 text-xs capitalize text-foreground transition-colors hover:border-ring hover:text-foreground active:cursor-grabbing"
           >
             {m.name}
           </button>
@@ -465,7 +465,7 @@ function Tree(props: TreeProps) {
       <div
         className={cn(
           "group mx-1.5 flex cursor-pointer items-center justify-between rounded-md py-1 pr-1.5 text-[13px]",
-          selectedId === nodeId ? "bg-accent-soft text-accent" : "text-ink hover:bg-canvas"
+          selectedId === nodeId ? "bg-accent text-foreground" : "text-foreground hover:bg-muted"
         )}
         style={{ paddingLeft: 8 + depth * 14 }}
         onClick={() => onSelect(nodeId)}
@@ -491,7 +491,7 @@ function Tree(props: TreeProps) {
         <span className="truncate">{node.label ?? node.module}</span>
         {!isRoot && (
           <button
-            className="shrink-0 px-1 text-base leading-none text-subtle opacity-0 hover:text-red-600 group-hover:opacity-100"
+            className="shrink-0 px-1 text-base leading-none text-muted-foreground opacity-0 hover:text-red-600 group-hover:opacity-100"
             title="Delete"
             onClick={(e) => {
               e.stopPropagation()
