@@ -5,10 +5,22 @@
  * SSR) injects this once. Self-contained: it styles what it generates inline, so it
  * needs no external CSS. It is idempotent and safe to include on any page.
  *
- * Supported: `[data-bapp-tabs]` — reads its direct `[data-bapp-tab-panel]` children
- * (each with `data-title`), builds a tab bar, and toggles panels.
+ * Supported: `[data-bapp-tabs]` (reads its `[data-bapp-tab-panel]` children, builds a
+ * tab bar, toggles panels) and `[data-bapp-dropdown]` (its trigger toggles its menu,
+ * closes on outside click).
  */
 export const BUILDER_RUNTIME = `(function(){
+  function initDropdown(root){
+    var trigger=root.querySelector(':scope > [data-bapp-dropdown-trigger]');
+    var menu=root.querySelector(':scope > [data-bapp-dropdown-menu]');
+    if(!trigger||!menu)return;
+    menu.style.display='none';
+    trigger.addEventListener('click',function(e){
+      e.stopPropagation();
+      menu.style.display=menu.style.display==='none'?'block':'none';
+    });
+    document.addEventListener('click',function(e){ if(!root.contains(e.target))menu.style.display='none'; });
+  }
   function initTabs(root){
     var panels=[].slice.call(root.querySelectorAll(':scope > [data-bapp-tab-panel]'));
     if(!panels.length)return;
@@ -36,9 +48,9 @@ export const BUILDER_RUNTIME = `(function(){
     select(0);
   }
   function init(scope){
-    (scope||document).querySelectorAll('[data-bapp-tabs]').forEach(function(el){
-      if(el.__bapp)return;el.__bapp=1;initTabs(el);
-    });
+    var d=scope||document;
+    d.querySelectorAll('[data-bapp-tabs]').forEach(function(el){ if(el.__bapp)return;el.__bapp=1;initTabs(el); });
+    d.querySelectorAll('[data-bapp-dropdown]').forEach(function(el){ if(el.__bapp)return;el.__bapp=1;initDropdown(el); });
   }
   if(document.readyState!=='loading')init();
   else document.addEventListener('DOMContentLoaded',function(){init()});

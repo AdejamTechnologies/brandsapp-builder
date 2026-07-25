@@ -474,6 +474,17 @@ export const COMPONENTS: Template[] = [
   fromHtml("Navigation", "Menu", `<ul class="menu bg-base-200 rounded-box w-56"><li><a>Dashboard</a></li><li><a>Settings</a></li><li><a>Billing</a></li></ul>`),
   fromHtml("Navigation", "Tabs", `<div class="tabs tabs-boxed"><a class="tab">Tab 1</a><a class="tab tab-active">Tab 2</a><a class="tab">Tab 3</a></div>`),
   fromHtml("Navigation", "Navbar", `<div class="navbar bg-base-100 rounded-box"><div class="flex-1"><a class="btn btn-ghost text-xl">Brand</a></div><div class="flex-none"><a class="btn btn-primary">Sign in</a></div></div>`),
+  tpl(
+    "Navigation",
+    "Dropdown",
+    el(
+      "dropdown",
+      { props: { label: "Options" } },
+      el("link", { props: { text: "Profile", href: "#" }, classes: "block px-3 py-2 rounded-md hover:bg-slate-100 no-underline text-slate-700 text-sm" }),
+      el("link", { props: { text: "Settings", href: "#" }, classes: "block px-3 py-2 rounded-md hover:bg-slate-100 no-underline text-slate-700 text-sm" }),
+      el("link", { props: { text: "Sign out", href: "#" }, classes: "block px-3 py-2 rounded-md hover:bg-slate-100 no-underline text-slate-700 text-sm" })
+    )
+  ),
 ]
 
 /** Imported MIT blocks (HyperUI + Meraki UI), generated from their repos → htmlToDoc. */

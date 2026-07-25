@@ -81,4 +81,44 @@ const AccordionItem: ModuleDefinition = {
     ),
 }
 
-export const INTERACTIVE_MODULES: ModuleDefinition[] = [Tabs, TabPanel, Accordion, AccordionItem]
+// ── Dropdown (runtime-driven) ─────────────────────────────────────────────────
+const Dropdown: ModuleDefinition = {
+  name: "dropdown",
+  category: "interactive",
+  schema: { label: { type: "plain" } },
+  defaults: { label: "Menu" },
+  contentModel: { children: "any" },
+  needsRuntime: true,
+  defaultClasses: "relative inline-block",
+  Component: (p: ModuleRenderProps) =>
+    createElement(
+      "div",
+      { className: p.className, "data-bapp-dropdown": "", ...ed(p) },
+      createElement(
+        "button",
+        {
+          "data-bapp-dropdown-trigger": "",
+          type: "button",
+          style: {
+            display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 14px",
+            border: "1px solid #e2e8f0", borderRadius: "8px", background: "#fff", cursor: "pointer", fontWeight: 500,
+          },
+        },
+        `${str(p.props.label, "Menu")} ▾`
+      ),
+      createElement(
+        "div",
+        {
+          "data-bapp-dropdown-menu": "",
+          style: {
+            display: p.isEditor ? "block" : "none", position: "absolute", top: "calc(100% + 6px)", left: 0,
+            minWidth: "180px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "10px",
+            boxShadow: "0 10px 30px -10px rgba(0,0,0,.2)", padding: "6px", zIndex: 50,
+          },
+        },
+        p.children
+      )
+    ),
+}
+
+export const INTERACTIVE_MODULES: ModuleDefinition[] = [Tabs, TabPanel, Accordion, AccordionItem, Dropdown]

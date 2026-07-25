@@ -107,6 +107,9 @@ export function htmlToDoc(html: string): Doc {
     // CSS at render time (UnoCSS), so an imported block keeps its styling.
     const classes = el.attrs.class?.trim() || undefined
 
+    // Keep the original tag on box elements (ul/li/section/nav/…) so structure —
+    // and CSS that targets real tags (e.g. daisyUI menu/breadcrumbs) — is faithful.
+    if (module === "box" && el.tag !== "div") props.tag = el.tag
     if (module === "heading") props.level = el.tag.replace("h", "")
     if (module === "image") {
       props.src = el.attrs.src ?? ""
