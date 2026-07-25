@@ -268,7 +268,9 @@ export function EditorPage() {
     <div className="editor3">
       <aside className="col left">
         <Palette onDragStart={startPaletteDrag} />
-        <div className="section-title">Layers</div>
+        <div className="border-t border-line px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+          Layers
+        </div>
         <Tree
           doc={doc}
           nodeId={doc.rootId}
@@ -429,11 +431,15 @@ export function EditorPage() {
 function Palette({ onDragStart }: { onDragStart: (m: ModuleInfo, e: React.PointerEvent) => void }) {
   const mods = moduleList().filter((m) => m.name !== "page-root")
   return (
-    <div className="palette">
-      <div className="section-title">Insert</div>
-      <div className="palette-grid">
+    <div className="p-3">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-subtle">Insert</div>
+      <div className="grid grid-cols-2 gap-1.5">
         {mods.map((m) => (
-          <button key={m.name} className="chip" onPointerDown={(e) => onDragStart(m, e)}>
+          <button
+            key={m.name}
+            onPointerDown={(e) => onDragStart(m, e)}
+            className="flex cursor-grab items-center rounded-md border border-line bg-panel px-2.5 py-2 text-xs capitalize text-ink transition-colors hover:border-accent hover:text-accent active:cursor-grabbing"
+          >
             {m.name}
           </button>
         ))}
@@ -463,7 +469,10 @@ function Tree(props: TreeProps) {
   return (
     <div>
       <div
-        className={"tree-row" + (selectedId === nodeId ? " sel" : "")}
+        className={cn(
+          "group mx-1.5 flex cursor-pointer items-center justify-between rounded-md py-1 pr-1.5 text-[13px]",
+          selectedId === nodeId ? "bg-accent-soft text-accent" : "text-ink hover:bg-canvas"
+        )}
         style={{ paddingLeft: 8 + depth * 14 }}
         onClick={() => onSelect(nodeId)}
         draggable={!isRoot}
@@ -485,10 +494,10 @@ function Tree(props: TreeProps) {
           drag.current = null
         }}
       >
-        <span className="tree-label">{node.label ?? node.module}</span>
+        <span className="truncate">{node.label ?? node.module}</span>
         {!isRoot && (
           <button
-            className="tree-del"
+            className="shrink-0 px-1 text-base leading-none text-subtle opacity-0 hover:text-red-600 group-hover:opacity-100"
             title="Delete"
             onClick={(e) => {
               e.stopPropagation()
