@@ -150,7 +150,7 @@ export function EditorPage() {
   const insert = (m: ModuleInfo) => {
     const canNest = selected && moduleInfo(selected.module)?.canHaveChildren
     const parentId = canNest ? selected!.id : doc.rootId
-    const { doc: next, id } = insertChild(doc, parentId, m.name, m.defaults)
+    const { doc: next, id } = insertChild(doc, parentId, m.name, m.defaults, m.defaultClasses)
     apply(next)
     setSelectedId(id)
   }
@@ -236,7 +236,7 @@ export function EditorPage() {
       if (active) {
         const t = dropTargetRef.current
         if (t) {
-          const { doc: next, id } = insertChildAt(docRef.current, t.parentId, t.index, m.name, m.defaults)
+          const { doc: next, id } = insertChildAt(docRef.current, t.parentId, t.index, m.name, m.defaults, m.defaultClasses)
           apply(next)
           setSelectedId(id)
         }

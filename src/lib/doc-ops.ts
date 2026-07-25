@@ -32,12 +32,13 @@ export function insertChild(
   doc: Doc,
   parentId: string,
   module: string,
-  defaults: Record<string, unknown> = {}
+  defaults: Record<string, unknown> = {},
+  classes?: string
 ): { doc: Doc; id: string } {
   const parent = doc.nodes[parentId]
   if (!parent) return { doc, id: "" }
   const id = newId()
-  const child: Node = { id, module, props: { ...defaults }, styleIds: [], children: [] }
+  const child: Node = { id, module, props: { ...defaults }, styleIds: [], children: [], ...(classes ? { classes } : {}) }
   return {
     doc: {
       ...doc,
@@ -56,12 +57,13 @@ export function insertChildAt(
   parentId: string,
   index: number,
   module: string,
-  defaults: Record<string, unknown> = {}
+  defaults: Record<string, unknown> = {},
+  classes?: string
 ): { doc: Doc; id: string } {
   const parent = doc.nodes[parentId]
   if (!parent) return { doc, id: "" }
   const id = newId()
-  const child: Node = { id, module, props: { ...defaults }, styleIds: [], children: [] }
+  const child: Node = { id, module, props: { ...defaults }, styleIds: [], children: [], ...(classes ? { classes } : {}) }
   const children = [...parent.children]
   const at = Math.max(0, Math.min(index, children.length))
   children.splice(at, 0, id)

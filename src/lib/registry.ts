@@ -7,30 +7,26 @@ export interface ModuleInfo {
   category: string
   schema: PropSchema
   defaults: Record<string, unknown>
+  defaultClasses?: string
   canHaveChildren: boolean
 }
 
-export function moduleList(): ModuleInfo[] {
-  return registry.names().map((name) => {
-    const d = registry.get(name)!
-    return {
-      name,
-      category: d.category,
-      schema: d.schema,
-      defaults: d.defaults,
-      canHaveChildren: d.contentModel.children !== "none",
-    }
-  })
-}
-
-export function moduleInfo(name: string): ModuleInfo | undefined {
-  const d = registry.get(name)
-  if (!d) return undefined
+const toInfo = (name: string): ModuleInfo => {
+  const d = registry.get(name)!
   return {
     name,
     category: d.category,
     schema: d.schema,
     defaults: d.defaults,
+    defaultClasses: d.defaultClasses,
     canHaveChildren: d.contentModel.children !== "none",
   }
+}
+
+export function moduleList(): ModuleInfo[] {
+  return registry.names().map(toInfo)
+}
+
+export function moduleInfo(name: string): ModuleInfo | undefined {
+  return registry.get(name) ? toInfo(name) : undefined
 }

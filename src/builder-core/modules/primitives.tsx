@@ -42,6 +42,7 @@ const Box: ModuleDefinition = {
   schema: { tag: { type: "plain" } },
   defaults: {},
   contentModel: { children: "any" },
+  defaultClasses: "p-6 border border-slate-200 rounded-xl min-h-24",
   Component: (p: ModuleRenderProps) =>
     createElement(str(p.props.tag, "div"), { className: p.className, ...ed(p) }, p.children),
 }
@@ -57,6 +58,7 @@ const Stack: ModuleDefinition = {
   },
   defaults: { direction: "column" },
   contentModel: { children: "any" },
+  defaultClasses: "p-4 border border-slate-200 rounded-xl min-h-24",
   Component: (p: ModuleRenderProps) => {
     const style: CSSProperties = {
       display: "flex",
@@ -75,6 +77,7 @@ const Grid: ModuleDefinition = {
   schema: { columns: { type: "number" }, gap: { type: "plain" } },
   defaults: { columns: 3 },
   contentModel: { children: "any" },
+  defaultClasses: "p-4 border border-slate-200 rounded-xl min-h-24",
   Component: (p: ModuleRenderProps) => {
     const cols = Math.min(Math.max(num(p.props.columns, 3), 1), 12)
     const style: CSSProperties = {
@@ -148,8 +151,9 @@ const Image: ModuleDefinition = {
   name: "image",
   category: "media",
   schema: { src: { type: "media" }, alt: { type: "plain" } },
-  defaults: { src: "", alt: "" },
+  defaults: { src: "https://placehold.co/600x300/e2e8f0/94a3b8?text=Image", alt: "" },
   contentModel: { children: "none" },
+  defaultClasses: "w-full max-w-md rounded-lg",
   Component: (p: ModuleRenderProps) =>
     createElement("img", { className: p.className, src: str(p.props.src), alt: str(p.props.alt), loading: "lazy", ...ed(p) }),
 }
@@ -178,6 +182,7 @@ const Button: ModuleDefinition = {
   defaults: { label: "Button", href: "" },
   contentModel: { children: "none" },
   inlineTextEdit: { prop: "label" },
+  defaultClasses: "inline-flex items-center justify-center px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium",
   Component: (p: ModuleRenderProps) => {
     const href = str(p.props.href)
     return href
@@ -192,6 +197,7 @@ const Link: ModuleDefinition = {
   schema: { href: { type: "url" }, text: { type: "plain" } },
   defaults: { href: "#", text: "Link" },
   contentModel: { children: "any" },
+  defaultClasses: "text-indigo-600 underline underline-offset-2",
   Component: (p: ModuleRenderProps) =>
     createElement("a", { className: p.className, href: str(p.props.href, "#"), ...ed(p) }, p.children ?? str(p.props.text)),
 }

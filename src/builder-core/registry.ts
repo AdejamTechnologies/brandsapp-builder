@@ -46,6 +46,13 @@ export interface ModuleDefinition {
    * rendered element contentEditable on double-click and writes back to this prop.
    */
   inlineTextEdit?: { prop: string; multiline?: boolean }
+  /**
+   * Utility classes seeded onto a freshly-inserted node's `classes`, so a new
+   * element is visible and reasonably styled out of the box (containers get a
+   * border + padding + min-height; a button looks like a button). Fully editable
+   * or removable afterwards via the Inspector.
+   */
+  defaultClasses?: string
   Component: ComponentType<ModuleRenderProps>
 }
 
