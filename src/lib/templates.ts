@@ -2,7 +2,7 @@ import { buildFragment, el, type Fragment, type NodeSpec } from "@brandsapp/buil
 
 const rand = () => crypto.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10)
 
-const ACCENT = "#4f46e5"
+const CTA = "inline-block bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded-xl"
 
 function section(name: string, root: NodeSpec): { name: string; make: () => Fragment } {
   return {
@@ -14,44 +14,45 @@ function section(name: string, root: NodeSpec): { name: string; make: () => Frag
 const feature = (title: string, body: string): NodeSpec =>
   el(
     "box",
-    { style: { padding: "20px", border: "1px solid #e5e7eb", borderRadius: "12px", background: "#fff" } },
-    el("heading", { props: { text: title, level: "3" }, style: { fontSize: "18px", margin: "0 0 8px" } }),
-    el("text", { props: { text: body }, style: { color: "#6b7280", margin: "0" } })
+    { classes: "p-5 rounded-2xl border border-slate-200 bg-white" },
+    el("heading", { props: { text: title, level: "3" }, classes: "text-lg font-semibold mb-2" }),
+    el("text", { props: { text: body }, classes: "text-slate-500 leading-relaxed m-0" })
   )
 
-/** Pre-built sections you can drop into a page (they insert like a marketplace Fragment). */
+/**
+ * Pre-built sections (insert like a marketplace Fragment). Styled with utility
+ * classes — the renderer generates their CSS at render time (UnoCSS), so they look
+ * good out of the box and stay editable via the Inspector's Classes field.
+ */
 export const TEMPLATES: { name: string; make: () => Fragment }[] = [
   section(
     "Hero",
     el(
       "box",
-      { style: { padding: "88px 24px", textAlign: "center", background: "#0b1020", color: "#ffffff" } },
+      { classes: "px-6 py-24 text-center bg-slate-900 text-white" },
       el("heading", {
         props: { text: "Build something people love", level: "1" },
-        style: { fontSize: "48px", fontWeight: "800", margin: "0 0 16px", color: "#ffffff" },
+        classes: "text-5xl font-extrabold tracking-tight mb-4 text-white",
       }),
       el("text", {
         props: { text: "A clear one-liner about your product and exactly who it is for." },
-        style: { fontSize: "18px", color: "#c7ccd8", maxWidth: "620px", margin: "0 auto 28px" },
+        classes: "text-lg text-slate-300 max-w-xl mx-auto mb-8",
       }),
-      el("button", {
-        props: { label: "Get started", href: "#" },
-        style: { background: ACCENT, color: "#fff", padding: "13px 26px", borderRadius: "10px", fontWeight: "600" },
-      })
+      el("button", { props: { label: "Get started", href: "#" }, classes: CTA })
     )
   ),
   section(
     "Feature grid",
     el(
       "box",
-      { style: { padding: "64px 24px" } },
+      { classes: "px-6 py-16" },
       el("heading", {
         props: { text: "Everything you need", level: "2" },
-        style: { textAlign: "center", fontSize: "32px", margin: "0 0 36px" },
+        classes: "text-3xl font-bold text-center mb-10",
       }),
       el(
-        "grid",
-        { props: { columns: 3 }, style: { gap: "20px", maxWidth: "1040px", margin: "0 auto" } },
+        "box",
+        { classes: "grid grid-cols-1 md:grid-cols-3 gap-5 max-w-5xl mx-auto" },
         feature("Fast", "Ship pages in minutes, not weeks."),
         feature("Flexible", "Compose any layout from primitives."),
         feature("Yours", "Own the design end to end — no lock-in.")
@@ -62,35 +63,29 @@ export const TEMPLATES: { name: string; make: () => Fragment }[] = [
     "Call to action",
     el(
       "box",
-      { style: { padding: "72px 24px", textAlign: "center", background: "#f6f7f9" } },
-      el("heading", {
-        props: { text: "Ready to start?", level: "2" },
-        style: { fontSize: "28px", margin: "0 0 18px" },
-      }),
-      el("button", {
-        props: { label: "Create your page", href: "#" },
-        style: { background: ACCENT, color: "#fff", padding: "13px 26px", borderRadius: "10px", fontWeight: "600" },
-      })
+      { classes: "px-6 py-20 text-center bg-slate-50" },
+      el("heading", { props: { text: "Ready to start?", level: "2" }, classes: "text-3xl font-bold mb-5" }),
+      el("button", { props: { label: "Create your page", href: "#" }, classes: CTA })
     )
   ),
   section(
     "Two columns",
     el(
-      "grid",
-      { props: { columns: 2 }, style: { gap: "32px", padding: "64px 24px", maxWidth: "1040px", margin: "0 auto", alignItems: "center" } },
+      "box",
+      { classes: "grid grid-cols-1 md:grid-cols-2 gap-8 items-center max-w-5xl mx-auto px-6 py-16" },
       el(
         "box",
         {},
-        el("heading", { props: { text: "Tell your story", level: "2" }, style: { fontSize: "30px", margin: "0 0 12px" } }),
+        el("heading", { props: { text: "Tell your story", level: "2" }, classes: "text-3xl font-bold mb-3" }),
         el("text", {
           props: { text: "Use this space to explain the value, back it with detail, and lead to one clear action." },
-          style: { color: "#6b7280", fontSize: "16px", margin: "0 0 20px" },
+          classes: "text-slate-500 leading-relaxed mb-5",
         }),
-        el("button", { props: { label: "Learn more", href: "#" }, style: { background: ACCENT, color: "#fff", padding: "11px 22px", borderRadius: "10px" } })
+        el("button", { props: { label: "Learn more", href: "#" }, classes: CTA })
       ),
       el("image", {
-        props: { src: "https://placehold.co/600x420/e5e7eb/9aa1ac?text=Image", alt: "" },
-        style: { width: "100%", borderRadius: "14px" },
+        props: { src: "https://placehold.co/600x420/e2e8f0/94a3b8?text=Image", alt: "" },
+        classes: "w-full rounded-2xl",
       })
     )
   ),

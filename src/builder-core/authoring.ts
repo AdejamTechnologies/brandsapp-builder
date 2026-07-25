@@ -45,6 +45,7 @@ function compileTree(root: NodeSpec, prefix: string): { nodes: Record<string, No
       styleIds: spec.styleIds ?? [],
       children,
       ...(spec.style ? { style: spec.style } : {}),
+      ...(spec.classes ? { classes: spec.classes } : {}),
       ...(spec.bindings ? { bindings: spec.bindings } : {}),
     }
     return id
@@ -56,6 +57,7 @@ export interface NodeSpec {
   module: string
   props?: Record<string, unknown>
   style?: Record<string, string>
+  classes?: string
   styleIds?: string[]
   bindings?: Record<string, PropBinding>
   children?: NodeSpec[]

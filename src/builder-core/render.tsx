@@ -44,6 +44,8 @@ export interface RenderResult {
   css: string
   /** module names referenced by the doc but not in the registry. */
   missing: string[]
+  /** utility-class tokens used — feed to generateUtilityCss for the atomic CSS. */
+  classes: string[]
 }
 
 export interface ReactRenderResult {
@@ -52,6 +54,8 @@ export interface ReactRenderResult {
   css: string
   /** module names referenced by the doc but not in the registry. */
   missing: string[]
+  /** utility-class tokens used — feed to generateUtilityCss for the atomic CSS. */
+  classes: string[]
 }
 
 const ROOT_CLASS = "bapp-root"
@@ -59,6 +63,8 @@ const ROOT_CLASS = "bapp-root"
 class RenderCtx {
   cssParts: string[] = []
   missing: string[] = []
+  /** utility-class tokens present in the render (for render-time UnoCSS generation). */
+  classes = new Set<string>()
   private seenStyle = new Set<string>()
   private seenNode = new Set<string>()
   constructor(
@@ -108,6 +114,10 @@ function classNamesFor(node: Node, ctx: RenderCtx): string {
   if (node.style || node.responsive) {
     ctx.useNodeStyle(node)
     classes.push(classForNode(node.id))
+  }
+  if (node.classes) {
+    classes.push(node.classes)
+    for (const c of node.classes.split(/\s+/)) if (c) ctx.classes.add(c)
   }
   return classes.join(" ")
 }
@@ -204,11 +214,11 @@ export function renderDocToReact(input: unknown, opts: RenderOptions): ReactRend
   const node = createElement("div", { className: ROOT_CLASS }, rootEl)
   const themeCss = themeToCss(parsed.theme, `.${ROOT_CLASS}`)
   const css = [themeCss, ...ctx.cssParts].filter(Boolean).join("")
-  return { node, css, missing: ctx.missing }
+  return { node, css, missing: ctx.missing, classes: [...ctx.classes] }
 }
 
 /** Render a Doc (unknown, will be migrated + validated) to HTML + CSS. */
 export function renderDoc(input: unknown, opts: RenderOptions): RenderResult {
-  const { node, css, missing } = renderDocToReact(input, opts)
-  return { html: renderToString(node), css, missing }
+  const { node, css, missing, classes } = renderDocToReact(input, opts)
+  return { html: renderToString(node), css, missing, classes }
 }

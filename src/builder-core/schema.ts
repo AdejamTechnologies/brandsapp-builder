@@ -29,6 +29,7 @@ export const node = z.object({
   bindings: z.record(z.string(), propBinding).optional(),
   styleIds: z.array(id).default([]),
   style: cssBag.optional(), // per-node local base style
+  classes: z.string().optional(), // utility classes (Tailwind-style, generated at render time)
   responsive: z
     .record(
       id, // breakpoint id
@@ -36,6 +37,7 @@ export const node = z.object({
         props: z.record(z.string(), z.unknown()).optional(),
         style: cssBag.optional(),
         styleIds: z.array(id).optional(),
+        classes: z.string().optional(),
       })
     )
     .optional(),

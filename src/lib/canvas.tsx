@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from "react"
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from "react"
 
-import { renderDocToReact, type Doc } from "@brandsapp/builder-core"
+import { generateUtilityCss, renderDocToReact, type Doc } from "@brandsapp/builder-core"
 import { resolveDrop, type DropIndicator, type DropTarget } from "./canvas-dnd"
 import { registry } from "./registry"
 import { SelectionOverlay } from "./selection-overlay"
@@ -55,9 +55,29 @@ export function Canvas({
         error: undefined as string | undefined,
       }
     } catch (e) {
-      return { node: null, css: "", missing: [] as string[], error: e instanceof Error ? e.message : String(e) }
+      return {
+        node: null,
+        css: "",
+        missing: [] as string[],
+        classes: [] as string[],
+        error: e instanceof Error ? e.message : String(e),
+      }
     }
   }, [doc, previewBp])
+
+  // Utility classes → atomic CSS (UnoCSS). Async; regenerate only when the class set
+  // actually changes, and inject alongside the engine's own CSS.
+  const [utilCss, setUtilCss] = useState("")
+  const classKey = result.classes.join(" ")
+  useEffect(() => {
+    let cancelled = false
+    generateUtilityCss(classKey ? [classKey] : []).then((css) => {
+      if (!cancelled) setUtilCss(css)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [classKey])
 
   const nodeIdAt = (target: EventTarget | null): string | null => {
     const el = (target as HTMLElement | null)?.closest?.("[data-node-id]") as HTMLElement | null
@@ -169,6 +189,7 @@ export function Canvas({
         onDoubleClick={onDoubleClick}
       >
         <style>{result.css}</style>
+        <style>{utilCss}</style>
         <div className="canvas-page" style={width ? { width, margin: "0 auto" } : undefined}>
           {result.node}
         </div>

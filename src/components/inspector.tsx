@@ -93,6 +93,17 @@ export function Inspector({ doc, node, onChange, activeBp }: InspectorProps) {
         />
       </div>
 
+      <div className="section-title">Utility classes</div>
+      <div style={{ padding: "0 12px 6px" }}>
+        <input
+          className="ins-label"
+          style={{ fontFamily: "ui-monospace, Menlo, monospace" }}
+          placeholder="flex gap-4 p-6 rounded-xl bg-white"
+          value={node.classes ?? ""}
+          onChange={(e) => patch({ classes: e.target.value || undefined }, `classes:${node.id}`)}
+        />
+      </div>
+
       {info && Object.keys(info.schema).length > 0 && <div className="section-title">Content</div>}
       {info &&
         Object.entries(info.schema).map(([key, control]) => {
