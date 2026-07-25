@@ -9,7 +9,8 @@ import {
   type Node,
 } from "@brandsapp/builder-core"
 import { Canvas } from "../lib/canvas"
-import { insertChild, moveChild, removeNode, updateProps, updateStyle } from "../lib/doc-ops"
+import { resolveDrop, type DropIndicator, type DropTarget } from "../lib/canvas-dnd"
+import { insertChild, insertChildAt, moveChild, removeNode, updateProps, updateStyle } from "../lib/doc-ops"
 import { useDocRoom } from "../lib/realtime"
 import { moduleInfo, moduleList, type ModuleInfo } from "../lib/registry"
 import { SAMPLE_DOC } from "../lib/sample"
@@ -33,6 +34,15 @@ export function EditorPage() {
   const [importText, setImportText] = useState("")
   const [exportJson, setExportJson] = useState<string | null>(null)
   const drag = useRef<{ parentId: string; index: number } | null>(null)
+
+  // Palette → canvas drag: the shared scroll ref lets resolveDrop measure this
+  // canvas; docRef keeps the drop handler on the latest doc without re-binding.
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const docRef = useRef(doc)
+  docRef.current = doc
+  const [ghost, setGhost] = useState<{ module: string; x: number; y: number } | null>(null)
+  const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null)
+  const dropTargetRef = useRef<DropTarget | null>(null)
 
   useEffect(() => {
     if (!tenant || pageId === "sample") return
@@ -107,6 +117,41 @@ export function EditorPage() {
     setSelectedId(doc.rootId)
   }
 
+  // Press a palette chip and drag onto the canvas to insert at a real position.
+  // A press without movement falls back to click-insert (into the selection).
+  const startPaletteDrag = (m: ModuleInfo, e: React.PointerEvent) => {
+    e.preventDefault()
+    const start = { x: e.clientX, y: e.clientY }
+    let active = false
+    const move = (ev: PointerEvent) => {
+      if (!active && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 5) return
+      active = true
+      setGhost({ module: m.name, x: ev.clientX, y: ev.clientY })
+      const t = resolveDrop(scrollRef.current, ev.clientX, ev.clientY, docRef.current, m.name)
+      dropTargetRef.current = t
+      setDropIndicator(t?.indicator ?? null)
+    }
+    const up = () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      if (active) {
+        const t = dropTargetRef.current
+        if (t) {
+          const { doc: next, id } = insertChildAt(docRef.current, t.parentId, t.index, m.name, m.defaults)
+          apply(next)
+          setSelectedId(id)
+        }
+      } else {
+        insert(m) // treat as a click
+      }
+      setGhost(null)
+      setDropIndicator(null)
+      dropTargetRef.current = null
+    }
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+  }
+
   const save = async () => {
     if (!tenant) return setStatus("Add ?tenant=<url> to save.")
     setStatus("Saving…")
@@ -125,7 +170,7 @@ export function EditorPage() {
   return (
     <div className="editor3">
       <aside className="col left">
-        <Palette onInsert={insert} />
+        <Palette onDragStart={startPaletteDrag} />
         <div className="section-title">Layers</div>
         <Tree
           doc={doc}
@@ -175,6 +220,8 @@ export function EditorPage() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             onCommitText={commitText}
+            scrollRef={scrollRef}
+            dropIndicator={dropIndicator}
           />
         )}
       </main>
@@ -226,18 +273,24 @@ export function EditorPage() {
           </div>
         </div>
       )}
+
+      {ghost && (
+        <div className="drag-ghost" style={{ left: ghost.x + 12, top: ghost.y + 12 }}>
+          {ghost.module}
+        </div>
+      )}
     </div>
   )
 }
 
-function Palette({ onInsert }: { onInsert: (m: ModuleInfo) => void }) {
+function Palette({ onDragStart }: { onDragStart: (m: ModuleInfo, e: React.PointerEvent) => void }) {
   const mods = moduleList().filter((m) => m.name !== "page-root")
   return (
     <div className="palette">
       <div className="section-title">Insert</div>
       <div className="palette-grid">
         {mods.map((m) => (
-          <button key={m.name} className="chip" onClick={() => onInsert(m)}>
+          <button key={m.name} className="chip" onPointerDown={(e) => onDragStart(m, e)}>
             {m.name}
           </button>
         ))}

@@ -51,6 +51,33 @@ export function insertChild(
   }
 }
 
+export function insertChildAt(
+  doc: Doc,
+  parentId: string,
+  index: number,
+  module: string,
+  defaults: Record<string, unknown> = {}
+): { doc: Doc; id: string } {
+  const parent = doc.nodes[parentId]
+  if (!parent) return { doc, id: "" }
+  const id = newId()
+  const child: Node = { id, module, props: { ...defaults }, styleIds: [], children: [] }
+  const children = [...parent.children]
+  const at = Math.max(0, Math.min(index, children.length))
+  children.splice(at, 0, id)
+  return {
+    doc: {
+      ...doc,
+      nodes: {
+        ...doc.nodes,
+        [id]: child,
+        [parentId]: { ...parent, children },
+      },
+    },
+    id,
+  }
+}
+
 export function removeNode(doc: Doc, id: string): Doc {
   if (id === doc.rootId) return doc
   const parent = parentOf(doc, id)

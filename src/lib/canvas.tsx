@@ -1,6 +1,7 @@
-import { useMemo, useRef, type MouseEvent } from "react"
+import { useMemo, useRef, type MouseEvent, type RefObject } from "react"
 
 import { renderDocToReact, type Doc } from "@brandsapp/builder-core"
+import type { DropIndicator } from "./canvas-dnd"
 import { registry } from "./registry"
 import { SelectionOverlay } from "./selection-overlay"
 
@@ -10,6 +11,10 @@ interface CanvasProps {
   onSelect: (id: string | null) => void
   /** Commit inline-edited text back to the node's prop. */
   onCommitText: (nodeId: string, prop: string, value: string) => void
+  /** Shared with the editor so palette drag can measure/insert into this canvas. */
+  scrollRef: RefObject<HTMLDivElement | null>
+  /** Insertion line shown while dragging a palette chip over the canvas. */
+  dropIndicator?: DropIndicator | null
 }
 
 /**
@@ -18,8 +23,7 @@ interface CanvasProps {
  * Every node carries `data-node-id` (editor mode), so a single delegated handler
  * maps a click to its node, and double-click makes text editable in place.
  */
-export function Canvas({ doc, selectedId, onSelect, onCommitText }: CanvasProps) {
-  const scrollRef = useRef<HTMLDivElement>(null)
+export function Canvas({ doc, selectedId, onSelect, onCommitText, scrollRef, dropIndicator }: CanvasProps) {
   // nodeId currently in contentEditable — clicks are ignored while editing.
   const editingRef = useRef<string | null>(null)
 
@@ -98,6 +102,12 @@ export function Canvas({ doc, selectedId, onSelect, onCommitText }: CanvasProps)
         {result.node}
       </div>
       <SelectionOverlay scrollRef={scrollRef} selectedId={selectedId} label={doc.nodes[selectedId ?? ""]?.module} />
+      {dropIndicator && (
+        <div
+          className="drop-indicator"
+          style={{ transform: `translate(${dropIndicator.x}px, ${dropIndicator.y}px)`, width: dropIndicator.w }}
+        />
+      )}
       {result.error && <div className="canvas-error">render error: {result.error}</div>}
       {!result.error && result.missing.length > 0 && (
         <div className="canvas-missing">missing modules: {result.missing.join(", ")}</div>
