@@ -19,6 +19,8 @@ interface CanvasProps {
   dropIndicator?: DropIndicator | null
   /** Fixed page width in px (breakpoint preview); undefined = fill. */
   width?: number
+  /** Breakpoint id whose overrides to flatten into the preview; null = base. */
+  previewBp?: string | null
 }
 
 /**
@@ -37,6 +39,7 @@ export function Canvas({
   scrollRef,
   dropIndicator,
   width,
+  previewBp,
 }: CanvasProps) {
   // nodeId currently in contentEditable — clicks are ignored while editing.
   const editingRef = useRef<string | null>(null)
@@ -47,11 +50,14 @@ export function Canvas({
 
   const result = useMemo(() => {
     try {
-      return { ...renderDocToReact(doc, { registry, isEditor: true }), error: undefined as string | undefined }
+      return {
+        ...renderDocToReact(doc, { registry, isEditor: true, previewBreakpoint: previewBp ?? undefined }),
+        error: undefined as string | undefined,
+      }
     } catch (e) {
       return { node: null, css: "", missing: [] as string[], error: e instanceof Error ? e.message : String(e) }
     }
-  }, [doc])
+  }, [doc, previewBp])
 
   const nodeIdAt = (target: EventTarget | null): string | null => {
     const el = (target as HTMLElement | null)?.closest?.("[data-node-id]") as HTMLElement | null

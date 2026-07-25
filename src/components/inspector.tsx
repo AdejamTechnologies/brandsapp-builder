@@ -9,7 +9,7 @@ import { RichTextDialog } from "./richtext-dialog"
 interface InspectorProps {
   doc: Doc
   node?: Node
-  onChange: (d: Doc) => void
+  onChange: (d: Doc, coalesceKey?: string) => void
   /** Active breakpoint id, or null for the base layer. Style edits target it. */
   activeBp: string | null
 }
@@ -68,11 +68,12 @@ export function Inspector({ doc, node, onChange, activeBp }: InspectorProps) {
   if (!node) return <div className="inspector muted small">Select a layer to edit it.</div>
 
   const info = moduleInfo(node.module)
-  const setProp = (key: string, value: unknown) => onChange(updateProps(doc, node.id, { [key]: value }))
+  const setProp = (key: string, value: unknown) =>
+    onChange(updateProps(doc, node.id, { [key]: value }), `prop:${node.id}:${key}`)
   const setStyle = (key: string, value: string) =>
-    onChange(updateResponsiveStyle(doc, node.id, activeBp, { [key]: value }))
-  const patch = (p: Partial<Node>) =>
-    onChange({ ...doc, nodes: { ...doc.nodes, [node.id]: { ...node, ...p } } })
+    onChange(updateResponsiveStyle(doc, node.id, activeBp, { [key]: value }), `style:${node.id}:${activeBp ?? "base"}:${key}`)
+  const patch = (p: Partial<Node>, key?: string) =>
+    onChange({ ...doc, nodes: { ...doc.nodes, [node.id]: { ...node, ...p } } }, key)
 
   // Style value for the active layer; when on a breakpoint show the base as placeholder.
   const baseStyle = (k: string) => node.style?.[k] ?? ""
@@ -88,7 +89,7 @@ export function Inspector({ doc, node, onChange, activeBp }: InspectorProps) {
           className="ins-label"
           placeholder="layer name"
           value={node.label ?? ""}
-          onChange={(e) => patch({ label: e.target.value || undefined })}
+          onChange={(e) => patch({ label: e.target.value || undefined }, `label:${node.id}`)}
         />
       </div>
 

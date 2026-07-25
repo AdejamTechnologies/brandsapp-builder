@@ -12,8 +12,13 @@ export interface EditorHistory {
   doc: Doc
   canUndo: boolean
   canRedo: boolean
-  /** A user edit: pushes the current doc onto the undo stack, clears redo. */
-  apply: (next: Doc) => void
+  /**
+   * A user edit. Pushes the current doc onto the undo stack and clears redo. If
+   * `coalesceKey` matches the previous edit's key within a short window (e.g.
+   * typing in one field, dragging one control), the entries merge into one — so a
+   * burst of keystrokes is a single undo step.
+   */
+  apply: (next: Doc, coalesceKey?: string) => void
   undo: () => void
   redo: () => void
   /** Replace the doc WITHOUT recording history (initial load, remote sync). */
@@ -21,6 +26,7 @@ export interface EditorHistory {
 }
 
 const CAP = 100
+const COALESCE_MS = 600
 
 /**
  * Undo/redo for the editor doc. `onCommit` fires whenever the doc changes as the
@@ -32,16 +38,27 @@ export function useHistory(initial: Doc, onCommit?: (doc: Doc) => void): EditorH
   const [state, setState] = useState<HistoryState>({ doc: initial, past: [], future: [] })
   const commitRef = useRef(onCommit)
   commitRef.current = onCommit
+  // last coalesce key + timestamp, to merge a burst of same-key edits
+  const lastKey = useRef<string | null>(null)
+  const lastAt = useRef(0)
 
-  const apply = useCallback((next: Doc) => {
+  const apply = useCallback((next: Doc, coalesceKey?: string) => {
+    const now = Date.now()
+    const merge =
+      coalesceKey != null && coalesceKey === lastKey.current && now - lastAt.current < COALESCE_MS
+    lastKey.current = coalesceKey ?? null
+    lastAt.current = now
     setState((s) => {
       if (next === s.doc) return s
+      // merge: replace the current doc but keep the pre-burst snapshot in `past`
+      if (merge) return { doc: next, past: s.past, future: [] }
       return { doc: next, past: [...s.past, s.doc].slice(-CAP), future: [] }
     })
     commitRef.current?.(next)
   }, [])
 
   const undo = useCallback(() => {
+    lastKey.current = null
     setState((s) => {
       if (!s.past.length) return s
       const prev = s.past[s.past.length - 1]
@@ -51,6 +68,7 @@ export function useHistory(initial: Doc, onCommit?: (doc: Doc) => void): EditorH
   }, [])
 
   const redo = useCallback(() => {
+    lastKey.current = null
     setState((s) => {
       if (!s.future.length) return s
       const next = s.future[0]
@@ -60,6 +78,7 @@ export function useHistory(initial: Doc, onCommit?: (doc: Doc) => void): EditorH
   }, [])
 
   const reset = useCallback((doc: Doc) => {
+    lastKey.current = null
     setState({ doc, past: [], future: [] })
   }, [])
 

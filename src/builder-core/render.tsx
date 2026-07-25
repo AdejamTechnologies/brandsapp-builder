@@ -30,6 +30,13 @@ export interface RenderOptions {
   isEditor?: boolean
   /** collection sources for the `loop` module (P3). */
   loopSources?: Record<string, LoopSource>
+  /**
+   * Editor-only: flatten this breakpoint's responsive overrides onto each node's
+   * base (props + style) and drop the `@media` rules, so the inline canvas shows the
+   * breakpoint's resolved look at ANY window width. Publish rendering leaves this
+   * unset and emits real `@media` queries.
+   */
+  previewBreakpoint?: string
 }
 
 export interface RenderResult {
@@ -58,7 +65,8 @@ class RenderCtx {
     readonly doc: Doc,
     readonly registry: ModuleRegistry,
     readonly isEditor: boolean,
-    readonly loopSources: Record<string, LoopSource>
+    readonly loopSources: Record<string, LoopSource>,
+    readonly previewBreakpoint: string | null = null
   ) {}
 
   useStyleRule(id: string): void {
@@ -104,6 +112,23 @@ function classNamesFor(node: Node, ctx: RenderCtx): string {
   return classes.join(" ")
 }
 
+/**
+ * Fold a breakpoint's overrides onto the node's base and clear `responsive`, so the
+ * editor previews the breakpoint's look with no `@media` (which wouldn't match an
+ * inline canvas). Only used when `previewBreakpoint` is set.
+ */
+function effectiveNode(node: Node, bp: string | null): Node {
+  const ov = bp ? node.responsive?.[bp] : undefined
+  if (!ov) return node
+  return {
+    ...node,
+    props: ov.props ? { ...node.props, ...ov.props } : node.props,
+    style: ov.style ? { ...(node.style ?? {}), ...ov.style } : node.style,
+    styleIds: ov.styleIds ? [...node.styleIds, ...ov.styleIds] : node.styleIds,
+    responsive: undefined,
+  }
+}
+
 function resolveProps(node: Node, def: ModuleDefinition, data: DataContext): Record<string, unknown> {
   const merged = { ...def.defaults, ...node.props }
   const bound = applyBindings(merged, node.bindings, data)
@@ -115,16 +140,17 @@ function resolveProps(node: Node, def: ModuleDefinition, data: DataContext): Rec
 }
 
 function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string): ReactNode {
-  const node = ctx.doc.nodes[id]
-  if (!node || node.hidden) return null
+  const raw = ctx.doc.nodes[id]
+  if (!raw || raw.hidden) return null
 
-  if (node.module === "loop") return renderLoop(node, ctx, data, key)
+  if (raw.module === "loop") return renderLoop(raw, ctx, data, key)
 
-  const def = ctx.registry.get(node.module)
+  const def = ctx.registry.get(raw.module)
   if (!def) {
-    ctx.missing.push(node.module)
+    ctx.missing.push(raw.module)
     return null
   }
+  const node = effectiveNode(raw, ctx.previewBreakpoint)
   const children = node.children.length
     ? createElement(
         RFragment,
@@ -143,7 +169,8 @@ function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string):
   })
 }
 
-function renderLoop(node: Node, ctx: RenderCtx, data: DataContext, key: string): ReactNode {
+function renderLoop(raw: Node, ctx: RenderCtx, data: DataContext, key: string): ReactNode {
+  const node = effectiveNode(raw, ctx.previewBreakpoint)
   const sourceId = String(node.props.source ?? "")
   const source = ctx.loopSources[sourceId]
   const items = source ? source(node.props) : []
@@ -169,7 +196,8 @@ export function renderDocToReact(input: unknown, opts: RenderOptions): ReactRend
     parsed,
     opts.registry,
     opts.isEditor ?? false,
-    opts.loopSources ?? {}
+    opts.loopSources ?? {},
+    opts.previewBreakpoint ?? null
   )
   const data = opts.data ?? emptyDataContext()
   const rootEl = renderNode(parsed.rootId, ctx, data, parsed.rootId)

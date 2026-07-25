@@ -4,7 +4,7 @@ import type { ThemeTokens } from "@brandsapp/builder-core"
 
 interface ThemeDialogProps {
   theme: ThemeTokens
-  onChange: (patch: Partial<ThemeTokens>) => void
+  onChange: (patch: Partial<ThemeTokens>, coalesceKey?: string) => void
   onClose: () => void
 }
 
@@ -17,15 +17,15 @@ export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
   const colors = theme.colors ?? {}
   const radius = theme.radius ?? {}
 
-  const setColor = (k: string, v: string) => onChange({ colors: { ...colors, [k]: v } })
+  const setColor = (k: string, v: string) => onChange({ colors: { ...colors, [k]: v } }, `theme:color:${k}`)
   const removeColor = (k: string) => {
     const next = { ...colors }
     delete next[k]
     onChange({ colors: next })
   }
-  const setRadius = (k: string, v: string) => onChange({ radius: { ...radius, [k]: v } })
+  const setRadius = (k: string, v: string) => onChange({ radius: { ...radius, [k]: v } }, `theme:radius:${k}`)
   const setFont = (which: "display" | "body", v: string) =>
-    onChange({ fonts: { ...theme.fonts, [which]: v || undefined } })
+    onChange({ fonts: { ...theme.fonts, [which]: v || undefined } }, `theme:font:${which}`)
 
   return (
     <div className="modal-backdrop" onClick={onClose}>

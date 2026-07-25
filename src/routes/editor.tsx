@@ -99,7 +99,8 @@ export function EditorPage() {
       setSelectedId(id)
     }
   }
-  const setTheme = (patch: Partial<Doc["theme"]>) => apply(updateTheme(docRef.current, patch))
+  const setTheme = (patch: Partial<Doc["theme"]>, coalesceKey?: string) =>
+    apply(updateTheme(docRef.current, patch), coalesceKey)
   const doImport = () => {
     try {
       apply(parseDoc(htmlToDoc(importText)))
@@ -328,6 +329,7 @@ export function EditorPage() {
             scrollRef={scrollRef}
             dropIndicator={dropIndicator}
             width={BREAKPOINTS.find((b) => b.id === activeBp)?.width}
+            previewBp={activeBp}
           />
         )}
       </main>
