@@ -39,6 +39,14 @@ export interface RenderResult {
   missing: string[]
 }
 
+export interface ReactRenderResult {
+  /** The live React tree, wrapped in `.bapp-root` (same wrapper the HTML render uses). */
+  node: ReactNode
+  css: string
+  /** module names referenced by the doc but not in the registry. */
+  missing: string[]
+}
+
 const ROOT_CLASS = "bapp-root"
 
 class RenderCtx {
@@ -145,11 +153,17 @@ function renderLoop(node: Node, ctx: RenderCtx, data: DataContext, key: string):
     const childData: DataContext = { ...data, entryStack: [...data.entryStack, item] }
     return node.children.map((cid, ci) => renderNode(cid, ctx, childData, `${i}-${cid}-${ci}`))
   })
-  return createElement(wrapperTag, { key, className }, ...rendered)
+  const editorAttrs = ctx.isEditor ? { "data-node-id": node.id } : {}
+  return createElement(wrapperTag, { key, className, ...editorAttrs }, ...rendered)
 }
 
-/** Render a Doc (unknown, will be migrated + validated) to HTML + CSS. */
-export function renderDoc(input: unknown, opts: RenderOptions): RenderResult {
+/**
+ * Render a Doc to a LIVE React tree + CSS (no serialization). This is what the
+ * editor canvas mounts so it can attach selection/edit handlers to real DOM —
+ * `renderDoc` below is just this + `renderToString`. Same tree, same CSS, same
+ * `.bapp-root` wrapper, so the canvas previews exactly what will publish.
+ */
+export function renderDocToReact(input: unknown, opts: RenderOptions): ReactRenderResult {
   const parsed = parseDoc(migrateDoc(input))
   const ctx = new RenderCtx(
     parsed,
@@ -159,9 +173,14 @@ export function renderDoc(input: unknown, opts: RenderOptions): RenderResult {
   )
   const data = opts.data ?? emptyDataContext()
   const rootEl = renderNode(parsed.rootId, ctx, data, parsed.rootId)
-  const wrapper = createElement("div", { className: ROOT_CLASS }, rootEl)
-  const html = renderToString(wrapper)
+  const node = createElement("div", { className: ROOT_CLASS }, rootEl)
   const themeCss = themeToCss(parsed.theme, `.${ROOT_CLASS}`)
   const css = [themeCss, ...ctx.cssParts].filter(Boolean).join("")
-  return { html, css, missing: ctx.missing }
+  return { node, css, missing: ctx.missing }
+}
+
+/** Render a Doc (unknown, will be migrated + validated) to HTML + CSS. */
+export function renderDoc(input: unknown, opts: RenderOptions): RenderResult {
+  const { node, css, missing } = renderDocToReact(input, opts)
+  return { html: renderToString(node), css, missing }
 }

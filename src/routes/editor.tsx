@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams, useSearch } from "@tanstack/react-router"
 
 import {
@@ -8,8 +8,8 @@ import {
   type Doc,
   type Node,
 } from "@brandsapp/builder-core"
+import { Canvas } from "../lib/canvas"
 import { insertChild, moveChild, removeNode, updateProps, updateStyle } from "../lib/doc-ops"
-import { preview, previewSrcDoc } from "../lib/preview"
 import { useDocRoom } from "../lib/realtime"
 import { moduleInfo, moduleList, type ModuleInfo } from "../lib/registry"
 import { SAMPLE_DOC } from "../lib/sample"
@@ -91,7 +91,8 @@ export function EditorPage() {
     setExportJson(JSON.stringify(extractFragment(doc, id, manifest), null, 2))
   }
 
-  const rendered = useMemo(() => preview(doc), [doc])
+  const commitText = (nodeId: string, prop: string, value: string) =>
+    apply(updateProps(doc, nodeId, { [prop]: value }))
   const selected: Node | undefined = selectedId ? doc.nodes[selectedId] : undefined
 
   const insert = (m: ModuleInfo) => {
@@ -151,8 +152,6 @@ export function EditorPage() {
           <button className="ghost" onClick={doExport} title="Export the selected layer as a marketplace Fragment">
             Export Fragment
           </button>
-          {rendered.error && <span className="err">{rendered.error}</span>}
-          {rendered.missing.length > 0 && <span className="warn">missing: {rendered.missing.join(", ")}</span>}
           <span className="spacer" />
           <span className="muted small">{status}</span>
           <button onClick={save}>Save</button>
@@ -171,7 +170,12 @@ export function EditorPage() {
             }}
           />
         ) : (
-          <iframe title="preview" srcDoc={previewSrcDoc(rendered)} />
+          <Canvas
+            doc={doc}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onCommitText={commitText}
+          />
         )}
       </main>
 

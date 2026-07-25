@@ -3,6 +3,11 @@
  * that a Fragment/template composes. Each applies the node's `className` (style
  * sources + per-node CSS) to its root element; props are already sanitized by
  * control type before they arrive here.
+ *
+ * In editor mode each root element also carries `data-node-id` so the canvas can
+ * map a click/drag to its node WITHOUT a wrapper element (a wrapper would break
+ * flex/grid authoring). Outside the editor (`isEditor` false — i.e. SSR/publish)
+ * nothing extra is emitted.
  */
 
 import { createElement, type CSSProperties } from "react"
@@ -15,6 +20,10 @@ const num = (v: unknown, d: number) => {
   return Number.isFinite(n) ? n : d
 }
 
+/** Editor-only DOM attrs: tag the real element with its node id for selection. */
+const ed = (p: ModuleRenderProps): { "data-node-id"?: string } =>
+  p.isEditor ? { "data-node-id": p.nodeId } : {}
+
 // ── containers ──────────────────────────────────────────────────────────────
 
 const PageRoot: ModuleDefinition = {
@@ -23,8 +32,8 @@ const PageRoot: ModuleDefinition = {
   schema: {},
   defaults: {},
   contentModel: { children: "any" },
-  Component: ({ className, children }: ModuleRenderProps) =>
-    createElement("div", { className }, children),
+  Component: (p: ModuleRenderProps) =>
+    createElement("div", { className: p.className, ...ed(p) }, p.children),
 }
 
 const Box: ModuleDefinition = {
@@ -33,8 +42,8 @@ const Box: ModuleDefinition = {
   schema: { tag: { type: "plain" } },
   defaults: {},
   contentModel: { children: "any" },
-  Component: ({ className, children, props }: ModuleRenderProps) =>
-    createElement(str(props.tag, "div"), { className }, children),
+  Component: (p: ModuleRenderProps) =>
+    createElement(str(p.props.tag, "div"), { className: p.className, ...ed(p) }, p.children),
 }
 
 const Stack: ModuleDefinition = {
@@ -48,15 +57,15 @@ const Stack: ModuleDefinition = {
   },
   defaults: { direction: "column" },
   contentModel: { children: "any" },
-  Component: ({ className, children, props }: ModuleRenderProps) => {
+  Component: (p: ModuleRenderProps) => {
     const style: CSSProperties = {
       display: "flex",
-      flexDirection: str(props.direction, "column") === "row" ? "row" : "column",
-      gap: props.gap != null ? str(props.gap) : undefined,
-      alignItems: props.align != null ? str(props.align) : undefined,
-      justifyContent: props.justify != null ? str(props.justify) : undefined,
+      flexDirection: str(p.props.direction, "column") === "row" ? "row" : "column",
+      gap: p.props.gap != null ? str(p.props.gap) : undefined,
+      alignItems: p.props.align != null ? str(p.props.align) : undefined,
+      justifyContent: p.props.justify != null ? str(p.props.justify) : undefined,
     }
-    return createElement("div", { className, style }, children)
+    return createElement("div", { className: p.className, style, ...ed(p) }, p.children)
   },
 }
 
@@ -66,14 +75,14 @@ const Grid: ModuleDefinition = {
   schema: { columns: { type: "number" }, gap: { type: "plain" } },
   defaults: { columns: 3 },
   contentModel: { children: "any" },
-  Component: ({ className, children, props }: ModuleRenderProps) => {
-    const cols = Math.min(Math.max(num(props.columns, 3), 1), 12)
+  Component: (p: ModuleRenderProps) => {
+    const cols = Math.min(Math.max(num(p.props.columns, 3), 1), 12)
     const style: CSSProperties = {
       display: "grid",
       gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-      gap: props.gap != null ? str(props.gap) : "1rem",
+      gap: p.props.gap != null ? str(p.props.gap) : "1rem",
     }
-    return createElement("div", { className, style }, children)
+    return createElement("div", { className: p.className, style, ...ed(p) }, p.children)
   },
 }
 
@@ -83,7 +92,7 @@ const Divider: ModuleDefinition = {
   schema: {},
   defaults: {},
   contentModel: { children: "none" },
-  Component: ({ className }: ModuleRenderProps) => createElement("hr", { className }),
+  Component: (p: ModuleRenderProps) => createElement("hr", { className: p.className, ...ed(p) }),
 }
 
 const Spacer: ModuleDefinition = {
@@ -92,8 +101,8 @@ const Spacer: ModuleDefinition = {
   schema: { size: { type: "plain" } },
   defaults: { size: "2rem" },
   contentModel: { children: "none" },
-  Component: ({ className, props }: ModuleRenderProps) =>
-    createElement("div", { className, style: { height: str(props.size, "2rem") } }),
+  Component: (p: ModuleRenderProps) =>
+    createElement("div", { className: p.className, style: { height: str(p.props.size, "2rem") }, ...ed(p) }),
 }
 
 // ── content ─────────────────────────────────────────────────────────────────
@@ -107,9 +116,10 @@ const Heading: ModuleDefinition = {
   },
   defaults: { text: "Heading", level: "2" },
   contentModel: { children: "none" },
-  Component: ({ className, props }: ModuleRenderProps) => {
-    const lvl = Math.min(Math.max(num(props.level, 2), 1), 6)
-    return createElement(`h${lvl}`, { className }, str(props.text))
+  inlineTextEdit: { prop: "text" },
+  Component: (p: ModuleRenderProps) => {
+    const lvl = Math.min(Math.max(num(p.props.level, 2), 1), 6)
+    return createElement(`h${lvl}`, { className: p.className, ...ed(p) }, str(p.props.text))
   },
 }
 
@@ -119,8 +129,9 @@ const Text: ModuleDefinition = {
   schema: { text: { type: "plain" }, tag: { type: "plain" } },
   defaults: { text: "Text", tag: "p" },
   contentModel: { children: "none" },
-  Component: ({ className, props }: ModuleRenderProps) =>
-    createElement(str(props.tag, "p"), { className }, str(props.text)),
+  inlineTextEdit: { prop: "text", multiline: true },
+  Component: (p: ModuleRenderProps) =>
+    createElement(str(p.props.tag, "p"), { className: p.className, ...ed(p) }, str(p.props.text)),
 }
 
 const RichText: ModuleDefinition = {
@@ -129,8 +140,8 @@ const RichText: ModuleDefinition = {
   schema: { html: { type: "richtext" } },
   defaults: { html: "" },
   contentModel: { children: "none" },
-  Component: ({ className, props }: ModuleRenderProps) =>
-    createElement("div", { className, dangerouslySetInnerHTML: { __html: str(props.html) } }),
+  Component: (p: ModuleRenderProps) =>
+    createElement("div", { className: p.className, dangerouslySetInnerHTML: { __html: str(p.props.html) }, ...ed(p) }),
 }
 
 const Image: ModuleDefinition = {
@@ -139,8 +150,8 @@ const Image: ModuleDefinition = {
   schema: { src: { type: "media" }, alt: { type: "plain" } },
   defaults: { src: "", alt: "" },
   contentModel: { children: "none" },
-  Component: ({ className, props }: ModuleRenderProps) =>
-    createElement("img", { className, src: str(props.src), alt: str(props.alt), loading: "lazy" }),
+  Component: (p: ModuleRenderProps) =>
+    createElement("img", { className: p.className, src: str(p.props.src), alt: str(p.props.alt), loading: "lazy", ...ed(p) }),
 }
 
 const Icon: ModuleDefinition = {
@@ -149,11 +160,12 @@ const Icon: ModuleDefinition = {
   schema: { svg: { type: "svg" } },
   defaults: { svg: "" },
   contentModel: { children: "none" },
-  Component: ({ className, props }: ModuleRenderProps) =>
+  Component: (p: ModuleRenderProps) =>
     createElement("span", {
-      className,
+      className: p.className,
       "aria-hidden": true,
-      dangerouslySetInnerHTML: { __html: str(props.svg) },
+      dangerouslySetInnerHTML: { __html: str(p.props.svg) },
+      ...ed(p),
     }),
 }
 
@@ -165,11 +177,12 @@ const Button: ModuleDefinition = {
   schema: { label: { type: "plain" }, href: { type: "url" } },
   defaults: { label: "Button", href: "" },
   contentModel: { children: "none" },
-  Component: ({ className, props }: ModuleRenderProps) => {
-    const href = str(props.href)
+  inlineTextEdit: { prop: "label" },
+  Component: (p: ModuleRenderProps) => {
+    const href = str(p.props.href)
     return href
-      ? createElement("a", { className, href }, str(props.label))
-      : createElement("button", { className, type: "button" }, str(props.label))
+      ? createElement("a", { className: p.className, href, ...ed(p) }, str(p.props.label))
+      : createElement("button", { className: p.className, type: "button", ...ed(p) }, str(p.props.label))
   },
 }
 
@@ -179,8 +192,8 @@ const Link: ModuleDefinition = {
   schema: { href: { type: "url" }, text: { type: "plain" } },
   defaults: { href: "#", text: "Link" },
   contentModel: { children: "any" },
-  Component: ({ className, props, children }: ModuleRenderProps) =>
-    createElement("a", { className, href: str(props.href, "#") }, children ?? str(props.text)),
+  Component: (p: ModuleRenderProps) =>
+    createElement("a", { className: p.className, href: str(p.props.href, "#"), ...ed(p) }, p.children ?? str(p.props.text)),
 }
 
 const Embed: ModuleDefinition = {
@@ -189,8 +202,8 @@ const Embed: ModuleDefinition = {
   schema: { html: { type: "richtext" } },
   defaults: { html: "" },
   contentModel: { children: "none" },
-  Component: ({ className, props }: ModuleRenderProps) =>
-    createElement("div", { className, dangerouslySetInnerHTML: { __html: str(props.html) } }),
+  Component: (p: ModuleRenderProps) =>
+    createElement("div", { className: p.className, dangerouslySetInnerHTML: { __html: str(p.props.html) }, ...ed(p) }),
 }
 
 export const PRIMITIVES: ModuleDefinition[] = [

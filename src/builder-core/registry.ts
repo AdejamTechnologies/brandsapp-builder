@@ -40,6 +40,12 @@ export interface ModuleDefinition {
   contentModel: { children: "none" | "any" | string[] }
   /** Needs per-request data → rendered as a hole in the static bake (see render). */
   dynamic?: boolean
+  /**
+   * Editor-only: this module's text is editable in-place on the canvas. `prop` is
+   * the prop that holds the text (e.g. "label" for button). The editor makes the
+   * rendered element contentEditable on double-click and writes back to this prop.
+   */
+  inlineTextEdit?: { prop: string; multiline?: boolean }
   Component: ComponentType<ModuleRenderProps>
 }
 
