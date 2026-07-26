@@ -12,6 +12,7 @@ import { execSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { tokenizeClasses } from "./token-map.mjs"
 
 const cache = path.join(os.tmpdir(), "bapp-blocks-cache")
 fs.mkdirSync(cache, { recursive: true })
@@ -41,6 +42,7 @@ const bodyInner = (html) => {
 const push = (category, sub, name, raw) => {
   if (EXCLUDE.has(sub)) return
   let html = bodyInner(raw)
+  html = tokenizeClasses(html) // remap hardcoded palette classes → daisyUI semantic tokens
   if (/x-data|@click|x-show/.test(html)) return // remaining Alpine → skip (use primitives)
   if (html.length < 40) return
   const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
