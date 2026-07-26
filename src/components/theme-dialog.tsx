@@ -32,6 +32,8 @@ export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
   const radius = theme.radius ?? {}
 
   const setColor = (k: string, v: string) => onChange({ colors: { ...colors, [k]: v } }, `theme:color:${k}`)
+  // Reserved token keys — surfaced in their own groups, hidden from the freeform Colors list.
+  const RESERVED = ["primary", "secondary", "accent", "neutral", "base-100", "base-200", "base-300", "base-content"]
   const removeColor = (k: string) => {
     const next = { ...colors }
     delete next[k]
@@ -63,9 +65,22 @@ export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
         </Row>
       ))}
 
+      <GroupTitle>Surface</GroupTitle>
+      <p className="mb-2 -mt-1 text-[11px] text-muted-foreground">Page background, surfaces, borders and text — the neutral palette everything sits on.</p>
+      {([
+        ["base-100", "background"],
+        ["base-200", "surface"],
+        ["base-300", "border"],
+        ["base-content", "text"],
+      ] as const).map(([key, label]) => (
+        <Row key={key} label={label}>
+          {swatch(key, colors[key] ?? "")}
+        </Row>
+      ))}
+
       <GroupTitle>Colors</GroupTitle>
       {Object.entries(colors)
-        .filter(([k]) => !["primary", "secondary", "accent", "neutral"].includes(k))
+        .filter(([k]) => !RESERVED.includes(k))
         .map(([k, v]) => (
         <Row key={k} label={k}>
           {swatch(k, v)}

@@ -110,7 +110,7 @@ function brand(vars: Record<string, string>, hex: string | undefined, base: stri
   vars[content] = c.l > 60 ? "0 0% 20%" : "0 0% 100%"
 }
 
-/** daisyUI theme vars derived from the doc theme (defaults + brand overrides). */
+/** daisyUI theme vars derived from the doc theme (defaults + brand/base overrides). */
 export function daisyThemeVars(theme: ThemeTokens): string[] {
   const vars: Record<string, string> = { ...DAISY_DEFAULTS }
   const c = theme.colors ?? {}
@@ -118,6 +118,16 @@ export function daisyThemeVars(theme: ThemeTokens): string[] {
   brand(vars, c.secondary, "--s", "--sf", "--sc")
   brand(vars, c.accent, "--a", "--af", "--ac")
   brand(vars, c.neutral, "--n", "--nf", "--nc")
+  // Base palette (page bg / surface / border / text) — the neutral tokens content
+  // references via bg-base-100/200/300, border-base-300, text-base-content.
+  const setVar = (key: string, hex: string | undefined) => {
+    const v = hex ? hexToHsl(hex) : null
+    if (v) vars[key] = triplet(v)
+  }
+  setVar("--b1", c["base-100"])
+  setVar("--b2", c["base-200"])
+  setVar("--b3", c["base-300"])
+  setVar("--bc", c["base-content"])
   return Object.entries(vars).map(([k, v]) => `${k}:${v}`)
 }
 
