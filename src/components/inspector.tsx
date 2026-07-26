@@ -1,13 +1,21 @@
 import { useState } from "react"
 
 import type { Doc, Node } from "@brandsapp/builder-core"
-import { updateProps, updateResponsiveStyle } from "../lib/doc-ops"
+import {
+  addClassToNode,
+  createClass,
+  removeClassFromNode,
+  updateClassStyle,
+  updateProps,
+  updateResponsiveStyle,
+} from "../lib/doc-ops"
 import { moduleInfo } from "../lib/registry"
 import { MediaDialog } from "./media-dialog"
 import { RichTextDialog } from "./richtext-dialog"
 import { Button } from "./ui/button"
 import { Select } from "./ui/select"
 import { Switch } from "./ui/switch"
+import { cn } from "../lib/utils"
 
 type Anim = NonNullable<Node["anim"]>
 const ANIM_OPTIONS = [
@@ -80,14 +88,44 @@ const isHex = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)
 export function Inspector({ doc, node, onChange, activeBp, onPreview }: InspectorProps) {
   const [mediaKey, setMediaKey] = useState<string | null>(null)
   const [richKey, setRichKey] = useState<string | null>(null)
+  const [newClass, setNewClass] = useState("")
+  const [activeClassId, setActiveClassId] = useState<string | null>(null)
 
   if (!node) return <div className="inspector muted small">Select a layer to edit it.</div>
 
   const info = moduleInfo(node.module)
   const setProp = (key: string, value: unknown) =>
     onChange(updateProps(doc, node.id, { [key]: value }), `prop:${node.id}:${key}`)
+  // The active style target: a class (StyleRule id) if the node has one, else the
+  // element itself. Editing a class restyles every element that uses it.
+  const target =
+    (activeClassId && node.styleIds.includes(activeClassId) ? activeClassId : node.styleIds[node.styleIds.length - 1]) ??
+    null
   const setStyle = (key: string, value: string) =>
-    onChange(updateResponsiveStyle(doc, node.id, activeBp, { [key]: value }), `style:${node.id}:${activeBp ?? "base"}:${key}`)
+    onChange(
+      target
+        ? updateClassStyle(doc, target, activeBp, { [key]: value })
+        : updateResponsiveStyle(doc, node.id, activeBp, { [key]: value }),
+      `style:${target ?? node.id}:${activeBp ?? "base"}:${key}`
+    )
+  const applyClass = (name: string) => {
+    const clean = name.trim()
+    if (!clean) return
+    const existing = Object.values(doc.styles).find((s) => s.name === clean)
+    if (existing) {
+      onChange(addClassToNode(doc, node.id, existing.id))
+      setActiveClassId(existing.id)
+    } else {
+      const { doc: d1, id } = createClass(doc, clean)
+      onChange(addClassToNode(d1, node.id, id))
+      setActiveClassId(id)
+    }
+    setNewClass("")
+  }
+  const dropClass = (id: string) => {
+    onChange(removeClassFromNode(doc, node.id, id))
+    if (activeClassId === id) setActiveClassId(null)
+  }
   const patch = (p: Partial<Node>, key?: string) =>
     onChange({ ...doc, nodes: { ...doc.nodes, [node.id]: { ...node, ...p } } }, key)
   const animKey = `anim:${node.id}`
@@ -96,9 +134,14 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
   const setAnim = (field: keyof Anim, val: string | number) =>
     patch({ anim: { effect: "fade", ...node.anim, [field]: val } as Anim }, animKey)
 
-  // Style value for the active layer; when on a breakpoint show the base as placeholder.
-  const baseStyle = (k: string) => node.style?.[k] ?? ""
-  const styleVal = (k: string) => (activeBp ? node.responsive?.[activeBp]?.style?.[k] ?? "" : baseStyle(k))
+  // Read a style value from the active target (class or element), respecting the breakpoint.
+  const baseStyle = (k: string): string => (target ? doc.styles[target]?.base?.[k] ?? "" : node.style?.[k] ?? "")
+  const styleVal = (k: string): string => {
+    if (!activeBp) return baseStyle(k)
+    return target
+      ? doc.styles[target]?.context?.[activeBp]?.[k] ?? ""
+      : node.responsive?.[activeBp]?.style?.[k] ?? ""
+  }
 
   return (
     <div className="inspector">
@@ -192,6 +235,55 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
       <div className="section-title style-head">
         Style
         {activeBp && <span className="bp-tag">{activeBp}</span>}
+      </div>
+      <div className="px-3 pb-2">
+        {node.styleIds.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {node.styleIds.map((sid) => {
+              const rule = doc.styles[sid]
+              if (!rule) return null
+              return (
+                <span
+                  key={sid}
+                  onClick={() => setActiveClassId(sid)}
+                  className={cn(
+                    "inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium",
+                    sid === target ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-muted/70"
+                  )}
+                >
+                  {rule.name ?? sid}
+                  <button
+                    className="opacity-60 hover:opacity-100"
+                    title="Remove class"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      dropClass(sid)
+                    }}
+                  >
+                    ×
+                  </button>
+                </span>
+              )
+            })}
+          </div>
+        )}
+        <input
+          className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20"
+          placeholder={node.styleIds.length ? "add a class…" : "name a class to style…"}
+          value={newClass}
+          onChange={(e) => setNewClass(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") applyClass(newClass)
+          }}
+        />
+        <div className="mt-1.5 text-[11px] text-muted-foreground">
+          Editing{" "}
+          {target ? (
+            <b className="text-foreground">.{doc.styles[target]?.name ?? target}</b>
+          ) : (
+            <b className="text-foreground">this element</b>
+          )}
+        </div>
       </div>
       {GROUPS.map((g) => (
         <div key={g.title} className="field-group">

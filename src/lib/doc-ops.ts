@@ -1,4 +1,4 @@
-import type { Doc, Node } from "@brandsapp/builder-core"
+import type { Doc, Node, StyleRule } from "@brandsapp/builder-core"
 
 /** Immutable Doc operations for the editor (no external state lib needed). */
 
@@ -173,4 +173,58 @@ export function updateResponsiveStyle(
   for (const k of Object.keys(merged)) if (merged[k] === "") delete merged[k]
   const responsive = { ...(node.responsive ?? {}), [bp]: { ...(node.responsive?.[bp] ?? {}), style: merged } }
   return { ...doc, nodes: { ...doc.nodes, [id]: { ...node, responsive } } }
+}
+
+// ── reusable classes (Webflow-style): a StyleRule is a named class; node.styleIds
+// are the classes applied to it; the renderer emits each as `.s-<id>`. ──────────
+const newStyleId = () =>
+  "s" + (crypto.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10))
+
+/** Create a new named class (StyleRule) and return its id. */
+export function createClass(doc: Doc, name: string): { doc: Doc; id: string } {
+  const id = newStyleId()
+  const rule: StyleRule = { id, kind: "local", name, base: {} }
+  return { doc: { ...doc, styles: { ...doc.styles, [id]: rule } }, id }
+}
+
+/** Apply an existing class to a node (no-op if already applied). */
+export function addClassToNode(doc: Doc, nodeId: string, styleId: string): Doc {
+  const node = doc.nodes[nodeId]
+  if (!node || node.styleIds.includes(styleId)) return doc
+  return { ...doc, nodes: { ...doc.nodes, [nodeId]: { ...node, styleIds: [...node.styleIds, styleId] } } }
+}
+
+/** Remove a class from a node (the class definition itself is kept). */
+export function removeClassFromNode(doc: Doc, nodeId: string, styleId: string): Doc {
+  const node = doc.nodes[nodeId]
+  if (!node) return doc
+  return { ...doc, nodes: { ...doc.nodes, [nodeId]: { ...node, styleIds: node.styleIds.filter((s) => s !== styleId) } } }
+}
+
+/** Rename a class (updates every node that uses it, since they reference by id). */
+export function renameClass(doc: Doc, styleId: string, name: string): Doc {
+  const rule = doc.styles[styleId]
+  if (!rule) return doc
+  return { ...doc, styles: { ...doc.styles, [styleId]: { ...rule, name } } }
+}
+
+/** Write style keys onto a class at the active breakpoint: base (bp null) or context[bp]. */
+export function updateClassStyle(
+  doc: Doc,
+  styleId: string,
+  bp: string | null,
+  patch: Record<string, string>
+): Doc {
+  const rule = doc.styles[styleId]
+  if (!rule) return doc
+  const clean = (bag: Record<string, string>) => {
+    const out = { ...bag }
+    for (const k of Object.keys(out)) if (out[k] === "") delete out[k]
+    return out
+  }
+  if (!bp) {
+    return { ...doc, styles: { ...doc.styles, [styleId]: { ...rule, base: clean({ ...rule.base, ...patch }) } } }
+  }
+  const context = { ...(rule.context ?? {}), [bp]: clean({ ...(rule.context?.[bp] ?? {}), ...patch }) }
+  return { ...doc, styles: { ...doc.styles, [styleId]: { ...rule, context } } }
 }
