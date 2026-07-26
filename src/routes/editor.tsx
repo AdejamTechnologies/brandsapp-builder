@@ -3,7 +3,11 @@ import { useParams, useSearch } from "@tanstack/react-router"
 import {
   Code2,
   Download,
+  Eye,
+  EyeOff,
   FileInput,
+  Lock,
+  LockOpen,
   Monitor,
   Palette as PaletteIcon,
   Plus,
@@ -181,6 +185,12 @@ export function EditorPage() {
     apply(removeNode(docRef.current, id))
     setSelectedId(docRef.current.rootId)
   }
+  // Navigator patch: rename / hide / lock a layer.
+  const patchNode = (id: string, p: Partial<Node>, key?: string) => {
+    const n = docRef.current.nodes[id]
+    if (!n) return
+    apply({ ...docRef.current, nodes: { ...docRef.current.nodes, [id]: { ...n, ...p } } }, key)
+  }
 
   // Keyboard: undo/redo, delete, duplicate, copy/paste, deselect. Ignored while a
   // form field or contentEditable has focus so typing isn't hijacked.
@@ -348,6 +358,7 @@ export function EditorPage() {
           onSelect={setSelectedId}
           onDelete={del}
           onReorder={reorder}
+          onUpdate={patchNode}
         />
       </aside>
 
@@ -491,18 +502,46 @@ export function EditorPage() {
   )
 }
 
+// Element palette grouped like Webflow's Add panel. Order + friendly headers;
+// anything with an unlisted category falls through to "Other".
+const CAT_ORDER = ["layout", "content", "media", "forms", "interactive", "advanced", "data"]
+const CAT_LABEL: Record<string, string> = {
+  layout: "Layout",
+  content: "Typography",
+  media: "Media",
+  forms: "Forms",
+  interactive: "Interactive",
+  advanced: "Advanced",
+  data: "Dynamic",
+}
+
 function Palette({ onDragStart }: { onDragStart: (m: ModuleInfo, e: React.PointerEvent) => void }) {
-  const mods = moduleList().filter((m) => m.name !== "page-root")
+  const mods = moduleList().filter((m) => m.name !== "page-root" && m.name !== "loop")
+  const groups = new Map<string, ModuleInfo[]>()
+  for (const m of mods) {
+    const cat = CAT_ORDER.includes(m.category) ? m.category : "other"
+    ;(groups.get(cat) ?? groups.set(cat, []).get(cat)!).push(m)
+  }
+  const cats = [...CAT_ORDER.filter((c) => groups.has(c)), ...(groups.has("other") ? ["other"] : [])]
   return (
-    <div className="grid grid-cols-2 gap-1.5 p-3">
-      {mods.map((m) => (
-        <button
-          key={m.name}
-          onPointerDown={(e) => onDragStart(m, e)}
-          className="flex cursor-grab items-center rounded-md border border-border bg-background px-2.5 py-2 text-xs capitalize text-foreground transition-colors hover:border-ring hover:text-foreground active:cursor-grabbing"
-        >
-          {m.name}
-        </button>
+    <div className="p-3">
+      {cats.map((cat) => (
+        <div key={cat} className="mb-3 last:mb-0">
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {CAT_LABEL[cat] ?? "Other"}
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {groups.get(cat)!.map((m) => (
+              <button
+                key={m.name}
+                onPointerDown={(e) => onDragStart(m, e)}
+                className="flex cursor-grab items-center rounded-md border border-border bg-background px-2.5 py-2 text-xs capitalize text-foreground transition-colors hover:border-ring hover:text-foreground active:cursor-grabbing"
+              >
+                {m.name.replace(/-/g, " ")}
+              </button>
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   )
@@ -570,25 +609,30 @@ interface TreeProps {
   onSelect: (id: string) => void
   onDelete: (id: string) => void
   onReorder: (parentId: string, from: number, to: number) => void
+  onUpdate: (id: string, patch: Partial<Node>, key?: string) => void
 }
 
 function Tree(props: TreeProps) {
-  const { doc, nodeId, parentId, index, depth, selectedId, drag, onSelect, onDelete, onReorder } = props
+  const { doc, nodeId, parentId, index, depth, selectedId, drag, onSelect, onDelete, onReorder, onUpdate } = props
+  const [renaming, setRenaming] = useState(false)
   const node = doc.nodes[nodeId]
   if (!node) return null
   const isRoot = nodeId === doc.rootId
+  const locked = Boolean(node.locked)
+  const hidden = Boolean(node.hidden)
   return (
     <div>
       <div
         className={cn(
-          "group mx-1.5 flex cursor-pointer items-center justify-between rounded-md py-1 pr-1.5 text-[13px]",
-          selectedId === nodeId ? "bg-accent text-foreground" : "text-foreground hover:bg-muted"
+          "group mx-1.5 flex cursor-pointer items-center gap-0.5 rounded-md py-1 pr-1 text-[13px]",
+          selectedId === nodeId ? "bg-accent text-foreground" : "text-foreground hover:bg-muted",
+          hidden && "opacity-45"
         )}
         style={{ paddingLeft: 8 + depth * 14 }}
         onClick={() => onSelect(nodeId)}
-        draggable={!isRoot}
+        draggable={!isRoot && !locked}
         onDragStart={(e) => {
-          if (parentId) {
+          if (parentId && !locked) {
             drag.current = { parentId, index }
             e.stopPropagation()
           }
@@ -605,18 +649,72 @@ function Tree(props: TreeProps) {
           drag.current = null
         }}
       >
-        <span className="truncate">{node.label ?? node.module}</span>
-        {!isRoot && (
-          <button
-            className="shrink-0 px-1 text-base leading-none text-muted-foreground opacity-0 hover:text-red-600 group-hover:opacity-100"
-            title="Delete"
-            onClick={(e) => {
+        {renaming ? (
+          <input
+            autoFocus
+            defaultValue={node.label ?? ""}
+            placeholder={node.module}
+            className="min-w-0 flex-1 rounded border border-ring bg-background px-1 py-0.5 text-[13px] outline-none"
+            onClick={(e) => e.stopPropagation()}
+            onBlur={(e) => {
+              onUpdate(nodeId, { label: e.target.value.trim() || undefined }, `label:${nodeId}`)
+              setRenaming(false)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+              if (e.key === "Escape") setRenaming(false)
+            }}
+          />
+        ) : (
+          <span
+            className="flex-1 truncate"
+            onDoubleClick={(e) => {
               e.stopPropagation()
-              onDelete(nodeId)
+              setRenaming(true)
             }}
           >
-            ×
-          </button>
+            {node.label ?? node.module}
+          </span>
+        )}
+        {!isRoot && (
+          <>
+            <button
+              className={cn(
+                "shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground",
+                hidden ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+              )}
+              title={hidden ? "Show" : "Hide"}
+              onClick={(e) => {
+                e.stopPropagation()
+                onUpdate(nodeId, { hidden: hidden ? undefined : true })
+              }}
+            >
+              {hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+            </button>
+            <button
+              className={cn(
+                "shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground",
+                locked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+              )}
+              title={locked ? "Unlock" : "Lock"}
+              onClick={(e) => {
+                e.stopPropagation()
+                onUpdate(nodeId, { locked: locked ? undefined : true })
+              }}
+            >
+              {locked ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
+            </button>
+            <button
+              className="shrink-0 rounded px-1 text-base leading-none text-muted-foreground opacity-0 hover:text-red-600 group-hover:opacity-100"
+              title="Delete"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(nodeId)
+              }}
+            >
+              ×
+            </button>
+          </>
         )}
       </div>
       {node.children.map((cid, i) => (

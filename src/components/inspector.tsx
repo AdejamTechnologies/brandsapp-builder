@@ -15,6 +15,7 @@ import { RichTextDialog } from "./richtext-dialog"
 import { Button } from "./ui/button"
 import { Select } from "./ui/select"
 import { Switch } from "./ui/switch"
+import { Tabs, TabsList, TabsPanel, TabsTab } from "./ui/tabs"
 import { cn } from "../lib/utils"
 
 type Anim = NonNullable<Node["anim"]>
@@ -66,7 +67,6 @@ const LABELS: Record<string, string> = {
   borderRadius: "radius",
   borderColor: "border color",
   boxShadow: "shadow",
-  backgroundColor: "background",
 }
 
 type FieldKind = "text" | "select" | "color"
@@ -129,6 +129,7 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
   if (!node) return <div className="inspector muted small">Select a layer to edit it.</div>
 
   const info = moduleInfo(node.module)
+  const hasContent = info != null && Object.keys(info.schema).length > 0
   const tokens = Object.entries(doc.theme.colors ?? {}) // [name, value] — the variables
   const setProp = (key: string, value: unknown) =>
     onChange(updateProps(doc, node.id, { [key]: value }), `prop:${node.id}:${key}`)
@@ -186,11 +187,7 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
     return (
       <div className="ins-color">
         <div className="color-row">
-          <input
-            type="color"
-            value={isHex(val) ? val : "#000000"}
-            onChange={(e) => setStyle(key, e.target.value)}
-          />
+          <input type="color" value={isHex(val) ? val : "#000000"} onChange={(e) => setStyle(key, e.target.value)} />
           <input
             value={val}
             placeholder={activeBp ? baseStyle(key) || "—" : "—"}
@@ -214,6 +211,70 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
     )
   }
 
+  const contentFields =
+    info &&
+    Object.entries(info.schema).map(([key, control]) => {
+      const value = node.props[key]
+      const label = control.label ?? key
+      if (control.type === "media") {
+        return (
+          <div key={key} className="field">
+            <span>{label}</span>
+            <div className="media-field">
+              <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
+              <button className="mini" onClick={() => setMediaKey(key)}>
+                Choose
+              </button>
+            </div>
+          </div>
+        )
+      }
+      if (control.type === "richtext") {
+        return (
+          <div key={key} className="field">
+            <span>{label}</span>
+            <button className="mini wide" onClick={() => setRichKey(key)}>
+              Edit rich text…
+            </button>
+          </div>
+        )
+      }
+      if (control.type === "boolean") {
+        return (
+          <div key={key} className="field">
+            <span>{label}</span>
+            <Switch checked={Boolean(value)} onCheckedChange={(c: boolean) => setProp(key, c)} />
+          </div>
+        )
+      }
+      if (control.type === "select" && control.options) {
+        return (
+          <div key={key} className="field">
+            <span>{label}</span>
+            <Select
+              value={String(value ?? "")}
+              onValueChange={(v) => setProp(key, v)}
+              options={control.options.map((o) => ({ value: String(o.value), label: o.label }))}
+            />
+          </div>
+        )
+      }
+      return (
+        <label key={key} className="field">
+          <span>{label}</span>
+          {control.type === "number" ? (
+            <input
+              type="number"
+              value={value == null ? "" : String(value)}
+              onChange={(e) => setProp(key, e.target.value === "" ? undefined : Number(e.target.value))}
+            />
+          ) : (
+            <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
+          )}
+        </label>
+      )
+    })
+
   return (
     <div className="inspector">
       <div className="inspector-head">
@@ -228,207 +289,163 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
         />
       </div>
 
-      <div className="section-title">Utility classes</div>
-      <div style={{ padding: "0 12px 6px" }}>
-        <input
-          className="ins-label"
-          style={{ fontFamily: "ui-monospace, Menlo, monospace" }}
-          placeholder="flex gap-4 p-6 rounded-xl bg-base-100"
-          value={node.classes ?? ""}
-          onChange={(e) => patch({ classes: e.target.value || undefined }, `classes:${node.id}`)}
-        />
-      </div>
+      <Tabs defaultValue="settings">
+        <TabsList className="border-b border-border px-2 pt-1">
+          <TabsTab value="settings">Settings</TabsTab>
+          <TabsTab value="style">Style{activeBp ? ` · ${activeBp}` : ""}</TabsTab>
+        </TabsList>
 
-      {info && Object.keys(info.schema).length > 0 && <div className="section-title">Content</div>}
-      {info &&
-        Object.entries(info.schema).map(([key, control]) => {
-          const value = node.props[key]
-          const label = control.label ?? key
-          if (control.type === "media") {
-            return (
-              <div key={key} className="field">
-                <span>{label}</span>
-                <div className="media-field">
-                  <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
-                  <button className="mini" onClick={() => setMediaKey(key)}>
-                    Choose
-                  </button>
-                </div>
-              </div>
-            )
-          }
-          if (control.type === "richtext") {
-            return (
-              <div key={key} className="field">
-                <span>{label}</span>
-                <button className="mini wide" onClick={() => setRichKey(key)}>
-                  Edit rich text…
-                </button>
-              </div>
-            )
-          }
-          if (control.type === "boolean") {
-            return (
-              <div key={key} className="field">
-                <span>{label}</span>
-                <Switch checked={Boolean(value)} onCheckedChange={(c: boolean) => setProp(key, c)} />
-              </div>
-            )
-          }
-          if (control.type === "select" && control.options) {
-            return (
-              <div key={key} className="field">
-                <span>{label}</span>
-                <Select
-                  value={String(value ?? "")}
-                  onValueChange={(v) => setProp(key, v)}
-                  options={control.options.map((o) => ({ value: String(o.value), label: o.label }))}
-                />
-              </div>
-            )
-          }
-          return (
-            <label key={key} className="field">
-              <span>{label}</span>
-              {control.type === "number" ? (
-                <input
-                  type="number"
-                  value={value == null ? "" : String(value)}
-                  onChange={(e) => setProp(key, e.target.value === "" ? undefined : Number(e.target.value))}
-                />
-              ) : (
-                <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
-              )}
-            </label>
-          )
-        })}
-
-      <div className="section-title style-head">
-        Style
-        {activeBp && <span className="bp-tag">{activeBp}</span>}
-      </div>
-      <div className="px-3 pb-2">
-        {node.styleIds.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {node.styleIds.map((sid) => {
-              const rule = doc.styles[sid]
-              if (!rule) return null
-              return (
-                <span
-                  key={sid}
-                  onClick={() => setActiveClassId(sid)}
-                  className={cn(
-                    "inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium",
-                    sid === target ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-muted/70"
-                  )}
-                >
-                  {rule.name ?? sid}
-                  <button
-                    className="opacity-60 hover:opacity-100"
-                    title="Remove class"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      dropClass(sid)
-                    }}
-                  >
-                    ×
-                  </button>
-                </span>
-              )
-            })}
-          </div>
-        )}
-        <input
-          className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20"
-          placeholder={node.styleIds.length ? "add a class…" : "name a class to style…"}
-          value={newClass}
-          onChange={(e) => setNewClass(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") applyClass(newClass)
-          }}
-        />
-        <div className="mt-1.5 text-[11px] text-muted-foreground">
-          Editing{" "}
-          {target ? (
-            <b className="text-foreground">.{doc.styles[target]?.name ?? target}</b>
+        <TabsPanel value="settings">
+          {hasContent ? (
+            <div className="pt-1">{contentFields}</div>
           ) : (
-            <b className="text-foreground">this element</b>
+            <div className="muted small" style={{ padding: "12px" }}>
+              This element has no settings — switch to Style to design it.
+            </div>
           )}
-        </div>
-      </div>
-      {GROUPS.map((g) => (
-        <div key={g.title} className="field-group">
-          <div className="group-title">{g.title}</div>
-          {g.fields.map((f) => {
-            const label = LABELS[f.key] ?? f.key
-            if (f.kind === "select") {
-              return (
-                <div key={f.key} className="field">
-                  <span>{label}</span>
-                  <Select
-                    value={styleVal(f.key)}
-                    onValueChange={(v) => setStyle(f.key, v)}
-                    options={(SELECTS[f.key] ?? [""]).map((o) => ({ value: o, label: o || "—" }))}
-                  />
-                </div>
-              )
-            }
-            if (f.kind === "color") {
-              return (
-                <div key={f.key} className="field">
-                  <span>{label}</span>
-                  {colorControl(f.key)}
-                </div>
-              )
-            }
-            return (
-              <label key={f.key} className="field">
-                <span>{label}</span>
-                <input
-                  value={styleVal(f.key)}
-                  placeholder={activeBp ? baseStyle(f.key) || "—" : "—"}
-                  onChange={(e) => setStyle(f.key, e.target.value)}
-                />
-              </label>
-            )
-          })}
-        </div>
-      ))}
+        </TabsPanel>
 
-      <div className="section-title">Animation</div>
-      <div className="field">
-        <span>effect</span>
-        <Select value={node.anim?.effect ?? "none"} onValueChange={setEffect} options={ANIM_OPTIONS} />
-      </div>
-      {node.anim && (
-        <>
-          <div className="field">
-            <span>trigger</span>
-            <Select
-              value={node.anim.trigger ?? "load"}
-              onValueChange={(v) => setAnim("trigger", v)}
-              options={[
-                { value: "load", label: "On load" },
-                { value: "scroll", label: "On scroll" },
-              ]}
+        <TabsPanel value="style">
+          <div className="section-title">Utility classes</div>
+          <div style={{ padding: "0 12px 6px" }}>
+            <input
+              className="ins-label"
+              style={{ fontFamily: "ui-monospace, Menlo, monospace" }}
+              placeholder="flex gap-4 p-6 rounded-xl bg-base-100"
+              value={node.classes ?? ""}
+              onChange={(e) => patch({ classes: e.target.value || undefined }, `classes:${node.id}`)}
             />
           </div>
-          <label className="field">
-            <span>duration</span>
-            <input type="number" value={node.anim.duration ?? 600} onChange={(e) => setAnim("duration", Number(e.target.value) || 600)} />
-          </label>
-          <label className="field">
-            <span>delay</span>
-            <input type="number" value={node.anim.delay ?? 0} onChange={(e) => setAnim("delay", Number(e.target.value) || 0)} />
-          </label>
-          <div className="field">
-            <span />
-            <Button variant="outline" size="sm" onClick={() => onPreview?.(node.id, node.anim!)}>
-              ▶ Play
-            </Button>
+
+          <div className="section-title style-head">
+            Classes
+            {activeBp && <span className="bp-tag">{activeBp}</span>}
           </div>
-        </>
-      )}
+          <div className="px-3 pb-2">
+            {node.styleIds.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {node.styleIds.map((sid) => {
+                  const rule = doc.styles[sid]
+                  if (!rule) return null
+                  return (
+                    <span
+                      key={sid}
+                      onClick={() => setActiveClassId(sid)}
+                      className={cn(
+                        "inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium",
+                        sid === target ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-muted/70"
+                      )}
+                    >
+                      {rule.name ?? sid}
+                      <button
+                        className="opacity-60 hover:opacity-100"
+                        title="Remove class"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          dropClass(sid)
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+            <input
+              className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20"
+              placeholder={node.styleIds.length ? "add a class…" : "name a class to style…"}
+              value={newClass}
+              onChange={(e) => setNewClass(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") applyClass(newClass)
+              }}
+            />
+            <div className="mt-1.5 text-[11px] text-muted-foreground">
+              Editing{" "}
+              {target ? (
+                <b className="text-foreground">.{doc.styles[target]?.name ?? target}</b>
+              ) : (
+                <b className="text-foreground">this element</b>
+              )}
+            </div>
+          </div>
+
+          {GROUPS.map((g) => (
+            <div key={g.title} className="field-group">
+              <div className="group-title">{g.title}</div>
+              {g.fields.map((f) => {
+                const label = LABELS[f.key] ?? f.key
+                if (f.kind === "select") {
+                  return (
+                    <div key={f.key} className="field">
+                      <span>{label}</span>
+                      <Select
+                        value={styleVal(f.key)}
+                        onValueChange={(v) => setStyle(f.key, v)}
+                        options={(SELECTS[f.key] ?? [""]).map((o) => ({ value: o, label: o || "—" }))}
+                      />
+                    </div>
+                  )
+                }
+                if (f.kind === "color") {
+                  return (
+                    <div key={f.key} className="field">
+                      <span>{label}</span>
+                      {colorControl(f.key)}
+                    </div>
+                  )
+                }
+                return (
+                  <label key={f.key} className="field">
+                    <span>{label}</span>
+                    <input
+                      value={styleVal(f.key)}
+                      placeholder={activeBp ? baseStyle(f.key) || "—" : "—"}
+                      onChange={(e) => setStyle(f.key, e.target.value)}
+                    />
+                  </label>
+                )
+              })}
+            </div>
+          ))}
+
+          <div className="section-title">Animation</div>
+          <div className="field">
+            <span>effect</span>
+            <Select value={node.anim?.effect ?? "none"} onValueChange={setEffect} options={ANIM_OPTIONS} />
+          </div>
+          {node.anim && (
+            <>
+              <div className="field">
+                <span>trigger</span>
+                <Select
+                  value={node.anim.trigger ?? "load"}
+                  onValueChange={(v) => setAnim("trigger", v)}
+                  options={[
+                    { value: "load", label: "On load" },
+                    { value: "scroll", label: "On scroll" },
+                  ]}
+                />
+              </div>
+              <label className="field">
+                <span>duration</span>
+                <input type="number" value={node.anim.duration ?? 600} onChange={(e) => setAnim("duration", Number(e.target.value) || 600)} />
+              </label>
+              <label className="field">
+                <span>delay</span>
+                <input type="number" value={node.anim.delay ?? 0} onChange={(e) => setAnim("delay", Number(e.target.value) || 0)} />
+              </label>
+              <div className="field">
+                <span />
+                <Button variant="outline" size="sm" onClick={() => onPreview?.(node.id, node.anim!)}>
+                  ▶ Play
+                </Button>
+              </div>
+            </>
+          )}
+        </TabsPanel>
+      </Tabs>
 
       {mediaKey && (
         <MediaDialog

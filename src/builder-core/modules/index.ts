@@ -1,6 +1,7 @@
 import { createElement } from "react"
 
 import { ModuleRegistry, type ModuleDefinition, type ModuleRenderProps } from "../registry"
+import { FORM_MODULES } from "./forms"
 import { INTERACTIVE_MODULES } from "./interactive"
 import { PRIMITIVES } from "./primitives"
 
@@ -21,7 +22,7 @@ const Loop: ModuleDefinition = {
 
 /** A registry with the built-in primitives + interactive modules + loop. Apps extend this. */
 export function createDefaultRegistry(): ModuleRegistry {
-  return new ModuleRegistry().registerAll([...PRIMITIVES, ...INTERACTIVE_MODULES, Loop])
+  return new ModuleRegistry().registerAll([...PRIMITIVES, ...INTERACTIVE_MODULES, ...FORM_MODULES, Loop])
 }
 
 export { PRIMITIVES }
