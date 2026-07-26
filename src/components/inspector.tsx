@@ -1,10 +1,11 @@
 import { useState } from "react"
 
-import type { Doc, Node } from "@brandsapp/builder-core"
+import type { Doc, Node, PropBinding } from "@brandsapp/builder-core"
 import {
   addClassToNode,
   createClass,
   removeClassFromNode,
+  setBinding,
   updateClassStyle,
   updateProps,
   updateResponsiveStyle,
@@ -120,11 +121,24 @@ const GROUPS: { title: string; fields: { key: string; kind: FieldKind }[] }[] = 
 const isHex = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)
 const tokenVar = (name: string) => `var(--color-${name})`
 
+// CMS binding: which prop types can be overlaid from a data field, and the sources.
+const BINDABLE = new Set(["plain", "url", "media", "richtext", "number"])
+const BIND_SOURCES: { value: PropBinding["source"]; label: string }[] = [
+  { value: "item", label: "Loop item" },
+  { value: "parentItem", label: "Parent item" },
+  { value: "page", label: "Page" },
+  { value: "site", label: "Site" },
+  { value: "route", label: "Route" },
+]
+
 export function Inspector({ doc, node, onChange, activeBp, onPreview }: InspectorProps) {
   const [mediaKey, setMediaKey] = useState<string | null>(null)
   const [richKey, setRichKey] = useState<string | null>(null)
   const [newClass, setNewClass] = useState("")
   const [activeClassId, setActiveClassId] = useState<string | null>(null)
+  const [bindProp, setBindProp] = useState<string | null>(null)
+  const [bindSource, setBindSource] = useState<PropBinding["source"]>("item")
+  const [bindField, setBindField] = useState("")
 
   if (!node) return <div className="inspector muted small">Select a layer to edit it.</div>
 
@@ -211,31 +225,105 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
     )
   }
 
+  // ── CMS binding controls (Settings tab) ──
+  const setBind = (prop: string, binding: PropBinding | null) =>
+    onChange(setBinding(doc, node.id, prop, binding), `bind:${node.id}:${prop}`)
+  const openBind = (prop: string) => {
+    const b = node.bindings?.[prop]
+    setBindSource(b?.source ?? "item")
+    setBindField(b?.field ?? "")
+    setBindProp(prop)
+  }
+  const bindingUI = (prop: string) => {
+    const bound = node.bindings?.[prop]
+    const editing = bindProp === prop
+    return (
+      <div className="bind-row">
+        {bound ? (
+          <span className="bind-chip">
+            ↔ {bound.source}.{bound.field}
+            <button title="Unbind" onClick={() => setBind(prop, null)}>
+              ×
+            </button>
+            <button title="Edit binding" onClick={() => openBind(prop)}>
+              ✎
+            </button>
+          </span>
+        ) : editing ? null : (
+          <button className="bind-link" onClick={() => openBind(prop)}>
+            ↔ Bind to data
+          </button>
+        )}
+        {editing && (
+          <div className="bind-editor">
+            <Select
+              value={bindSource}
+              onValueChange={(v) => setBindSource(v as PropBinding["source"])}
+              options={BIND_SOURCES}
+            />
+            <input
+              placeholder="field (e.g. title, price)"
+              value={bindField}
+              onChange={(e) => setBindField(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && bindField.trim()) {
+                  setBind(prop, { source: bindSource, field: bindField.trim() })
+                  setBindProp(null)
+                }
+              }}
+            />
+            <div className="bind-actions">
+              <button
+                className="mini"
+                onClick={() => {
+                  if (bindField.trim()) setBind(prop, { source: bindSource, field: bindField.trim() })
+                  setBindProp(null)
+                }}
+              >
+                Bind
+              </button>
+              <button className="mini" onClick={() => setBindProp(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const contentFields =
     info &&
     Object.entries(info.schema).map(([key, control]) => {
       const value = node.props[key]
       const label = control.label ?? key
+      const bindable = BINDABLE.has(control.type)
       if (control.type === "media") {
         return (
-          <div key={key} className="field">
-            <span>{label}</span>
-            <div className="media-field">
-              <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
-              <button className="mini" onClick={() => setMediaKey(key)}>
-                Choose
-              </button>
+          <div key={key}>
+            <div className="field">
+              <span>{label}</span>
+              <div className="media-field">
+                <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
+                <button className="mini" onClick={() => setMediaKey(key)}>
+                  Choose
+                </button>
+              </div>
             </div>
+            {bindingUI(key)}
           </div>
         )
       }
       if (control.type === "richtext") {
         return (
-          <div key={key} className="field">
-            <span>{label}</span>
-            <button className="mini wide" onClick={() => setRichKey(key)}>
-              Edit rich text…
-            </button>
+          <div key={key}>
+            <div className="field">
+              <span>{label}</span>
+              <button className="mini wide" onClick={() => setRichKey(key)}>
+                Edit rich text…
+              </button>
+            </div>
+            {bindingUI(key)}
           </div>
         )
       }
@@ -260,18 +348,21 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
         )
       }
       return (
-        <label key={key} className="field">
-          <span>{label}</span>
-          {control.type === "number" ? (
-            <input
-              type="number"
-              value={value == null ? "" : String(value)}
-              onChange={(e) => setProp(key, e.target.value === "" ? undefined : Number(e.target.value))}
-            />
-          ) : (
-            <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
-          )}
-        </label>
+        <div key={key}>
+          <label className="field">
+            <span>{label}</span>
+            {control.type === "number" ? (
+              <input
+                type="number"
+                value={value == null ? "" : String(value)}
+                onChange={(e) => setProp(key, e.target.value === "" ? undefined : Number(e.target.value))}
+              />
+            ) : (
+              <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
+            )}
+          </label>
+          {bindable && bindingUI(key)}
+        </div>
       )
     })
 

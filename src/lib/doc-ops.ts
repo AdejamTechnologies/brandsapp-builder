@@ -1,4 +1,4 @@
-import type { Doc, Node, StyleRule } from "@brandsapp/builder-core"
+import type { Doc, Node, PropBinding, StyleRule } from "@brandsapp/builder-core"
 
 /** Immutable Doc operations for the editor (no external state lib needed). */
 
@@ -206,6 +206,17 @@ export function renameClass(doc: Doc, styleId: string, name: string): Doc {
   const rule = doc.styles[styleId]
   if (!rule) return doc
   return { ...doc, styles: { ...doc.styles, [styleId]: { ...rule, name } } }
+}
+
+/** Bind (or unbind, when binding is null) a node prop to a CMS data field. */
+export function setBinding(doc: Doc, nodeId: string, prop: string, binding: PropBinding | null): Doc {
+  const node = doc.nodes[nodeId]
+  if (!node) return doc
+  const bindings = { ...(node.bindings ?? {}) }
+  if (binding) bindings[prop] = binding
+  else delete bindings[prop]
+  const hasAny = Object.keys(bindings).length > 0
+  return { ...doc, nodes: { ...doc.nodes, [nodeId]: { ...node, bindings: hasAny ? bindings : undefined } } }
 }
 
 // ── linked components (symbols): a reusable named subtree. The master nodes stay

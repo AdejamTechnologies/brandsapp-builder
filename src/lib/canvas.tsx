@@ -5,6 +5,19 @@ import { resolveDrop, type DropIndicator, type DropTarget } from "./canvas-dnd"
 import { registry } from "./registry"
 import { SelectionOverlay } from "./selection-overlay"
 
+// Editor-only sample data so `loop` nodes render a few placeholder rows and bound
+// props resolve to readable field tokens ({title}, {price}…) — authors see the
+// dynamic structure without wiring a real collection. Any source id yields rows.
+const sampleItem = new Proxy(
+  {},
+  { get: (_t, prop) => (typeof prop === "string" ? `{${prop}}` : undefined) }
+) as Record<string, unknown>
+const sampleRows = [sampleItem, sampleItem, sampleItem]
+const EDITOR_LOOP_SOURCES = new Proxy({}, { get: () => () => sampleRows }) as Record<
+  string,
+  (config: Record<string, unknown>) => Array<Record<string, unknown>>
+>
+
 interface CanvasProps {
   doc: Doc
   selectedId: string | null
@@ -51,7 +64,12 @@ export function Canvas({
   const result = useMemo(() => {
     try {
       return {
-        ...renderDocToReact(doc, { registry, isEditor: true, previewBreakpoint: previewBp ?? undefined }),
+        ...renderDocToReact(doc, {
+          registry,
+          isEditor: true,
+          previewBreakpoint: previewBp ?? undefined,
+          loopSources: EDITOR_LOOP_SOURCES,
+        }),
         error: undefined as string | undefined,
       }
     } catch (e) {
