@@ -20,9 +20,30 @@ const Loop: ModuleDefinition = {
     createElement("div", { className }, children),
 }
 
+/**
+ * `instance` is special-cased by the renderer (it inlines a linked component's
+ * master subtree), so this Component is only a fallback / editor placeholder.
+ */
+const Instance: ModuleDefinition = {
+  name: "instance",
+  category: "component",
+  schema: { component: { type: "plain" } },
+  defaults: { component: "" },
+  contentModel: { children: "none" },
+  dynamic: true,
+  Component: ({ className, children }: ModuleRenderProps) =>
+    createElement("div", { className }, children),
+}
+
 /** A registry with the built-in primitives + interactive modules + loop. Apps extend this. */
 export function createDefaultRegistry(): ModuleRegistry {
-  return new ModuleRegistry().registerAll([...PRIMITIVES, ...INTERACTIVE_MODULES, ...FORM_MODULES, Loop])
+  return new ModuleRegistry().registerAll([
+    ...PRIMITIVES,
+    ...INTERACTIVE_MODULES,
+    ...FORM_MODULES,
+    Loop,
+    Instance,
+  ])
 }
 
 export { PRIMITIVES }

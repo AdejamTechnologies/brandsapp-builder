@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams, useSearch } from "@tanstack/react-router"
 import {
+  Check,
   Code2,
+  Component as ComponentIcon,
   Download,
   Eye,
   EyeOff,
@@ -10,6 +12,7 @@ import {
   LockOpen,
   Monitor,
   Palette as PaletteIcon,
+  Pencil,
   Plus,
   Redo2,
   Save,
@@ -40,7 +43,17 @@ import { ThemeDialog } from "../components/theme-dialog"
 import { copyNode, duplicateNode, insertFragmentAt, pasteFragment } from "../lib/actions"
 import { Canvas } from "../lib/canvas"
 import { resolveDrop, type DropIndicator, type DropTarget } from "../lib/canvas-dnd"
-import { insertChild, insertChildAt, moveChild, moveNode, removeNode, updateProps, updateTheme } from "../lib/doc-ops"
+import {
+  createComponent,
+  insertChild,
+  insertChildAt,
+  moveChild,
+  moveNode,
+  removeNode,
+  renameComponent,
+  updateProps,
+  updateTheme,
+} from "../lib/doc-ops"
 import { useHistory } from "../lib/history"
 import { useDocRoom } from "../lib/realtime"
 import { moduleInfo, moduleList, type ModuleInfo } from "../lib/registry"
@@ -78,6 +91,9 @@ export function EditorPage() {
   const [activeBp, setActiveBp] = useState<string | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
+  // When set, the canvas + navigator show a linked component's master subtree for
+  // editing (the real doc.rootId is untouched; we just swap the view root).
+  const [editingComponent, setEditingComponent] = useState<string | null>(null)
   const clipboard = useRef<Fragment | null>(null)
   const [status, setStatus] = useState("")
   const [importOpen, setImportOpen] = useState(false)
@@ -175,7 +191,7 @@ export function EditorPage() {
 
   const insert = (m: ModuleInfo) => {
     const canNest = selected && moduleInfo(selected.module)?.canHaveChildren
-    const parentId = canNest ? selected!.id : doc.rootId
+    const parentId = canNest ? selected!.id : activeRootId
     const { doc: next, id } = insertChild(doc, parentId, m.name, m.defaults, m.defaultClasses)
     apply(next)
     setSelectedId(id)
@@ -190,6 +206,52 @@ export function EditorPage() {
     const n = docRef.current.nodes[id]
     if (!n) return
     apply({ ...docRef.current, nodes: { ...docRef.current.nodes, [id]: { ...n, ...p } } }, key)
+  }
+
+  // ── linked components (symbols) ──
+  const components = Object.values(doc.components ?? {})
+  const activeComp = editingComponent ? doc.components?.[editingComponent] : undefined
+  // The tree/canvas root: a component master while editing one, else the page.
+  const activeRootId = activeComp?.rootId ?? doc.rootId
+  const makeComponent = () => {
+    const sel = selectedId
+    if (!sel || sel === doc.rootId) return
+    const name = window.prompt("Component name", doc.nodes[sel]?.label ?? doc.nodes[sel]?.module ?? "Component")
+    if (name == null) return
+    const { doc: next, instanceId } = createComponent(docRef.current, sel, name)
+    if (instanceId) {
+      apply(next)
+      setSelectedId(instanceId)
+    }
+  }
+  const editComponent = (cid: string) => {
+    const comp = docRef.current.components?.[cid]
+    if (!comp) return
+    setEditingComponent(cid)
+    setSelectedId(comp.rootId)
+  }
+  const exitComponent = () => {
+    setEditingComponent(null)
+    setSelectedId(docRef.current.rootId)
+  }
+  const startComponentDrag = (cid: string, e: React.PointerEvent) => {
+    const comp = doc.components?.[cid]
+    if (!comp) return
+    startDrag(
+      {
+        label: comp.name,
+        dragModule: "instance",
+        insert: (pid, idx) => insertChildAt(docRef.current, pid, idx, "instance", { component: cid }),
+        onClick: () => {
+          const { doc: next, id } = insertChild(docRef.current, activeRootId, "instance", { component: cid })
+          if (id) {
+            apply(next)
+            setSelectedId(id)
+          }
+        },
+      },
+      e
+    )
   }
 
   // Keyboard: undo/redo, delete, duplicate, copy/paste, deselect. Ignored while a
@@ -330,12 +392,13 @@ export function EditorPage() {
   return (
     <div className="editor3">
       <aside className="col left">
-        <Tabs defaultValue="components">
+        <Tabs defaultValue="elements">
           <TabsList className="border-b border-border p-2">
-            <TabsTab value="components">Components</TabsTab>
+            <TabsTab value="elements">Elements</TabsTab>
             <TabsTab value="sections">Sections</TabsTab>
+            <TabsTab value="components">Components</TabsTab>
           </TabsList>
-          <TabsPanel value="components">
+          <TabsPanel value="elements">
             <Palette onDragStart={startModuleDrag} />
             <div className="border-t border-border" />
             <SectionPalette items={COMPONENTS} onDragStart={startSectionDrag} />
@@ -343,13 +406,22 @@ export function EditorPage() {
           <TabsPanel value="sections">
             <SectionPalette items={SECTIONS} onDragStart={startSectionDrag} searchable />
           </TabsPanel>
+          <TabsPanel value="components">
+            <ComponentsPanel
+              components={components}
+              editingId={editingComponent}
+              onDragStart={startComponentDrag}
+              onEdit={editComponent}
+              onRename={(cid, name) => apply(renameComponent(docRef.current, cid, name))}
+            />
+          </TabsPanel>
         </Tabs>
         <div className="border-t border-border px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Layers
+          {activeComp ? `Component · ${activeComp.name}` : "Layers"}
         </div>
         <Tree
           doc={doc}
-          nodeId={doc.rootId}
+          nodeId={activeRootId}
           parentId={null}
           index={0}
           depth={0}
@@ -403,6 +475,16 @@ export function EditorPage() {
             <Plus className="size-4" />
             Section
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={makeComponent}
+            disabled={!selectedId || selectedId === doc.rootId}
+            title="Turn the selected layer into a reusable component"
+          >
+            <ComponentIcon className="size-4" />
+            Make component
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setThemeOpen(true)}>
             <PaletteIcon className="size-4" />
             Variables
@@ -422,6 +504,17 @@ export function EditorPage() {
             Save
           </Button>
         </div>
+        {activeComp && (
+          <div className="flex items-center gap-2 border-b border-border bg-primary/5 px-3 py-1.5 text-xs text-foreground">
+            <ComponentIcon className="size-3.5 text-primary" />
+            Editing component <b className="font-semibold">{activeComp.name}</b> — changes apply to every instance.
+            <div className="flex-1" />
+            <Button variant="soft" size="sm" onClick={exitComponent}>
+              <Check className="size-3.5" />
+              Done
+            </Button>
+          </div>
+        )}
         {showCode ? (
           <textarea
             className="code"
@@ -437,7 +530,7 @@ export function EditorPage() {
           />
         ) : (
           <Canvas
-            doc={doc}
+            doc={activeComp ? { ...doc, rootId: activeRootId } : doc}
             selectedId={selectedId}
             onSelect={setSelectedId}
             onCommitText={commitText}
@@ -594,6 +687,63 @@ function SectionPalette({
         <div className="px-1 py-2 text-[11px] text-muted-foreground">+{filtered.length - CAP} more — refine your search</div>
       )}
       {filtered.length === 0 && <div className="px-1 py-4 text-xs text-muted-foreground">No blocks match “{q}”.</div>}
+    </div>
+  )
+}
+
+function ComponentsPanel({
+  components,
+  editingId,
+  onDragStart,
+  onEdit,
+  onRename,
+}: {
+  components: { id: string; name: string; rootId: string }[]
+  editingId: string | null
+  onDragStart: (cid: string, e: React.PointerEvent) => void
+  onEdit: (cid: string) => void
+  onRename: (cid: string, name: string) => void
+}) {
+  if (components.length === 0) {
+    return (
+      <div className="p-4 text-xs leading-relaxed text-muted-foreground">
+        No components yet. Select a layer on the canvas and click{" "}
+        <b className="text-foreground">Make component</b> to turn it into a reusable, linked component —
+        edit the master once and every instance updates.
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-1.5 p-3">
+      {components.map((c) => (
+        <div
+          key={c.id}
+          className={cn(
+            "group flex items-center gap-1 rounded-md border bg-background pl-2.5 pr-1 transition-colors",
+            editingId === c.id ? "border-primary" : "border-border hover:border-ring"
+          )}
+        >
+          <button
+            onPointerDown={(e) => onDragStart(c.id, e)}
+            onDoubleClick={() => {
+              const name = window.prompt("Rename component", c.name)
+              if (name != null) onRename(c.id, name)
+            }}
+            className="flex flex-1 cursor-grab items-center gap-2 py-2 text-left text-xs text-foreground active:cursor-grabbing"
+            title="Drag onto the canvas to place · double-click to rename"
+          >
+            <ComponentIcon className="size-3.5 text-primary" />
+            <span className="truncate">{c.name}</span>
+          </button>
+          <button
+            className="shrink-0 rounded p-1 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
+            title="Edit component"
+            onClick={() => onEdit(c.id)}
+          >
+            <Pencil className="size-3.5" />
+          </button>
+        </div>
+      ))}
     </div>
   )
 }

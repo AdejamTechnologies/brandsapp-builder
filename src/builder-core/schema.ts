@@ -87,6 +87,17 @@ export const docMeta = z.object({
   ogImage: z.string().optional(),
 })
 
+// A linked component ("symbol"): a named, reusable subtree. Its nodes live in the
+// same `doc.nodes` map; `rootId` points at the master root. An `instance` node
+// (module "instance", props.component = <id>) renders the master inline, so
+// editing the master updates every instance. See render.tsx renderInstance.
+export const componentDef = z.object({
+  id,
+  name: z.string(),
+  rootId: id,
+})
+export type ComponentDef = z.infer<typeof componentDef>
+
 export const doc = z.object({
   version: z.number().default(CORE_DOC_VERSION),
   rootId: id,
@@ -94,6 +105,7 @@ export const doc = z.object({
   styles: z.record(id, styleRule).default({}),
   theme: themeTokens.default({ colors: {}, fonts: {}, radius: {}, breakpoints: [] }),
   meta: docMeta.optional(),
+  components: z.record(id, componentDef).default({}),
 })
 export type Doc = z.infer<typeof doc>
 

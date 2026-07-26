@@ -74,6 +74,14 @@ class RenderCtx {
   usesRuntime = false
   /** a node animates → include the shared keyframes. */
   usesAnim = false
+  /** >0 while rendering inside a linked-component instance → suppress internal
+   * editor selection (the instance is an opaque unit; edit via the master). */
+  instanceDepth = 0
+
+  /** Editor selection is active only outside component instances. */
+  get selectable(): boolean {
+    return this.isEditor && this.instanceDepth === 0
+  }
 
   useNodeAnim(node: Node): void {
     if (!node.anim) return
@@ -176,6 +184,7 @@ function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string):
   if (!raw || raw.hidden) return null
 
   if (raw.module === "loop") return renderLoop(raw, ctx, data, key)
+  if (raw.module === "instance") return renderInstance(raw, ctx, data, key)
 
   const def = ctx.registry.get(raw.module)
   if (!def) {
@@ -198,8 +207,29 @@ function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string):
     className: classNamesFor(node, ctx),
     theme: ctx.doc.theme,
     nodeId: node.id,
-    isEditor: ctx.isEditor,
+    isEditor: ctx.selectable,
   })
+}
+
+/**
+ * A linked-component instance: render the referenced master subtree inline. The
+ * master's nodes live in the same `doc.nodes` map, so we just recurse from its
+ * rootId. `instanceDepth` is bumped so the master's internals don't emit their
+ * own `data-node-id` in the editor — the instance is edited via its master. The
+ * instance node may carry its own wrapper classes/style (layout in the page).
+ */
+function renderInstance(raw: Node, ctx: RenderCtx, data: DataContext, key: string): ReactNode {
+  const node = effectiveNode(raw, ctx.previewBreakpoint)
+  const comp = ctx.doc.components?.[String(node.props.component ?? "")]
+  const className = classNamesFor(node, ctx)
+  const editorAttrs = ctx.selectable ? { "data-node-id": node.id, "data-instance": "1" } : {}
+  if (!comp || !ctx.doc.nodes[comp.rootId]) {
+    return createElement("div", { key, className, ...editorAttrs }, ctx.isEditor ? "⚠ missing component" : null)
+  }
+  ctx.instanceDepth++
+  const inner = renderNode(comp.rootId, ctx, data, `${key}::${comp.rootId}`)
+  ctx.instanceDepth--
+  return createElement("div", { key, className, ...editorAttrs }, inner)
 }
 
 function renderLoop(raw: Node, ctx: RenderCtx, data: DataContext, key: string): ReactNode {
@@ -213,7 +243,7 @@ function renderLoop(raw: Node, ctx: RenderCtx, data: DataContext, key: string): 
     const childData: DataContext = { ...data, entryStack: [...data.entryStack, item] }
     return node.children.map((cid, ci) => renderNode(cid, ctx, childData, `${i}-${cid}-${ci}`))
   })
-  const editorAttrs = ctx.isEditor ? { "data-node-id": node.id } : {}
+  const editorAttrs = ctx.selectable ? { "data-node-id": node.id } : {}
   return createElement(wrapperTag, { key, className, ...editorAttrs }, ...rendered)
 }
 

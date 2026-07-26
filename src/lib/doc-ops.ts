@@ -208,6 +208,42 @@ export function renameClass(doc: Doc, styleId: string, name: string): Doc {
   return { ...doc, styles: { ...doc.styles, [styleId]: { ...rule, name } } }
 }
 
+// ── linked components (symbols): a reusable named subtree. The master nodes stay
+// in doc.nodes; an `instance` node (module "instance", props.component=<id>)
+// renders it inline, so editing the master updates every instance. ──────────────
+const newComponentId = () =>
+  "c" + (crypto.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10))
+
+/**
+ * Turn the selected subtree into a linked component and replace it in place with
+ * an instance. The subtree keeps its node ids (it becomes the master); the parent
+ * now points at a fresh instance node. Returns the new instance id to select.
+ */
+export function createComponent(doc: Doc, nodeId: string, name: string): { doc: Doc; instanceId: string } {
+  const node = doc.nodes[nodeId]
+  const parent = parentOf(doc, nodeId)
+  if (!node || !parent || nodeId === doc.rootId) return { doc, instanceId: "" }
+  const cid = newComponentId()
+  const instId = newId()
+  const instance: Node = { id: instId, module: "instance", props: { component: cid }, styleIds: [], children: [] }
+  const children = parent.children.map((c) => (c === nodeId ? instId : c))
+  return {
+    doc: {
+      ...doc,
+      nodes: { ...doc.nodes, [instId]: instance, [parent.id]: { ...parent, children } },
+      components: { ...(doc.components ?? {}), [cid]: { id: cid, name: name.trim() || "Component", rootId: nodeId } },
+    },
+    instanceId: instId,
+  }
+}
+
+/** Rename a linked component (instances reference it by id, so all update). */
+export function renameComponent(doc: Doc, cid: string, name: string): Doc {
+  const comp = doc.components?.[cid]
+  if (!comp) return doc
+  return { ...doc, components: { ...doc.components, [cid]: { ...comp, name: name.trim() || comp.name } } }
+}
+
 /** Write style keys onto a class at the active breakpoint: base (bp null) or context[bp]. */
 export function updateClassStyle(
   doc: Doc,
