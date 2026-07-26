@@ -56,7 +56,7 @@ export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
   )
 
   return (
-    <Dialog open onClose={onClose} title="Theme">
+    <Dialog open onClose={onClose} title="Variables">
       <GroupTitle>Brand</GroupTitle>
       <p className="mb-2 -mt-1 text-[11px] text-muted-foreground">Drives daisyUI components (buttons, cards, badges…) across the page.</p>
       {(["primary", "secondary", "accent", "neutral"] as const).map((key) => (

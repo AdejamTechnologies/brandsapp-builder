@@ -41,18 +41,42 @@ interface InspectorProps {
 const SELECTS: Record<string, string[]> = {
   display: ["", "block", "flex", "inline-flex", "grid", "inline-block", "none"],
   flexDirection: ["", "row", "column", "row-reverse", "column-reverse"],
+  flexWrap: ["", "nowrap", "wrap", "wrap-reverse"],
   alignItems: ["", "flex-start", "center", "flex-end", "stretch", "baseline"],
   justifyContent: ["", "flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly"],
   textAlign: ["", "left", "center", "right", "justify"],
+  textTransform: ["", "none", "uppercase", "lowercase", "capitalize"],
   fontWeight: ["", "300", "400", "500", "600", "700", "800"],
 }
 
-const GROUPS: { title: string; fields: { key: string; kind: "text" | "select" | "color" }[] }[] = [
+// Human labels for CSS keys (camelCase → friendly). Falls back to the key.
+const LABELS: Record<string, string> = {
+  flexDirection: "direction",
+  flexWrap: "wrap",
+  alignItems: "align",
+  justifyContent: "justify",
+  maxWidth: "max width",
+  minWidth: "min width",
+  fontSize: "size",
+  fontWeight: "weight",
+  lineHeight: "line height",
+  letterSpacing: "spacing",
+  textAlign: "align",
+  textTransform: "transform",
+  borderRadius: "radius",
+  borderColor: "border color",
+  boxShadow: "shadow",
+  backgroundColor: "background",
+}
+
+type FieldKind = "text" | "select" | "color"
+const GROUPS: { title: string; fields: { key: string; kind: FieldKind }[] }[] = [
   {
     title: "Layout",
     fields: [
       { key: "display", kind: "select" },
       { key: "flexDirection", kind: "select" },
+      { key: "flexWrap", kind: "select" },
       { key: "gap", kind: "text" },
       { key: "alignItems", kind: "select" },
       { key: "justifyContent", kind: "select" },
@@ -61,7 +85,12 @@ const GROUPS: { title: string; fields: { key: string; kind: "text" | "select" | 
   { title: "Spacing", fields: [{ key: "padding", kind: "text" }, { key: "margin", kind: "text" }] },
   {
     title: "Size",
-    fields: [{ key: "width", kind: "text" }, { key: "maxWidth", kind: "text" }, { key: "height", kind: "text" }],
+    fields: [
+      { key: "width", kind: "text" },
+      { key: "maxWidth", kind: "text" },
+      { key: "minWidth", kind: "text" },
+      { key: "height", kind: "text" },
+    ],
   },
   {
     title: "Typography",
@@ -69,21 +98,27 @@ const GROUPS: { title: string; fields: { key: string; kind: "text" | "select" | 
       { key: "color", kind: "color" },
       { key: "fontSize", kind: "text" },
       { key: "fontWeight", kind: "select" },
-      { key: "textAlign", kind: "select" },
       { key: "lineHeight", kind: "text" },
+      { key: "letterSpacing", kind: "text" },
+      { key: "textAlign", kind: "select" },
+      { key: "textTransform", kind: "select" },
     ],
   },
+  { title: "Background", fields: [{ key: "background", kind: "color" }] },
   {
-    title: "Background & border",
+    title: "Border",
     fields: [
-      { key: "background", kind: "color" },
-      { key: "borderRadius", kind: "text" },
       { key: "border", kind: "text" },
+      { key: "borderColor", kind: "color" },
+      { key: "borderRadius", kind: "text" },
+      { key: "boxShadow", kind: "text" },
     ],
   },
+  { title: "Effects", fields: [{ key: "opacity", kind: "text" }] },
 ]
 
 const isHex = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)
+const tokenVar = (name: string) => `var(--color-${name})`
 
 export function Inspector({ doc, node, onChange, activeBp, onPreview }: InspectorProps) {
   const [mediaKey, setMediaKey] = useState<string | null>(null)
@@ -94,6 +129,7 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
   if (!node) return <div className="inspector muted small">Select a layer to edit it.</div>
 
   const info = moduleInfo(node.module)
+  const tokens = Object.entries(doc.theme.colors ?? {}) // [name, value] — the variables
   const setProp = (key: string, value: unknown) =>
     onChange(updateProps(doc, node.id, { [key]: value }), `prop:${node.id}:${key}`)
   // The active style target: a class (StyleRule id) if the node has one, else the
@@ -143,6 +179,41 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
       : node.responsive?.[activeBp]?.style?.[k] ?? ""
   }
 
+  // Color control: native picker + text field + a row of theme-variable swatches.
+  // Picking a swatch writes `var(--color-<token>)`, so the value tracks the theme.
+  const colorControl = (key: string) => {
+    const val = styleVal(key)
+    return (
+      <div className="ins-color">
+        <div className="color-row">
+          <input
+            type="color"
+            value={isHex(val) ? val : "#000000"}
+            onChange={(e) => setStyle(key, e.target.value)}
+          />
+          <input
+            value={val}
+            placeholder={activeBp ? baseStyle(key) || "—" : "—"}
+            onChange={(e) => setStyle(key, e.target.value)}
+          />
+        </div>
+        {tokens.length > 0 && (
+          <div className="token-swatches">
+            {tokens.map(([name, v]) => (
+              <button
+                key={name}
+                title={name}
+                onClick={() => setStyle(key, val === tokenVar(name) ? "" : tokenVar(name))}
+                style={{ background: v }}
+                className={cn("token-swatch", val === tokenVar(name) && "is-active")}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="inspector">
       <div className="inspector-head">
@@ -162,7 +233,7 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
         <input
           className="ins-label"
           style={{ fontFamily: "ui-monospace, Menlo, monospace" }}
-          placeholder="flex gap-4 p-6 rounded-xl bg-white"
+          placeholder="flex gap-4 p-6 rounded-xl bg-base-100"
           value={node.classes ?? ""}
           onChange={(e) => patch({ classes: e.target.value || undefined }, `classes:${node.id}`)}
         />
@@ -288,41 +359,39 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
       {GROUPS.map((g) => (
         <div key={g.title} className="field-group">
           <div className="group-title">{g.title}</div>
-          {g.fields.map((f) =>
-            f.kind === "select" ? (
-              <div key={f.key} className="field">
-                <span>{f.key}</span>
-                <Select
-                  value={styleVal(f.key)}
-                  onValueChange={(v) => setStyle(f.key, v)}
-                  options={(SELECTS[f.key] ?? [""]).map((o) => ({ value: o, label: o || "—" }))}
-                />
-              </div>
-            ) : (
-              <label key={f.key} className="field">
-                <span>{f.key}</span>
-                {f.kind === "color" ? (
-                <div className="color-row">
-                  <input
-                    type="color"
-                    value={isHex(styleVal(f.key)) ? styleVal(f.key) : "#000000"}
-                    onChange={(e) => setStyle(f.key, e.target.value)}
-                  />
-                  <input
+          {g.fields.map((f) => {
+            const label = LABELS[f.key] ?? f.key
+            if (f.kind === "select") {
+              return (
+                <div key={f.key} className="field">
+                  <span>{label}</span>
+                  <Select
                     value={styleVal(f.key)}
-                    placeholder={activeBp ? baseStyle(f.key) || "—" : "—"}
-                    onChange={(e) => setStyle(f.key, e.target.value)}
+                    onValueChange={(v) => setStyle(f.key, v)}
+                    options={(SELECTS[f.key] ?? [""]).map((o) => ({ value: o, label: o || "—" }))}
                   />
                 </div>
-              ) : (
+              )
+            }
+            if (f.kind === "color") {
+              return (
+                <div key={f.key} className="field">
+                  <span>{label}</span>
+                  {colorControl(f.key)}
+                </div>
+              )
+            }
+            return (
+              <label key={f.key} className="field">
+                <span>{label}</span>
                 <input
                   value={styleVal(f.key)}
                   placeholder={activeBp ? baseStyle(f.key) || "—" : "—"}
                   onChange={(e) => setStyle(f.key, e.target.value)}
                 />
-              )}
-            </label>
-          ))}
+              </label>
+            )
+          })}
         </div>
       ))}
 

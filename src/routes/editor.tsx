@@ -394,7 +394,7 @@ export function EditorPage() {
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setThemeOpen(true)}>
             <PaletteIcon className="size-4" />
-            Theme
+            Variables
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setImportOpen(true)}>
             <FileInput className="size-4" />
