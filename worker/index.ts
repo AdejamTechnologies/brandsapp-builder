@@ -37,6 +37,26 @@ function authHeaders(env: Env): HeadersInit {
     : {}
 }
 
+/** List the tenant's pages (multi-page project switcher). */
+app.get("/api/pages", async (c) => {
+  const base = tenantBase(c)
+  if (!base) return c.json({ error: "no tenant configured" }, 400)
+  const res = await fetch(`${base}/api/builder/pages`, { headers: authHeaders(c.env) })
+  return new Response(res.body, { status: res.status, headers: { "content-type": "application/json" } })
+})
+
+/** Create a new blank page on the tenant. */
+app.post("/api/pages", async (c) => {
+  const base = tenantBase(c)
+  if (!base) return c.json({ error: "no tenant configured" }, 400)
+  const res = await fetch(`${base}/api/builder/pages`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders(c.env) },
+    body: await c.req.text(),
+  })
+  return new Response(res.body, { status: res.status, headers: { "content-type": "application/json" } })
+})
+
 /** Load a page's Doc from the tenant. */
 app.get("/api/pages/:id", async (c) => {
   const base = tenantBase(c)

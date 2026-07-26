@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useParams, useSearch } from "@tanstack/react-router"
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import {
   Check,
   Code2,
@@ -8,6 +8,8 @@ import {
   Eye,
   EyeOff,
   FileInput,
+  Files,
+  Home,
   Lock,
   LockOpen,
   Monitor,
@@ -81,6 +83,7 @@ export function EditorPage() {
   const { pageId } = useParams({ from: "/edit/$pageId" })
   const search = useSearch({ strict: false }) as { tenant?: string }
   const tenant = search.tenant ?? ""
+  const navigate = useNavigate()
 
   const [initialDoc] = useState(() => parseDoc(SAMPLE_DOC))
   const sendRef = useRef<(s: string) => void>(() => {})
@@ -94,6 +97,11 @@ export function EditorPage() {
   // When set, the canvas + navigator show a linked component's master subtree for
   // editing (the real doc.rootId is untouched; we just swap the view root).
   const [editingComponent, setEditingComponent] = useState<string | null>(null)
+  // Multi-page: the project's pages, listed on demand for the switcher.
+  const [pagesOpen, setPagesOpen] = useState(false)
+  const [pages, setPages] = useState<
+    { id: string; title: string; slug: string; status: string; isHomepage: number }[]
+  >([])
   const clipboard = useRef<Fragment | null>(null)
   const [status, setStatus] = useState("")
   const [importOpen, setImportOpen] = useState(false)
@@ -374,6 +382,39 @@ export function EditorPage() {
     )
   }
 
+  // ── multi-page project switcher ──
+  const openPages = () => {
+    setPagesOpen(true)
+    if (!tenant) return
+    fetch(`/api/pages?tenant=${encodeURIComponent(tenant)}`)
+      .then((r) => (r.ok ? (r.json() as Promise<{ pages?: typeof pages }>) : null))
+      .then((d) => d?.pages && setPages(d.pages))
+      .catch(() => {})
+  }
+  const switchPage = (id: string) => {
+    setPagesOpen(false)
+    if (id !== pageId) navigate({ to: "/edit/$pageId", params: { pageId: id }, search: { tenant } })
+  }
+  const newPage = async () => {
+    if (!tenant) return setStatus("Add ?tenant=<url> to manage pages.")
+    const title = window.prompt("New page title", "Untitled")
+    if (title == null) return
+    try {
+      const res = await fetch(`/api/pages?tenant=${encodeURIComponent(tenant)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title }),
+      })
+      const d = (await res.json().catch(() => null)) as { id?: string } | null
+      if (res.ok && d?.id) {
+        setPagesOpen(false)
+        navigate({ to: "/edit/$pageId", params: { pageId: d.id }, search: { tenant } })
+      } else setStatus(`Create failed (${res.status})`)
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "create failed")
+    }
+  }
+
   const save = async () => {
     if (!tenant) return setStatus("Add ?tenant=<url> to save.")
     setStatus("Saving…")
@@ -471,6 +512,10 @@ export function EditorPage() {
             })}
           </div>
           <div className="mx-1 h-5 w-px bg-border" />
+          <Button variant="ghost" size="sm" onClick={openPages}>
+            <Files className="size-4" />
+            Pages
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setLibraryOpen(true)}>
             <Plus className="size-4" />
             Section
@@ -582,6 +627,48 @@ export function EditorPage() {
           </DialogFooter>
         </Dialog>
       )}
+
+      <Dialog open={pagesOpen} onClose={() => setPagesOpen(false)} title="Pages">
+        {!tenant ? (
+          <div className="text-xs text-muted-foreground">
+            Add <code>?tenant=&lt;url&gt;</code> to the editor URL to list and create pages.
+          </div>
+        ) : (
+          <>
+            <div className="flex max-h-80 flex-col gap-1 overflow-y-auto">
+              {pages.length === 0 && <div className="px-1 py-2 text-xs text-muted-foreground">No other pages yet.</div>}
+              {pages.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => switchPage(p.id)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors",
+                    p.id === pageId ? "border-primary bg-primary/5" : "border-border hover:border-ring"
+                  )}
+                >
+                  {p.isHomepage ? <Home className="size-3.5 text-primary" /> : <Files className="size-3.5 text-muted-foreground" />}
+                  <span className="flex-1 truncate">{p.title}</span>
+                  <span className="shrink-0 text-[11px] text-muted-foreground">/{p.slug}</span>
+                  {p.status !== "published" && (
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                      {p.status}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPagesOpen(false)}>
+                Close
+              </Button>
+              <Button onClick={newPage}>
+                <Plus className="size-4" />
+                New page
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </Dialog>
 
       {libraryOpen && <LibraryDialog onInsert={installFragment} onClose={() => setLibraryOpen(false)} />}
       {themeOpen && <ThemeDialog theme={doc.theme} onChange={setTheme} onClose={() => setThemeOpen(false)} />}
