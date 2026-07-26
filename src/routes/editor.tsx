@@ -17,7 +17,9 @@ import {
   Pencil,
   Plus,
   Redo2,
+  Rocket,
   Save,
+  Share2,
   Smartphone,
   Tablet,
   Undo2,
@@ -104,6 +106,7 @@ export function EditorPage() {
   >([])
   const clipboard = useRef<Fragment | null>(null)
   const [status, setStatus] = useState("")
+  const [pageStatus, setPageStatus] = useState<string>("draft")
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState("")
   const [exportJson, setExportJson] = useState<string | null>(null)
@@ -121,8 +124,9 @@ export function EditorPage() {
   useEffect(() => {
     if (!tenant || pageId === "sample") return
     fetch(`/api/pages/${encodeURIComponent(pageId)}?tenant=${encodeURIComponent(tenant)}`)
-      .then((r) => (r.ok ? (r.json() as Promise<{ doc?: unknown }>) : null))
+      .then((r) => (r.ok ? (r.json() as Promise<{ doc?: unknown; status?: string }>) : null))
       .then((d) => {
+        if (d?.status) setPageStatus(d.status)
         if (d?.doc) {
           try {
             reset(parseDoc(d.doc))
@@ -415,6 +419,33 @@ export function EditorPage() {
     }
   }
 
+  const share = () => {
+    const url = `${window.location.origin}/preview/${encodeURIComponent(pageId)}${tenant ? `?tenant=${encodeURIComponent(tenant)}` : ""}`
+    navigator.clipboard?.writeText(url).then(
+      () => setStatus("Share link copied ✓"),
+      () => setStatus(url)
+    )
+  }
+  const publish = async () => {
+    if (!tenant) return setStatus("Add ?tenant=<url> to publish.")
+    const goLive = pageStatus !== "published"
+    setStatus(goLive ? "Publishing…" : "Unpublishing…")
+    try {
+      const res = await fetch(`/api/pages/${encodeURIComponent(pageId)}/publish?tenant=${encodeURIComponent(tenant)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ publish: goLive }),
+      })
+      const d = (await res.json().catch(() => null)) as { status?: string } | null
+      if (res.ok && d?.status) {
+        setPageStatus(d.status)
+        setStatus(d.status === "published" ? "Published ✓" : "Unpublished")
+      } else setStatus(`Publish failed (${res.status})`)
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "publish failed")
+    }
+  }
+
   const save = async () => {
     if (!tenant) return setStatus("Add ?tenant=<url> to save.")
     setStatus("Saving…")
@@ -544,9 +575,21 @@ export function EditorPage() {
           </Button>
           <div className="flex-1" />
           {status && <span className="mr-1 text-xs text-muted-foreground">{status}</span>}
-          <Button size="sm" onClick={save}>
+          {pageStatus === "published" && (
+            <span className="mr-1 inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-emerald-600">
+              Live
+            </span>
+          )}
+          <IconButton tip="Copy read-only share link" onClick={share}>
+            <Share2 className="size-4" />
+          </IconButton>
+          <Button variant="ghost" size="sm" onClick={save}>
             <Save className="size-4" />
             Save
+          </Button>
+          <Button size="sm" onClick={publish}>
+            <Rocket className="size-4" />
+            {pageStatus === "published" ? "Unpublish" : "Publish"}
           </Button>
         </div>
         {activeComp && (

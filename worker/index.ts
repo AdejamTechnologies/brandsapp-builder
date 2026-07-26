@@ -79,6 +79,18 @@ app.put("/api/pages/:id", async (c) => {
   return new Response(res.body, { status: res.status, headers: { "content-type": "application/json" } })
 })
 
+/** Publish / unpublish a page on the tenant. */
+app.post("/api/pages/:id/publish", async (c) => {
+  const base = tenantBase(c)
+  if (!base) return c.json({ error: "no tenant configured" }, 400)
+  const res = await fetch(`${base}/api/builder/pages/${c.req.param("id")}/publish`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders(c.env) },
+    body: await c.req.text(),
+  })
+  return new Response(res.body, { status: res.status, headers: { "content-type": "application/json" } })
+})
+
 app.get("/api/health", (c) => c.json({ ok: true, service: "brandsapp-builder" }))
 
 // Everything else → the SPA (assets binding handles static + SPA fallback).

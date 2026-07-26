@@ -9,6 +9,7 @@ import {
 import { TooltipProvider } from "./components/ui/tooltip"
 import { EditorPage } from "./routes/editor"
 import { HomePage } from "./routes/home"
+import { PreviewPage } from "./routes/preview"
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -41,7 +42,16 @@ const editRoute = createRoute({
   component: EditorPage,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, editRoute])
+const previewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/preview/$pageId",
+  validateSearch: (search: Record<string, unknown>): { tenant?: string } => ({
+    tenant: typeof search.tenant === "string" ? search.tenant : undefined,
+  }),
+  component: PreviewPage,
+})
+
+const routeTree = rootRoute.addChildren([indexRoute, editRoute, previewRoute])
 
 export const router = createRouter({ routeTree })
 
