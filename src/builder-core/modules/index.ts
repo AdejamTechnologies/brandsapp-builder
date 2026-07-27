@@ -24,6 +24,7 @@ const Loop: ModuleDefinition = {
         { label: "Products · Newest", value: "products.newest" },
         { label: "Courses · Newest", value: "courses.newest" },
         { label: "Courses · Popular", value: "courses.popular" },
+        { label: "Courses · Featured", value: "courses.featured" },
         { label: "Blog · Newest", value: "blogs.newest" },
         { label: "Blog · Featured", value: "blogs.featured" },
       ],
