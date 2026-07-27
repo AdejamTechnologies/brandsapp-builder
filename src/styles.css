@@ -96,9 +96,10 @@ textarea {
 .drop-indicator { position: absolute; top: 0; left: 0; background: var(--accent); border-radius: 3px; pointer-events: none; z-index: 6; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9); }
 .drag-ghost { position: fixed; z-index: 50; pointer-events: none; background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 8px; box-shadow: 0 6px 16px rgba(16, 24, 40, 0.24); }
 .inspector { padding-bottom: 24px; }
-.field { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 8px; padding: 4px 12px; font-size: 12px; }
+.field { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 8px; padding: 3px 12px; font-size: 12px; }
 .field > span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
-.field input, .field select { border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; font-size: 12px; width: 100%; background: #fff; transition: border-color 0.12s, box-shadow 0.12s; }
+.field input, .field select { height: 28px; border: 1px solid var(--line); border-radius: 7px; padding: 0 8px; font-size: 12px; width: 100%; background: #fff; transition: border-color 0.12s, box-shadow 0.12s; }
+.field input[type="number"] { height: 28px; }
 .field input[type="checkbox"] { width: auto; }
 .field input:focus, .field select:focus, .ins-label:focus, .media-url:focus, .import-area:focus, .rt-area:focus {
   outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
@@ -152,7 +153,7 @@ textarea {
 .style-head { display: flex; align-items: center; gap: 6px; }
 .bp-tag { background: var(--accent); color: #fff; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 999px; text-transform: none; letter-spacing: 0; }
 .color-row { display: flex; gap: 6px; align-items: center; }
-.color-row input[type="color"] { width: 26px; height: 26px; padding: 0; border-radius: 6px; flex: none; }
+.color-row input[type="color"] { width: 28px; height: 28px; padding: 0; border-radius: 7px; flex: none; }
 .bind-row { padding: 0 12px 6px; margin-top: -2px; }
 .bind-link { font-size: 11px; color: var(--muted); background: none; border: none; padding: 0; cursor: pointer; }
 .bind-link:hover { color: var(--fg, #111); }

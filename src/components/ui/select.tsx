@@ -23,7 +23,7 @@ export function Select({ value, onValueChange, options, placeholder, className }
     <S.Root value={value} onValueChange={(v) => onValueChange(v ?? "")} items={items}>
       <S.Trigger
         className={cn(
-          "flex h-8 w-full items-center justify-between gap-1.5 rounded-md border border-input bg-transparent px-2.5 text-xs outline-none transition-colors data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20",
+          "flex h-7 w-full items-center justify-between gap-1.5 rounded-[7px] border border-input bg-white px-2 text-xs outline-none transition-colors data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20",
           className
         )}
       >
