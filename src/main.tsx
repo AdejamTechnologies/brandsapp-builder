@@ -1,3 +1,4 @@
+import "./process-shim" // must run before UnoCSS/preset-daisy touches process.env
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { RouterProvider } from "@tanstack/react-router"
