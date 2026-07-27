@@ -85,6 +85,10 @@ export const docMeta = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   ogImage: z.string().optional(),
+  // When set, this page is a COLLECTION TEMPLATE for the given collection slug:
+  // it renders once per published row at /<collection>/<rowSlug>, with the row's
+  // cells exposed to bindings via the `page` data frame. See render-page.tsx.
+  collection: z.string().optional(),
 })
 
 // A linked component ("symbol"): a named, reusable subtree. Its nodes live in the

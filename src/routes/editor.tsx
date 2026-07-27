@@ -386,6 +386,10 @@ export function EditorPage() {
     )
   }
 
+  // ── page settings (doc.meta) ──
+  const setPageMeta = (patch: Partial<NonNullable<Doc["meta"]>>) =>
+    apply({ ...docRef.current, meta: { ...(docRef.current.meta ?? {}), ...patch } })
+
   // ── multi-page project switcher ──
   const openPages = () => {
     setPagesOpen(true)
@@ -672,6 +676,23 @@ export function EditorPage() {
       )}
 
       <Dialog open={pagesOpen} onClose={() => setPagesOpen(false)} title="Pages">
+        <div className="mb-3 rounded-md border border-border p-3">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            This page
+          </div>
+          <label className="flex flex-col gap-1 text-xs">
+            <span className="text-muted-foreground">
+              Collection template — renders per row at{" "}
+              <code>/&lt;collection&gt;/&lt;slug&gt;</code>. Bind fields with source “page”.
+            </span>
+            <input
+              className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs outline-none focus-visible:border-ring"
+              placeholder="e.g. blog — blank for a normal page"
+              defaultValue={doc.meta?.collection ?? ""}
+              onBlur={(e) => setPageMeta({ collection: e.target.value.trim() || undefined })}
+            />
+          </label>
+        </div>
         {!tenant ? (
           <div className="text-xs text-muted-foreground">
             Add <code>?tenant=&lt;url&gt;</code> to the editor URL to list and create pages.
