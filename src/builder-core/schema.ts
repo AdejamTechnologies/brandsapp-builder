@@ -128,8 +128,10 @@ export const doc = z.object({
   styles: z.record(id, styleRule).default({}),
   theme: themeTokens.default({ colors: {}, fonts: {}, radius: {}, breakpoints: [] }),
   meta: docMeta.optional(),
-  components: z.record(id, componentDef).default({}),
-  comments: z.array(comment).default([]),
+  // Optional (not defaulted) so any Doc literal stays valid; every consumer
+  // guards with `?? {}` / `?? []`.
+  components: z.record(id, componentDef).optional(),
+  comments: z.array(comment).optional(),
 })
 export type Doc = z.infer<typeof doc>
 

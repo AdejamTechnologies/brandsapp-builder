@@ -52,7 +52,9 @@ export function PreviewPage() {
     const s = document.createElement("script")
     s.textContent = BUILDER_RUNTIME
     document.body.appendChild(s)
-    return () => s.remove()
+    return () => {
+      s.remove()
+    }
   }, [result?.usesRuntime, doc])
 
   if (err) return <div className="p-8 text-sm text-muted-foreground">{err}</div>
