@@ -122,7 +122,29 @@ textarea {
 /* Selector-first header + right-edge style-category rail (Webflow/Instatic pattern) */
 .selector-head { padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .style-body { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
-.style-sections { flex: 1; min-width: 0; padding: 2px 0 10px; }
+.style-scroll { position: relative; flex: 1; min-width: 0; max-height: calc(100vh - 232px); overflow-y: auto; padding-bottom: 8px; }
+.style-section { border-top: 1px solid color-mix(in srgb, var(--line) 55%, transparent); }
+.style-section:first-child { border-top: 0; }
+.style-section-head { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 9px 12px 6px; background: transparent; border: 0; cursor: pointer; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #9aa1ac; }
+.style-section-head:hover { color: #1a1a1a; }
+.style-section-head svg { color: #b6bcc6; }
+.style-section-body { padding-bottom: 6px; }
+/* box-model spacing widget (margin frame → padding frame, per-side inputs) */
+.box-model { position: relative; margin: 6px 12px 10px; height: 126px; border: 1px dashed var(--line); border-radius: 9px; background: color-mix(in srgb, var(--line) 14%, #fff); }
+.bm-inner { position: absolute; inset: 24px; border: 1px dashed var(--line); border-radius: 7px; background: #fff; }
+.bm-center { position: absolute; inset: 20px; border-radius: 5px; background: color-mix(in srgb, var(--accent) 12%, #fff); }
+.bm-tag { position: absolute; top: 3px; left: 7px; font-size: 8px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); pointer-events: none; }
+.bm-in { position: absolute; width: 36px; height: 18px; padding: 0; border: 0; background: transparent; text-align: center; font-size: 11px; color: #1a1a1a; outline: none; }
+.bm-in::placeholder { color: #c2c7cf; }
+.bm-in:focus { background: #fff; border-radius: 5px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent); }
+.bm-mt { top: 2px; left: 50%; transform: translateX(-50%); }
+.bm-mb { bottom: 2px; left: 50%; transform: translateX(-50%); }
+.bm-ml { left: -2px; top: 50%; transform: translateY(-50%); }
+.bm-mr { right: -2px; top: 50%; transform: translateY(-50%); }
+.bm-pt { top: 27px; left: 50%; transform: translateX(-50%); }
+.bm-pb { bottom: 27px; left: 50%; transform: translateX(-50%); }
+.bm-pl { left: 22px; top: 50%; transform: translateY(-50%); }
+.bm-pr { right: 22px; top: 50%; transform: translateY(-50%); }
 .style-rail { display: flex; flex-direction: column; gap: 2px; padding: 6px 5px; border-left: 1px solid var(--line); background: color-mix(in srgb, var(--line) 22%, #fff); }
 .style-rail-btn { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 7px; color: var(--muted); cursor: pointer; transition: background 0.12s, color 0.12s; }
 .style-rail-btn:hover { color: #1a1a1a; background: rgba(0, 0, 0, 0.05); }

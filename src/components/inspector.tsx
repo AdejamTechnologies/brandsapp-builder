@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Frame, LayoutGrid, Maximize2, Move, PaintBucket, Sparkles, Square, Type, Wand2 } from "lucide-react"
+import { useRef, useState } from "react"
+import { ChevronDown, Frame, LayoutGrid, Maximize2, Move, PaintBucket, Sparkles, Square, Type, Wand2 } from "lucide-react"
 
 import type { Doc, Node, PropBinding } from "@brandsapp/builder-core"
 import {
@@ -172,7 +172,11 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
   const [bindProp, setBindProp] = useState<string | null>(null)
   const [bindSource, setBindSource] = useState<PropBinding["source"]>("item")
   const [bindField, setBindField] = useState("")
-  const [section, setSection] = useState("layout")
+  // Stacked, collapsible sections + a scroll-spy rail (Instatic pattern).
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
+  const [activeSection, setActiveSection] = useState("layout")
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
 
   if (!node) return <div className="inspector muted small">Select a layer to edit it.</div>
 
@@ -292,6 +296,60 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
       </label>
     )
   }
+
+  const toggleSection = (id: string) =>
+    setCollapsed((prev) => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  const goToSection = (id: string) => {
+    setCollapsed((prev) => {
+      const n = new Set(prev)
+      n.delete(id)
+      return n
+    })
+    setActiveSection(id)
+    requestAnimationFrame(() => {
+      const el = sectionRefs.current[id]
+      const root = scrollRef.current
+      if (el && root) root.scrollTo({ top: el.offsetTop - 2, behavior: "smooth" })
+    })
+  }
+  const onSpyScroll = () => {
+    const root = scrollRef.current
+    if (!root) return
+    const top = root.scrollTop
+    let cur = SECTIONS[0].id
+    for (const s of SECTIONS) {
+      const el = sectionRefs.current[s.id]
+      if (el && el.offsetTop - top <= 16) cur = s.id
+    }
+    setActiveSection(cur)
+  }
+
+  // Box-model widget for Spacing — nested margin/padding with per-side inputs.
+  const bmInput = (key: string, cls: string) => (
+    <input className={cn("bm-in", cls)} value={styleVal(key)} placeholder="—" onChange={(e) => setStyle(key, e.target.value)} />
+  )
+  const spacingBox = () => (
+    <div className="box-model">
+      <span className="bm-tag bm-tag-m">margin</span>
+      {bmInput("marginTop", "bm-mt")}
+      {bmInput("marginRight", "bm-mr")}
+      {bmInput("marginBottom", "bm-mb")}
+      {bmInput("marginLeft", "bm-ml")}
+      <div className="bm-inner">
+        <span className="bm-tag bm-tag-p">padding</span>
+        {bmInput("paddingTop", "bm-pt")}
+        {bmInput("paddingRight", "bm-pr")}
+        {bmInput("paddingBottom", "bm-pb")}
+        {bmInput("paddingLeft", "bm-pl")}
+        <div className="bm-center" />
+      </div>
+    </div>
+  )
 
   const animControls = (
     <>
@@ -472,8 +530,6 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
       )
     })
 
-  const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0]
-
   return (
     <div className="inspector">
       <div className="inspector-head">
@@ -556,11 +612,32 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
             </div>
           </div>
 
-          {/* Compact, contextual section + a right-edge category rail. */}
+          {/* Stacked, collapsible sections + a scroll-spy category rail. */}
           <div className="style-body">
-            <div className="style-sections">
-              <div className="group-title">{active.label}</div>
-              {active.id === "animation" ? animControls : active.fields.map(styleField)}
+            <div className="style-scroll" ref={scrollRef} onScroll={onSpyScroll}>
+              {SECTIONS.map((s) => {
+                const open = !collapsed.has(s.id)
+                return (
+                  <div
+                    key={s.id}
+                    data-section={s.id}
+                    ref={(el) => {
+                      sectionRefs.current[s.id] = el
+                    }}
+                    className="style-section"
+                  >
+                    <button className="style-section-head" onClick={() => toggleSection(s.id)}>
+                      <span>{s.label}</span>
+                      <ChevronDown className={cn("size-3 transition-transform", !open && "-rotate-90")} />
+                    </button>
+                    {open && (
+                      <div className="style-section-body">
+                        {s.id === "spacing" ? spacingBox() : s.id === "animation" ? animControls : s.fields.map(styleField)}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
             <div className="style-rail" role="tablist" aria-label="Style categories">
               {SECTIONS.map((s) => {
@@ -568,11 +645,11 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
                 return (
                   <button
                     key={s.id}
-                    className={cn("style-rail-btn", s.id === section && "active")}
+                    className={cn("style-rail-btn", s.id === activeSection && "active")}
                     title={s.label}
                     aria-label={s.label}
-                    aria-selected={s.id === section}
-                    onClick={() => setSection(s.id)}
+                    aria-selected={s.id === activeSection}
+                    onClick={() => goToSection(s.id)}
                   >
                     <Icon size={15} />
                   </button>
