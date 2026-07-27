@@ -79,6 +79,22 @@ app.put("/api/pages/:id", async (c) => {
   return new Response(res.body, { status: res.status, headers: { "content-type": "application/json" } })
 })
 
+/** Upload an asset to the tenant (bytes streamed through to B2 server-side). */
+app.post("/api/upload", async (c) => {
+  const base = tenantBase(c)
+  if (!base) return c.json({ error: "no tenant configured" }, 400)
+  const name = c.req.query("name") ?? "upload"
+  const res = await fetch(`${base}/api/builder/upload?name=${encodeURIComponent(name)}`, {
+    method: "POST",
+    headers: {
+      "content-type": c.req.header("content-type") || "application/octet-stream",
+      ...authHeaders(c.env),
+    },
+    body: await c.req.arrayBuffer(),
+  })
+  return new Response(res.body, { status: res.status, headers: { "content-type": "application/json" } })
+})
+
 /** Publish / unpublish a page on the tenant. */
 app.post("/api/pages/:id/publish", async (c) => {
   const base = tenantBase(c)
