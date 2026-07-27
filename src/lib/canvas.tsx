@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from "react"
 
-import { ANIMATION_KEYFRAMES, generateUtilityCss, renderDocToReact, type Doc } from "@brandsapp/builder-core"
+import { ANIMATION_KEYFRAMES, generateUtilityCss, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
 import { resolveDrop, type DropIndicator, type DropTarget } from "./canvas-dnd"
 import { registry } from "./registry"
 import { SelectionOverlay } from "./selection-overlay"
@@ -206,6 +206,8 @@ export function Canvas({
         onPointerDown={onPointerDown}
         onDoubleClick={onDoubleClick}
       >
+        {/* Load the theme's webfonts so the canvas matches what publishes (WYSIWYG). */}
+        {themeFontHref(doc.theme) && <link rel="stylesheet" href={themeFontHref(doc.theme)!} />}
         <style>{result.css}</style>
         <style>{utilCss}</style>
         <style>{ANIMATION_KEYFRAMES}</style>

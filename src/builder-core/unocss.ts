@@ -17,7 +17,14 @@ function generator(): Promise<UnoGenerator> {
   // presetWind3 = Tailwind-v3-compatible utilities; presetDaisy = daisyUI component
   // classes. Promise.resolve normalises createGenerator's sync-or-async return.
   if (!genPromise) {
-    genPromise = Promise.resolve(createGenerator({ presets: [presetWind3(), presetDaisy()] }))
+    genPromise = Promise.resolve(
+      createGenerator({
+        presets: [presetWind3(), presetDaisy()],
+        // Theme font tokens: extend the font-family theme so `font-display` /
+        // `font-body` resolve to the vars themeToCss emits (sans/serif/mono kept).
+        theme: { fontFamily: { display: "var(--font-display)", body: "var(--font-body)" } },
+      })
+    )
   }
   return genPromise
 }

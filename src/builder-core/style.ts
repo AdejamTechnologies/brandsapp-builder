@@ -5,6 +5,7 @@
  * breakout) — shared by the renderer and (later) the editor.
  */
 
+import { themeFontStacks } from "./fonts"
 import type { Breakpoint, StyleRule, ThemeTokens } from "./schema"
 
 function camelToKebab(prop: string): string {
@@ -140,7 +141,13 @@ export function themeToCss(theme: ThemeTokens, rootSelector: string): string {
   for (const [name, val] of Object.entries(theme.radius ?? {})) {
     vars.push(`--radius-${camelToKebab(name)}:${sanitiseCssValue(val)}`)
   }
-  if (theme.fonts?.body) vars.push(`font-family:${sanitiseCssValue(theme.fonts.body)}`)
+  // Font tokens: resolve the display/body NAMES to full stacks, expose them as
+  // vars (consumed by the font-display / font-body utilities), and default the
+  // root to the body font. The host loads the webfaces (themeFontHref).
+  const stacks = themeFontStacks(theme)
+  vars.push(`--font-display:${sanitiseCssValue(stacks.display)}`)
+  vars.push(`--font-body:${sanitiseCssValue(stacks.body)}`)
+  vars.push(`font-family:${sanitiseCssValue(stacks.body)}`)
   return vars.length ? `${rootSelector}{${vars.join(";")}}` : ""
 }
 

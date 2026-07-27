@@ -1,9 +1,12 @@
 import { useState, type ReactNode } from "react"
 
-import type { ThemeTokens } from "@brandsapp/builder-core"
+import { FONT_OPTIONS, type ThemeTokens } from "@brandsapp/builder-core"
 import { Button } from "./ui/button"
 import { Dialog } from "./ui/dialog"
 import { Input } from "./ui/input"
+import { Select } from "./ui/select"
+
+const FONT_SELECT = [{ value: "", label: "System default" }, ...FONT_OPTIONS.map((f) => ({ value: f, label: f }))]
 
 interface ThemeDialogProps {
   theme: ThemeTokens
@@ -107,11 +110,14 @@ export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
       </Row>
 
       <GroupTitle>Fonts</GroupTitle>
+      <p className="mb-2 -mt-1 text-[11px] text-muted-foreground">
+        Headings use the display font (class <code>font-display</code>); body text uses the body font.
+      </p>
       <Row label="display">
-        <Input value={theme.fonts?.display ?? ""} placeholder="Georgia, serif" onChange={(e) => setFont("display", e.target.value)} />
+        <Select value={theme.fonts?.display ?? ""} onValueChange={(v) => setFont("display", v)} options={FONT_SELECT} />
       </Row>
       <Row label="body">
-        <Input value={theme.fonts?.body ?? ""} placeholder="Inter, sans-serif" onChange={(e) => setFont("body", e.target.value)} />
+        <Select value={theme.fonts?.body ?? ""} onValueChange={(v) => setFont("body", v)} options={FONT_SELECT} />
       </Row>
 
       <GroupTitle>Radius</GroupTitle>

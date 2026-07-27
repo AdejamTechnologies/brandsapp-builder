@@ -24,7 +24,7 @@ const moduleCard = (title: string, body: string, delay: number): NodeSpec =>
       box("w-11 h-11 rounded-xl bg-neutral"),
       p("LIVE", "inline-block px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-[11px] font-semibold tracking-wide", "span")
     ),
-    h(title, "3", "font-serif text-xl text-base-content mb-2"),
+    h(title, "3", "font-display text-xl text-base-content mb-2"),
     p(body, "text-base-content/60 text-sm leading-relaxed m-0")
   )
 
@@ -32,7 +32,7 @@ const step = (n: string, title: string, body: string, delay: number): NodeSpec =
   rbox(
     "",
     delay,
-    p(n, "font-serif text-4xl text-primary mb-3 m-0"),
+    p(n, "font-display text-4xl text-primary mb-3 m-0"),
     h(title, "3", "text-lg font-semibold text-base-content mb-2"),
     p(body, "text-base-content/60 text-sm leading-relaxed m-0")
   )
@@ -50,12 +50,12 @@ const footCol = (title: string, links: string[]): NodeSpec =>
 /** An Execufy-inspired editorial landing page — capability showcase (original copy). */
 export const SAMPLE_DOC = buildDoc(
   box(
-    "font-sans text-base-content bg-base-100 antialiased",
+    "font-body text-base-content bg-base-100 antialiased",
 
     // ── nav ──
     box(
       "flex items-center justify-between px-8 py-5 max-w-6xl mx-auto",
-      h("Servio", "3", "font-serif text-2xl font-bold text-base-content m-0"),
+      h("Servio", "3", "font-display text-2xl font-bold text-base-content m-0"),
       box(
         "flex items-center gap-8",
         navlink("Platform"),
@@ -74,7 +74,7 @@ export const SAMPLE_DOC = buildDoc(
       }, p("Hospitality operations, unified", "m-0", "span")),
       el("heading", {
         props: { text: "One platform for every hospitality team.", level: "1" },
-        classes: "font-serif text-5xl md:text-7xl font-semibold tracking-[-0.02em] text-base-content mb-6 leading-[1.02]",
+        classes: "font-display text-5xl md:text-7xl font-semibold tracking-[-0.02em] text-base-content mb-6 leading-[1.02]",
         anim: { effect: "fade-up", trigger: "load", duration: 700, delay: 80 },
       }),
       el("text", {
@@ -94,11 +94,11 @@ export const SAMPLE_DOC = buildDoc(
       p("Trusted by hospitality teams across the region", "text-center text-xs uppercase tracking-widest text-base-content/40 mb-8"),
       box(
         "flex flex-wrap items-center justify-center gap-x-14 gap-y-6",
-        p("Marlow", "font-serif text-xl text-base-content/30", "span"),
-        p("Ardenne", "font-serif text-xl text-base-content/30", "span"),
-        p("The Quay", "font-serif text-xl text-base-content/30", "span"),
-        p("Lumen", "font-serif text-xl text-base-content/30", "span"),
-        p("Verano", "font-serif text-xl text-base-content/30", "span")
+        p("Marlow", "font-display text-xl text-base-content/30", "span"),
+        p("Ardenne", "font-display text-xl text-base-content/30", "span"),
+        p("The Quay", "font-display text-xl text-base-content/30", "span"),
+        p("Lumen", "font-display text-xl text-base-content/30", "span"),
+        p("Verano", "font-display text-xl text-base-content/30", "span")
       )
     ),
 
@@ -111,16 +111,16 @@ export const SAMPLE_DOC = buildDoc(
           "",
           0,
           p("THE PROBLEM", "text-xs font-semibold uppercase tracking-widest text-primary mb-4"),
-          h("Great service runs on a dozen disconnected tools.", "2", "font-serif text-4xl text-base-content leading-tight mb-5"),
+          h("Great service runs on a dozen disconnected tools.", "2", "font-display text-4xl text-base-content leading-tight mb-5"),
           p("Spreadsheets for shifts. Email for vendors. Group chats for events. The work gets done, but nothing talks to anything else — and the gaps are where things break.", "text-base-content/60 leading-relaxed m-0")
         ),
         rbox(
           "grid grid-cols-2 gap-4",
           160,
-          box("p-6 rounded-2xl bg-base-200", p("38%", "font-serif text-4xl text-base-content m-0"), p("of shifts rescheduled by hand", "text-base-content/60 text-sm mt-2 m-0")),
-          box("p-6 rounded-2xl bg-base-200", p("6 hrs", "font-serif text-4xl text-base-content m-0"), p("a week lost to vendor chasing", "text-base-content/60 text-sm mt-2 m-0")),
-          box("p-6 rounded-2xl bg-base-200", p("1 in 4", "font-serif text-4xl text-base-content m-0"), p("events missing a key document", "text-base-content/60 text-sm mt-2 m-0")),
-          box("p-6 rounded-2xl bg-primary text-neutral-content", p("0", "font-serif text-4xl m-0"), p("of it needs to be this way", "text-neutral-content/70 text-sm mt-2 m-0"))
+          box("p-6 rounded-2xl bg-base-200", p("38%", "font-display text-4xl text-base-content m-0"), p("of shifts rescheduled by hand", "text-base-content/60 text-sm mt-2 m-0")),
+          box("p-6 rounded-2xl bg-base-200", p("6 hrs", "font-display text-4xl text-base-content m-0"), p("a week lost to vendor chasing", "text-base-content/60 text-sm mt-2 m-0")),
+          box("p-6 rounded-2xl bg-base-200", p("1 in 4", "font-display text-4xl text-base-content m-0"), p("events missing a key document", "text-base-content/60 text-sm mt-2 m-0")),
+          box("p-6 rounded-2xl bg-primary text-neutral-content", p("0", "font-display text-4xl m-0"), p("of it needs to be this way", "text-neutral-content/70 text-sm mt-2 m-0"))
         )
       )
     ),
@@ -134,7 +134,7 @@ export const SAMPLE_DOC = buildDoc(
           "text-center max-w-2xl mx-auto mb-14",
           0,
           p("THE PLATFORM", "text-xs font-semibold uppercase tracking-widest text-primary mb-4"),
-          h("Five modules. One source of truth.", "2", "font-serif text-4xl text-base-content mb-4"),
+          h("Five modules. One source of truth.", "2", "font-display text-4xl text-base-content mb-4"),
           p("Each part works on its own and gets better together — so the whole team sees the same picture.", "text-base-content/60 leading-relaxed m-0")
         ),
         box(
@@ -162,7 +162,7 @@ export const SAMPLE_DOC = buildDoc(
         ),
         box(
           "p-7",
-          h("Rooftop launch — 220 guests", "3", "font-serif text-2xl text-base-content mb-6"),
+          h("Rooftop launch — 220 guests", "3", "font-display text-2xl text-base-content mb-6"),
           box(
             "grid grid-cols-3 gap-4",
             box("", p("Budget", "text-xs uppercase tracking-wider text-base-content/40 m-0"), p("$18,000", "text-lg font-semibold text-base-content mt-1 m-0")),
@@ -178,7 +178,7 @@ export const SAMPLE_DOC = buildDoc(
       "px-8 py-28 bg-base-200",
       box(
         "max-w-5xl mx-auto",
-        h("How it works", "2", "font-serif text-4xl text-center text-base-content mb-14"),
+        h("How it works", "2", "font-display text-4xl text-center text-base-content mb-14"),
         box(
           "grid grid-cols-1 md:grid-cols-3 gap-10",
           step("01", "Connect your team", "Invite staff, vendors and venues — everyone lands in the right place.", 0),
@@ -191,7 +191,7 @@ export const SAMPLE_DOC = buildDoc(
     // ── FAQ ──
     box(
       "px-8 py-28 max-w-3xl mx-auto",
-      h("Questions, answered", "2", "font-serif text-4xl text-center text-base-content mb-10"),
+      h("Questions, answered", "2", "font-display text-4xl text-center text-base-content mb-10"),
       el(
         "accordion",
         { classes: "flex flex-col gap-3" },
@@ -207,7 +207,7 @@ export const SAMPLE_DOC = buildDoc(
       rbox(
         "max-w-5xl mx-auto rounded-3xl bg-neutral px-10 py-24 text-center",
         0,
-        h("See your operation, unified.", "2", "font-serif text-5xl text-neutral-content mb-5 leading-tight"),
+        h("See your operation, unified.", "2", "font-display text-5xl text-neutral-content mb-5 leading-tight"),
         p("Book a 30-minute demo and we'll map it to how your team already works.", "text-base-content/30 max-w-xl mx-auto mb-9"),
         box(
           "flex items-center justify-center gap-3",
@@ -224,7 +224,7 @@ export const SAMPLE_DOC = buildDoc(
         "grid grid-cols-2 md:grid-cols-5 gap-10 max-w-6xl mx-auto",
         box(
           "col-span-2 md:col-span-1",
-          h("Servio", "3", "font-serif text-xl font-bold text-base-content mb-2"),
+          h("Servio", "3", "font-display text-xl font-bold text-base-content mb-2"),
           p("Hospitality operations, unified.", "text-base-content/40 text-sm m-0")
         ),
         footCol("Platform", ["Staffing", "Vendors", "Events", "Compliance"]),
@@ -245,7 +245,7 @@ export const SAMPLE_DOC = buildDoc(
         "base-300": "#e7e4df", // borders
         "base-content": "#1c1917", // body text
       },
-      fonts: { display: "'Georgia', 'Times New Roman', serif", body: "Inter, ui-sans-serif, system-ui, sans-serif" },
+      fonts: { display: "Playfair Display", body: "Inter" },
       radius: {},
       breakpoints: [
         { id: "tablet", label: "Tablet", maxWidth: 1023 },

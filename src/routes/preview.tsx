@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useSearch } from "@tanstack/react-router"
 
-import { BUILDER_RUNTIME, generateUtilityCss, parseDoc, renderDocToReact, type Doc } from "@brandsapp/builder-core"
+import { BUILDER_RUNTIME, generateUtilityCss, parseDoc, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
 import { registry } from "../lib/registry"
 
 /**
@@ -59,8 +59,10 @@ export function PreviewPage() {
 
   if (err) return <div className="p-8 text-sm text-muted-foreground">{err}</div>
   if (!result) return <div className="p-8 text-sm text-muted-foreground">Loading preview…</div>
+  const fontHref = doc ? themeFontHref(doc.theme) : null
   return (
     <div className="preview-wrap">
+      {fontHref && <link rel="stylesheet" href={fontHref} />}
       <style>{result.css + utilCss}</style>
       {result.node}
     </div>

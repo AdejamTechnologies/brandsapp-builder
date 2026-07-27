@@ -8,6 +8,7 @@
  */
 
 export * from "./schema"
+export * from "./fonts"
 export * from "./registry"
 export * from "./binding"
 export * from "./escape"
