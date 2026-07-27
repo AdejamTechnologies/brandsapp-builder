@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import {
+  Blocks,
   Box,
   Check,
   Code2,
@@ -10,7 +11,9 @@ import {
   FormInput,
   Heading,
   Image as ImageIcon,
+  Layers,
   LayoutGrid,
+  LayoutTemplate,
   Link2,
   Minus,
   MessageSquare,
@@ -524,10 +527,19 @@ export function EditorPage() {
     <div className="editor3">
       <aside className="col left">
         <Tabs defaultValue="elements">
-          <TabsList className="border-b border-border p-2">
-            <TabsTab value="elements">Elements</TabsTab>
-            <TabsTab value="sections">Sections</TabsTab>
-            <TabsTab value="components">Components</TabsTab>
+          <TabsList className="border-b border-border p-1.5">
+            <TabsTab value="elements" aria-label="Elements" title="Elements" className="flex items-center justify-center">
+              <Blocks className="size-4" />
+            </TabsTab>
+            <TabsTab value="sections" aria-label="Sections" title="Sections" className="flex items-center justify-center">
+              <LayoutTemplate className="size-4" />
+            </TabsTab>
+            <TabsTab value="components" aria-label="Components" title="Components" className="flex items-center justify-center">
+              <ComponentIcon className="size-4" />
+            </TabsTab>
+            <TabsTab value="layers" aria-label="Layers" title="Layers" className="flex items-center justify-center">
+              <Layers className="size-4" />
+            </TabsTab>
           </TabsList>
           <TabsPanel value="elements">
             <Palette onDragStart={startModuleDrag} />
@@ -546,23 +558,25 @@ export function EditorPage() {
               onRename={(cid, name) => apply(renameComponent(docRef.current, cid, name))}
             />
           </TabsPanel>
+          <TabsPanel value="layers">
+            <div className="px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {activeComp ? `Component · ${activeComp.name}` : "Layers"}
+            </div>
+            <Tree
+              doc={doc}
+              nodeId={activeRootId}
+              parentId={null}
+              index={0}
+              depth={0}
+              selectedId={selectedId}
+              drag={drag}
+              onSelect={setSelectedId}
+              onDelete={del}
+              onReorder={reorder}
+              onUpdate={patchNode}
+            />
+          </TabsPanel>
         </Tabs>
-        <div className="border-t border-border px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {activeComp ? `Component · ${activeComp.name}` : "Layers"}
-        </div>
-        <Tree
-          doc={doc}
-          nodeId={activeRootId}
-          parentId={null}
-          index={0}
-          depth={0}
-          selectedId={selectedId}
-          drag={drag}
-          onSelect={setSelectedId}
-          onDelete={del}
-          onReorder={reorder}
-          onUpdate={patchNode}
-        />
       </aside>
 
       <main className="col center">
