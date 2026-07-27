@@ -102,6 +102,25 @@ export const componentDef = z.object({
 })
 export type ComponentDef = z.infer<typeof componentDef>
 
+// Collaboration comments: threads optionally anchored to a node. Stored in the
+// Doc so they sync over the live room and persist on save; the renderer never
+// emits them, so they stay out of published output. See doc-ops comment helpers.
+export const commentMessage = z.object({
+  id,
+  author: z.string().default("You"),
+  body: z.string().default(""),
+  at: z.number().optional(),
+})
+export type CommentMessage = z.infer<typeof commentMessage>
+
+export const comment = z.object({
+  id,
+  nodeId: id.optional(),
+  resolved: z.boolean().optional(),
+  messages: z.array(commentMessage).default([]),
+})
+export type Comment = z.infer<typeof comment>
+
 export const doc = z.object({
   version: z.number().default(CORE_DOC_VERSION),
   rootId: id,
@@ -110,6 +129,7 @@ export const doc = z.object({
   theme: themeTokens.default({ colors: {}, fonts: {}, radius: {}, breakpoints: [] }),
   meta: docMeta.optional(),
   components: z.record(id, componentDef).default({}),
+  comments: z.array(comment).default([]),
 })
 export type Doc = z.infer<typeof doc>
 

@@ -5,6 +5,7 @@ import {
   Code2,
   Component as ComponentIcon,
   Download,
+  MessageSquare,
   Eye,
   EyeOff,
   FileInput,
@@ -41,6 +42,7 @@ import {
   type Fragment,
   type Node,
 } from "@brandsapp/builder-core"
+import { CommentsDialog } from "../components/comments-dialog"
 import { Inspector } from "../components/inspector"
 import { LibraryDialog } from "../components/library-dialog"
 import { ThemeDialog } from "../components/theme-dialog"
@@ -99,6 +101,7 @@ export function EditorPage() {
   // When set, the canvas + navigator show a linked component's master subtree for
   // editing (the real doc.rootId is untouched; we just swap the view root).
   const [editingComponent, setEditingComponent] = useState<string | null>(null)
+  const [commentsOpen, setCommentsOpen] = useState(false)
   // Multi-page: the project's pages, listed on demand for the switcher.
   const [pagesOpen, setPagesOpen] = useState(false)
   const [pages, setPages] = useState<
@@ -584,6 +587,18 @@ export function EditorPage() {
               Live
             </span>
           )}
+          <Button variant="ghost" size="sm" onClick={() => setCommentsOpen(true)}>
+            <MessageSquare className="size-4" />
+            Comments
+            {(() => {
+              const open = (doc.comments ?? []).filter((c) => !c.resolved).length
+              return open > 0 ? (
+                <span className="ml-0.5 rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                  {open}
+                </span>
+              ) : null
+            })()}
+          </Button>
           <IconButton tip="Copy read-only share link" onClick={share}>
             <Share2 className="size-4" />
           </IconButton>
@@ -733,6 +748,16 @@ export function EditorPage() {
           </>
         )}
       </Dialog>
+
+      {commentsOpen && (
+        <CommentsDialog
+          doc={doc}
+          selectedId={selectedId}
+          onChange={apply}
+          onClose={() => setCommentsOpen(false)}
+          onJump={(id) => setSelectedId(id)}
+        />
+      )}
 
       {libraryOpen && <LibraryDialog onInsert={installFragment} onClose={() => setLibraryOpen(false)} />}
       {themeOpen && <ThemeDialog theme={doc.theme} onChange={setTheme} onClose={() => setThemeOpen(false)} />}

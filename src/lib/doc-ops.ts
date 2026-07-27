@@ -208,6 +208,50 @@ export function renameClass(doc: Doc, styleId: string, name: string): Doc {
   return { ...doc, styles: { ...doc.styles, [styleId]: { ...rule, name } } }
 }
 
+// ── collaboration comments (stored in the Doc; sync via the room, persist on save) ──
+const newCid = () => "cm" + (crypto.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10))
+
+/** Start a comment thread, optionally anchored to a node. */
+export function addComment(
+  doc: Doc,
+  nodeId: string | undefined,
+  body: string,
+  author: string
+): { doc: Doc; id: string } {
+  const id = newCid()
+  const thread = {
+    id,
+    ...(nodeId ? { nodeId } : {}),
+    messages: [{ id: newCid(), author: author || "You", body, at: Date.now() }],
+  }
+  return { doc: { ...doc, comments: [...(doc.comments ?? []), thread] }, id }
+}
+
+/** Append a reply to a thread (and re-open it if it was resolved). */
+export function addReply(doc: Doc, commentId: string, body: string, author: string): Doc {
+  return {
+    ...doc,
+    comments: (doc.comments ?? []).map((c) =>
+      c.id === commentId
+        ? { ...c, resolved: false, messages: [...c.messages, { id: newCid(), author: author || "You", body, at: Date.now() }] }
+        : c
+    ),
+  }
+}
+
+/** Toggle a thread's resolved state. */
+export function toggleCommentResolved(doc: Doc, commentId: string): Doc {
+  return {
+    ...doc,
+    comments: (doc.comments ?? []).map((c) => (c.id === commentId ? { ...c, resolved: !c.resolved } : c)),
+  }
+}
+
+/** Delete a thread. */
+export function deleteComment(doc: Doc, commentId: string): Doc {
+  return { ...doc, comments: (doc.comments ?? []).filter((c) => c.id !== commentId) }
+}
+
 /** Bind (or unbind, when binding is null) a node prop to a CMS data field. */
 export function setBinding(doc: Doc, nodeId: string, prop: string, binding: PropBinding | null): Doc {
   const node = doc.nodes[nodeId]
