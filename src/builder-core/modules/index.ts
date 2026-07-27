@@ -12,8 +12,27 @@ import { PRIMITIVES } from "./primitives"
 const Loop: ModuleDefinition = {
   name: "loop",
   category: "data",
-  schema: { source: { type: "plain" }, tag: { type: "plain" } },
-  defaults: { source: "" },
+  schema: {
+    // A live data feed: a CMS collection, or an app feed (products/courses/blog).
+    // The host registers matching loopSources; empty in the editor → sample rows.
+    source: {
+      type: "select",
+      label: "data source",
+      options: [
+        { label: "CMS collection", value: "data.rows" },
+        { label: "Products · Featured", value: "products.featured" },
+        { label: "Products · Newest", value: "products.newest" },
+        { label: "Courses · Newest", value: "courses.newest" },
+        { label: "Courses · Popular", value: "courses.popular" },
+        { label: "Blog · Newest", value: "blogs.newest" },
+        { label: "Blog · Featured", value: "blogs.featured" },
+      ],
+    },
+    collection: { type: "plain", label: "collection slug (CMS source only)" },
+    limit: { type: "number" },
+    tag: { type: "plain" },
+  },
+  defaults: { source: "", limit: 6, tag: "div" },
   contentModel: { children: "any" },
   dynamic: true,
   Component: ({ className, children }: ModuleRenderProps) =>

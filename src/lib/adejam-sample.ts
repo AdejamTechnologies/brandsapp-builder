@@ -79,6 +79,31 @@ const footCol = (title: string, links: string[]): NodeSpec =>
     ...links.map((t) => el("link", { props: { text: t, href: "#" }, classes: "text-sm text-base-content/70 hover:text-primary no-underline" }))
   )
 
+// A LIVE section: bound to the `products.featured` feed. On publish it renders the
+// tenant's real featured products (and auto-hides via requireFeed if there are
+// none); in the editor it previews with sample rows.
+const productCard = box(
+  "rounded-2xl border border-base-300 overflow-hidden bg-base-100 shadow-sm hover:shadow-lg transition-shadow",
+  el("image", { bindings: { src: { source: "item", field: "image" } }, props: { src: "", alt: "Product" }, classes: "w-full aspect-square object-cover bg-base-200" }),
+  box(
+    "p-5",
+    el("heading", { bindings: { text: { source: "item", field: "title" } }, props: { text: "Product", level: "3" }, classes: "font-display text-lg font-bold text-base-content m-0" }),
+    el("text", { bindings: { text: { source: "item", field: "price" } }, props: { text: "₦0", tag: "p" }, classes: "text-primary font-semibold mt-1 m-0" }),
+    el("link", { bindings: { href: { source: "item", field: "url" } }, props: { text: "View product →", href: "#" }, classes: "inline-block mt-3 text-sm text-base-content/60 hover:text-primary no-underline" })
+  )
+)
+const featuredProducts = el(
+  "box",
+  { props: { requireFeed: "products.featured" }, classes: "px-8 py-24 bg-base-200" },
+  rbox(
+    "max-w-6xl mx-auto",
+    0,
+    p("FROM THE STORE", "text-xs font-bold uppercase tracking-widest text-primary mb-3 text-center"),
+    h("Featured products", "2", "font-display text-4xl font-bold text-base-content mb-12 text-center"),
+    el("loop", { props: { source: "products.featured", limit: 3, tag: "div" }, classes: "grid grid-cols-1 md:grid-cols-3 gap-6" }, productCard)
+  )
+)
+
 /** Adejam — image-anchored, bold, colorful, animated (original copy, real photos). */
 export const ADEJAM_DOC = buildDoc(
   box(
@@ -175,6 +200,9 @@ export const ADEJAM_DOC = buildDoc(
         80
       )
     ),
+
+    // ── live: featured products (auto-hides when the store is empty) ──
+    featuredProducts,
 
     // ── stats band (gradient) ──
     box(

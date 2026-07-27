@@ -5,14 +5,27 @@ import { resolveDrop, type DropIndicator, type DropTarget } from "./canvas-dnd"
 import { registry } from "./registry"
 import { SelectionOverlay } from "./selection-overlay"
 
-// Editor-only sample data so `loop` nodes render a few placeholder rows and bound
-// props resolve to readable field tokens ({title}, {price}…) — authors see the
-// dynamic structure without wiring a real collection. Any source id yields rows.
-const sampleItem = new Proxy(
-  {},
-  { get: (_t, prop) => (typeof prop === "string" ? `{${prop}}` : undefined) }
-) as Record<string, unknown>
-const sampleRows = [sampleItem, sampleItem, sampleItem]
+// Editor-only sample data so `loop` nodes (CMS collections + app feeds like
+// products.featured) render a few realistic rows — bound props resolve to real
+// sample images / prices / titles so the section previews as it will publish.
+const SAMPLE_IMGS = [
+  "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=600&h=600&fit=crop&q=80&auto=format",
+  "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=600&h=600&fit=crop&q=80&auto=format",
+  "https://images.unsplash.com/photo-1445205170230-053b83016050?w=600&h=600&fit=crop&q=80&auto=format",
+]
+const sampleField = (prop: string, i: number): string => {
+  const p = prop.toLowerCase()
+  if (/image|photo|thumb|cover|avatar|src/.test(p)) return SAMPLE_IMGS[i % SAMPLE_IMGS.length]
+  if (/price|amount|cost/.test(p)) return ["₦4,500", "₦9,000", "₦2,750"][i % 3]
+  if (/title|name|heading/.test(p)) return ["Aurora Kit", "Studio Pro", "Pulse Bundle"][i % 3]
+  if (/url|href|link|slug/.test(p)) return "#"
+  if (/excerpt|desc|body|summary|subtitle/.test(p)) return "A short, punchy sample description for this item."
+  if (/student|enroll|count|sold/.test(p)) return ["1,204", "860", "432"][i % 3]
+  return `{${prop}}`
+}
+const sampleRows = [0, 1, 2].map(
+  (i) => new Proxy({}, { get: (_t, prop) => (typeof prop === "string" ? sampleField(prop, i) : undefined) })
+) as Array<Record<string, unknown>>
 const EDITOR_LOOP_SOURCES = new Proxy({}, { get: () => () => sampleRows }) as Record<
   string,
   (config: Record<string, unknown>) => Array<Record<string, unknown>>

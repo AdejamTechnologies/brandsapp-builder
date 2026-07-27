@@ -183,6 +183,14 @@ function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string):
   const raw = ctx.doc.nodes[id]
   if (!raw || raw.hidden) return null
 
+  // Data-driven section: on PUBLISH, drop the whole section (heading + wrapper)
+  // when its feed resolves to no items. In the editor it always shows so the
+  // author can design it against sample data.
+  if (!ctx.isEditor && raw.props && typeof raw.props.requireFeed === "string" && raw.props.requireFeed) {
+    const src = ctx.loopSources[raw.props.requireFeed]
+    if (!src || src(raw.props).length === 0) return null
+  }
+
   if (raw.module === "loop") return renderLoop(raw, ctx, data, key)
   if (raw.module === "instance") return renderInstance(raw, ctx, data, key)
 
