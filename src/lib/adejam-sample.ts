@@ -1,16 +1,40 @@
 import { buildDoc, el, type NodeSpec } from "@brandsapp/builder-core"
 
+// ── real imagery (verified Unsplash ids, mirrored from the tenant's curated
+//    lib/pages/stock-images.ts — Unsplash License, free, no attribution) ────────
+const hero = (id: string) => `https://images.unsplash.com/photo-${id}?w=1200&q=80&auto=format&fit=crop`
+const shot = (id: string) => `https://images.unsplash.com/photo-${id}?w=1000&h=760&fit=crop&q=80&auto=format`
+const face = (id: string) => `https://images.unsplash.com/photo-${id}?w=160&h=160&fit=crop&q=80&auto=format`
+
+const IMG = {
+  heroProduct: hero("1498050108023-c5249f4df085"), // code on screen
+  teamCoding: shot("1519389950473-47ba0277781c"), // team coding
+  collab: shot("1573164713988-8665fc963095"), // tech team collaborating
+  office: shot("1552664730-d307ca884978"), // modern office
+}
+const AVATARS = [
+  face("1531123897727-8f129e1688ce"),
+  face("1489424731084-a5d8b219a5bb"),
+  face("1500648767791-00dcc994a43e"),
+  face("1517841905240-472988babdf9"),
+]
+const TEAM = [
+  { name: "Ada Okoye", role: "Founder & CEO", img: face("1580489944761-15a19d654956") },
+  { name: "James Bello", role: "Head of Product", img: face("1633332755192-727a05c4013d") },
+  { name: "Mara Lindqvist", role: "Lead Engineer", img: face("1531123897727-8f129e1688ce") },
+  { name: "Deo Santos", role: "Design Lead", img: face("1489424731084-a5d8b219a5bb") },
+]
+
 // ── authoring helpers ─────────────────────────────────────────────────────────
 const box = (classes: string, ...ch: NodeSpec[]): NodeSpec => el("box", { classes }, ...ch)
-/** box that reveals on scroll (staggered by delay). */
 const rbox = (classes: string, delay: number, ...ch: NodeSpec[]): NodeSpec =>
   el("box", { classes, anim: { effect: "fade-up", trigger: "scroll", duration: 700, delay } }, ...ch)
-/** box that animates on load (hero). */
 const lbox = (classes: string, delay: number, effect: string, ...ch: NodeSpec[]): NodeSpec =>
   el("box", { classes, anim: { effect, trigger: "load", duration: 700, delay } }, ...ch)
 const h = (text: string, level: string, classes: string): NodeSpec => el("heading", { props: { text, level }, classes })
 const p = (text: string, classes: string, tag = "p"): NodeSpec => el("text", { props: { text, tag }, classes })
 const btn = (label: string, classes: string): NodeSpec => el("button", { props: { label, href: "#" }, classes })
+const img = (src: string, alt: string, classes: string): NodeSpec => el("image", { props: { src, alt }, classes })
 const navlink = (text: string): NodeSpec =>
   el("link", { props: { text, href: "#" }, classes: "text-sm font-medium text-base-content/70 hover:text-primary no-underline" })
 
@@ -19,22 +43,33 @@ const PRIMARY =
 const GHOST =
   "inline-flex items-center justify-center px-6 py-3 rounded-full border border-base-300 bg-base-100 text-base-content text-sm font-semibold hover:border-primary hover:text-primary no-underline"
 
-// A vibrant feature card with a gradient face + reveal.
-const featureCard = (badge: string, title: string, body: string, grad: string, delay: number): NodeSpec =>
-  rbox(
-    `p-8 rounded-3xl text-white shadow-xl bg-gradient-to-br ${grad}`,
-    delay,
-    p(badge, "inline-flex px-3 py-1 rounded-full bg-white/20 text-white text-[11px] font-bold uppercase tracking-widest mb-6", "span"),
-    h(title, "3", "font-display text-2xl font-bold mb-2"),
-    p(body, "text-white/85 text-sm leading-relaxed m-0")
+/** Alternating photo + copy row. */
+const featureRow = (badge: string, title: string, body: string, image: string, alt: string, reverse: boolean, delay: number): NodeSpec => {
+  const text = box(
+    "flex flex-col justify-center",
+    p(badge, "text-xs font-bold uppercase tracking-widest text-primary mb-3"),
+    h(title, "3", "font-display text-3xl md:text-4xl font-bold text-base-content mb-4 leading-tight"),
+    p(body, "text-base-content/60 leading-relaxed m-0")
   )
+  const pic = box(
+    "relative",
+    box("absolute -inset-3 rounded-[2rem] bg-gradient-to-br from-violet-500/20 to-cyan-500/20 blur-xl"),
+    img(image, alt, "relative w-full rounded-3xl shadow-xl object-cover aspect-[4/3]")
+  )
+  return rbox(
+    "grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center",
+    delay,
+    ...(reverse ? [pic, text] : [text, pic])
+  )
+}
 
-const stat = (n: string, label: string, delay: number): NodeSpec =>
+const teamCard = (name: string, role: string, image: string, delay: number): NodeSpec =>
   rbox(
     "text-center",
     delay,
-    p(n, "font-display text-4xl md:text-5xl font-bold text-white m-0"),
-    p(label, "text-white/70 text-xs uppercase tracking-widest mt-2 m-0")
+    img(image, name, "w-24 h-24 rounded-2xl object-cover mx-auto mb-4 shadow-md"),
+    p(name, "font-display text-base font-bold text-base-content m-0", "span"),
+    p(role, "text-xs text-base-content/60 mt-1 m-0")
   )
 
 const footCol = (title: string, links: string[]): NodeSpec =>
@@ -44,7 +79,7 @@ const footCol = (title: string, links: string[]): NodeSpec =>
     ...links.map((t) => el("link", { props: { text: t, href: "#" }, classes: "text-sm text-base-content/70 hover:text-primary no-underline" }))
   )
 
-/** Adejam — a bold, colorful, animated capability landing page (original copy). */
+/** Adejam — image-anchored, bold, colorful, animated (original copy, real photos). */
 export const ADEJAM_DOC = buildDoc(
   box(
     "font-body text-base-content bg-base-100 antialiased overflow-hidden",
@@ -57,118 +92,120 @@ export const ADEJAM_DOC = buildDoc(
         box("w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 to-cyan-500"),
         h("Adejam", "3", "font-display text-2xl font-bold text-base-content m-0")
       ),
-      box(
-        "hidden md:flex items-center gap-8",
-        navlink("Products"),
-        navlink("Platform"),
-        navlink("Company"),
-        navlink("Careers")
-      ),
+      box("hidden md:flex items-center gap-8", navlink("Products"), navlink("Platform"), navlink("Company"), navlink("Careers")),
       btn("Get started", PRIMARY)
     ),
 
-    // ── hero ──
+    // ── hero (split: copy + real product photo) ──
     box(
-      "relative px-8 pt-16 pb-28",
-      // colorful blurred blobs
-      box("absolute -top-24 -left-24 w-96 h-96 rounded-full bg-violet-400/30 blur-3xl"),
-      box("absolute top-8 -right-16 w-80 h-80 rounded-full bg-cyan-400/30 blur-3xl"),
-      box("absolute top-40 left-1/2 w-72 h-72 rounded-full bg-fuchsia-400/20 blur-3xl"),
+      "px-8 pt-10 pb-24 max-w-6xl mx-auto",
       box(
-        "relative max-w-4xl mx-auto text-center",
-        lbox(
-          "inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-base-300 bg-base-100/80 text-xs font-semibold text-base-content/70 mb-8",
-          0,
-          "fade",
-          p("✦ Adejam Technologies", "m-0", "span")
+        "grid grid-cols-1 md:grid-cols-2 gap-12 items-center",
+        box(
+          "flex flex-col",
+          lbox(
+            "inline-flex items-center gap-2 self-start px-4 py-1.5 rounded-full border border-base-300 bg-base-100 text-xs font-semibold text-base-content/70 mb-7",
+            0,
+            "fade",
+            p("✦ Adejam Technologies", "m-0", "span")
+          ),
+          el("heading", {
+            props: { text: "We build software the world actually loves to use.", level: "1" },
+            classes:
+              "font-display text-5xl md:text-6xl font-bold tracking-tight leading-[1.05] mb-5 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 bg-clip-text text-transparent",
+            anim: { effect: "fade-up", trigger: "load", duration: 800, delay: 80 },
+          }),
+          el("text", {
+            props: { text: "From commerce to community, Adejam ships bold, reliable products that turn ambitious ideas into everyday tools — beautifully." },
+            classes: "text-lg text-base-content/60 max-w-md mb-8 leading-relaxed",
+            anim: { effect: "fade-up", trigger: "load", duration: 700, delay: 200 },
+          }),
+          lbox("flex items-center gap-3 mb-9", 300, "fade-up", btn("Explore products", PRIMARY), btn("Talk to us", GHOST)),
+          // social proof — real avatar photos
+          lbox(
+            "flex items-center gap-4",
+            420,
+            "fade",
+            box(
+              "flex -space-x-3",
+              ...AVATARS.map((src) => img(src, "Adejam customer", "w-10 h-10 rounded-full border-2 border-white object-cover"))
+            ),
+            p("Trusted by 1M+ builders worldwide", "text-sm text-base-content/60 m-0")
+          )
         ),
-        el("heading", {
-          props: { text: "We build software the world actually loves to use.", level: "1" },
-          classes:
-            "font-display text-5xl md:text-7xl font-bold tracking-tight leading-[1.02] mb-6 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 bg-clip-text text-transparent",
-          anim: { effect: "fade-up", trigger: "load", duration: 800, delay: 80 },
-        }),
-        el("text", {
-          props: {
-            text: "From commerce to community, Adejam ships bold, reliable products that turn ambitious ideas into everyday tools — beautifully.",
-          },
-          classes: "text-lg text-base-content/60 max-w-2xl mx-auto mb-10 leading-relaxed",
-          anim: { effect: "fade-up", trigger: "load", duration: 700, delay: 200 },
-        }),
+        // hero image with a colorful glow
         lbox(
-          "flex items-center justify-center gap-3",
-          320,
+          "relative",
+          240,
           "fade-up",
-          btn("Explore products", PRIMARY),
-          btn("Talk to us", GHOST)
+          box("absolute -inset-4 rounded-[2.5rem] bg-gradient-to-br from-violet-500/30 via-fuchsia-400/20 to-cyan-400/30 blur-2xl"),
+          img(IMG.heroProduct, "Adejam product in action", "relative w-full rounded-[2rem] shadow-2xl object-cover aspect-[4/5]")
         )
       )
     ),
 
-    // ── colorful feature cards ──
+    // ── alternating photo feature rows ──
     box(
-      "px-8 pb-28 max-w-6xl mx-auto",
-      rbox(
-        "text-center max-w-2xl mx-auto mb-14",
-        0,
-        p("WHY ADEJAM", "text-xs font-bold uppercase tracking-widest text-primary mb-4"),
-        h("Built to move fast — and stay beautiful.", "2", "font-display text-4xl font-bold text-base-content m-0")
+      "px-8 py-8 max-w-6xl mx-auto flex flex-col gap-24",
+      featureRow(
+        "Speed",
+        "Ship products in days, not quarters.",
+        "Opinionated foundations and a shared component system mean your team goes from idea to launch without rebuilding the basics every time.",
+        IMG.teamCoding,
+        "Adejam team building software",
+        false,
+        0
       ),
-      box(
-        "grid grid-cols-1 md:grid-cols-3 gap-6",
-        featureCard(
-          "Speed",
-          "Ship in days",
-          "Opinionated foundations and a component system so teams launch products in days, not quarters.",
-          "from-violet-500 to-fuchsia-500",
-          0
-        ),
-        featureCard(
-          "Scale",
-          "Grow calmly",
-          "Infrastructure that scales with you and never blinks under load — from first user to your millionth.",
-          "from-cyan-500 to-blue-600",
-          140
-        ),
-        featureCard(
-          "Craft",
-          "Design that delights",
-          "Interfaces people remember, on every screen, with motion and polish built in from the start.",
-          "from-rose-500 to-orange-400",
-          280
-        )
+      featureRow(
+        "Scale",
+        "Grow calmly — from your first user to your millionth.",
+        "Infrastructure that scales with you and never blinks under load, so you can focus on the product instead of the plumbing.",
+        IMG.office,
+        "Adejam engineering workspace",
+        true,
+        80
+      ),
+      featureRow(
+        "Craft",
+        "Design people remember, on every screen.",
+        "Motion, polish and accessibility are built in from the start — the details that make software feel effortless are the default, not an afterthought.",
+        IMG.collab,
+        "Adejam team collaborating",
+        false,
+        80
       )
     ),
 
     // ── stats band (gradient) ──
     box(
-      "px-8 py-20 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500",
+      "px-8 py-20 mt-20 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500",
       box(
-        "grid grid-cols-2 md:grid-cols-4 gap-10 max-w-5xl mx-auto",
-        stat("12+", "Products shipped", 0),
-        stat("1M+", "People reached", 100),
-        stat("99.99%", "Uptime", 200),
-        stat("6", "Countries", 300)
+        "grid grid-cols-2 md:grid-cols-4 gap-10 max-w-5xl mx-auto text-center",
+        rbox("", 0, p("12+", "font-display text-4xl md:text-5xl font-bold text-white m-0"), p("Products shipped", "text-white/70 text-xs uppercase tracking-widest mt-2 m-0")),
+        rbox("", 80, p("1M+", "font-display text-4xl md:text-5xl font-bold text-white m-0"), p("People reached", "text-white/70 text-xs uppercase tracking-widest mt-2 m-0")),
+        rbox("", 160, p("99.99%", "font-display text-4xl md:text-5xl font-bold text-white m-0"), p("Uptime", "text-white/70 text-xs uppercase tracking-widest mt-2 m-0")),
+        rbox("", 240, p("6", "font-display text-4xl md:text-5xl font-bold text-white m-0"), p("Countries", "text-white/70 text-xs uppercase tracking-widest mt-2 m-0"))
       )
     ),
 
-    // ── big statement ──
+    // ── team (real portraits) ──
     box(
-      "px-8 py-28 bg-base-200",
+      "px-8 py-28 max-w-6xl mx-auto",
       rbox(
-        "max-w-4xl mx-auto text-center",
+        "text-center max-w-2xl mx-auto mb-14",
         0,
-        h(
-          "One team. A studio of products. A single obsession — making software feel effortless.",
-          "2",
-          "font-display text-3xl md:text-5xl font-bold text-base-content leading-tight"
-        )
+        p("THE MAKERS", "text-xs font-bold uppercase tracking-widest text-primary mb-4"),
+        h("A small team with an outsized obsession.", "2", "font-display text-4xl font-bold text-base-content m-0")
+      ),
+      box(
+        "grid grid-cols-2 md:grid-cols-4 gap-8",
+        ...TEAM.map((m, i) => teamCard(m.name, m.role, m.img, i * 90))
       )
     ),
 
     // ── CTA ──
     box(
-      "px-8 py-24",
+      "px-8 pb-24",
       rbox(
         "max-w-4xl mx-auto rounded-[2rem] bg-gradient-to-br from-violet-600 to-cyan-500 px-8 py-16 text-center shadow-2xl shadow-violet-500/30",
         0,
@@ -202,14 +239,14 @@ export const ADEJAM_DOC = buildDoc(
   {
     theme: {
       colors: {
-        primary: "#7c3aed", // violet-600 — CTAs, links
-        secondary: "#06b6d4", // cyan-500
-        accent: "#fb7185", // rose-400
-        neutral: "#0f172a", // slate-900 — dark
-        "base-100": "#ffffff", // page background
-        "base-200": "#f5f3ff", // violet-50 surface
-        "base-300": "#ede9fe", // violet-100 borders
-        "base-content": "#1e1b4b", // indigo-950 text
+        primary: "#7c3aed",
+        secondary: "#06b6d4",
+        accent: "#fb7185",
+        neutral: "#0f172a",
+        "base-100": "#ffffff",
+        "base-200": "#f5f3ff",
+        "base-300": "#ede9fe",
+        "base-content": "#1e1b4b",
       },
       fonts: { display: "Space Grotesk", body: "Inter" },
       radius: {},
