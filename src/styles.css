@@ -119,6 +119,14 @@ textarea {
 .ins-label { border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; font-size: 12px; width: 100%; }
 .field-group { padding-bottom: 4px; }
 .group-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #9aa1ac; padding: 8px 12px 2px; }
+/* Selector-first header + right-edge style-category rail (Webflow/Instatic pattern) */
+.selector-head { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.style-body { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
+.style-sections { flex: 1; min-width: 0; padding: 2px 0 10px; }
+.style-rail { display: flex; flex-direction: column; gap: 2px; padding: 6px 5px; border-left: 1px solid var(--line); background: color-mix(in srgb, var(--line) 22%, #fff); }
+.style-rail-btn { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 7px; color: var(--muted); cursor: pointer; transition: background 0.12s, color 0.12s; }
+.style-rail-btn:hover { color: #1a1a1a; background: rgba(0, 0, 0, 0.05); }
+.style-rail-btn.active { color: #fff; background: var(--accent); }
 .style-head { display: flex; align-items: center; gap: 6px; }
 .bp-tag { background: var(--accent); color: #fff; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 999px; text-transform: none; letter-spacing: 0; }
 .color-row { display: flex; gap: 6px; align-items: center; }

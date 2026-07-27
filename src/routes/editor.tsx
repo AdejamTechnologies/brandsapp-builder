@@ -1,11 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import {
+  Box,
   Check,
   Code2,
   Component as ComponentIcon,
   Download,
+  FileText,
+  FormInput,
+  Heading,
+  Image as ImageIcon,
+  LayoutGrid,
+  Link2,
+  Minus,
   MessageSquare,
+  MousePointerClick,
+  PanelTop,
+  Repeat,
+  Rows3,
+  Star,
+  Type as TypeIcon,
+  Video,
   Eye,
   EyeOff,
   FileInput,
@@ -25,6 +40,41 @@ import {
   Tablet,
   Undo2,
 } from "lucide-react"
+
+// Typed layer icons (Instatic-style Explorer): module → glyph.
+const MODULE_ICONS: Record<string, typeof Box> = {
+  box: Box,
+  "page-root": Box,
+  stack: Rows3,
+  grid: LayoutGrid,
+  heading: Heading,
+  text: TypeIcon,
+  richtext: FileText,
+  "form-label": TypeIcon,
+  image: ImageIcon,
+  icon: Star,
+  video: Video,
+  button: MousePointerClick,
+  submit: MousePointerClick,
+  link: Link2,
+  form: FormInput,
+  input: FormInput,
+  textarea: FormInput,
+  "select-field": FormInput,
+  checkbox: FormInput,
+  radio: FormInput,
+  tabs: PanelTop,
+  "tab-panel": PanelTop,
+  accordion: PanelTop,
+  "accordion-item": PanelTop,
+  dropdown: PanelTop,
+  divider: Minus,
+  spacer: Minus,
+  embed: Code2,
+  loop: Repeat,
+  instance: ComponentIcon,
+}
+const moduleIcon = (m: string) => MODULE_ICONS[m] ?? Box
 
 import { Button, type ButtonProps } from "../components/ui/button"
 import { Dialog, DialogFooter } from "../components/ui/dialog"
@@ -974,6 +1024,10 @@ function Tree(props: TreeProps) {
           drag.current = null
         }}
       >
+        {(() => {
+          const Icon = moduleIcon(node.module)
+          return <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+        })()}
         {renaming ? (
           <input
             autoFocus

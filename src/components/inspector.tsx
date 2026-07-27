@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Frame, LayoutGrid, Maximize2, Move, PaintBucket, Sparkles, Square, Type, Wand2 } from "lucide-react"
 
 import type { Doc, Node, PropBinding } from "@brandsapp/builder-core"
 import {
@@ -46,6 +47,7 @@ const SELECTS: Record<string, string[]> = {
   flexWrap: ["", "nowrap", "wrap", "wrap-reverse"],
   alignItems: ["", "flex-start", "center", "flex-end", "stretch", "baseline"],
   justifyContent: ["", "flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly"],
+  position: ["", "static", "relative", "absolute", "fixed", "sticky"],
   textAlign: ["", "left", "center", "right", "justify"],
   textTransform: ["", "none", "uppercase", "lowercase", "capitalize"],
   fontWeight: ["", "300", "400", "500", "600", "700", "800"],
@@ -59,6 +61,9 @@ const LABELS: Record<string, string> = {
   justifyContent: "justify",
   maxWidth: "max width",
   minWidth: "min width",
+  minHeight: "min height",
+  maxHeight: "max height",
+  zIndex: "z-index",
   fontSize: "size",
   fontWeight: "weight",
   lineHeight: "line height",
@@ -71,9 +76,15 @@ const LABELS: Record<string, string> = {
 }
 
 type FieldKind = "text" | "select" | "color"
-const GROUPS: { title: string; fields: { key: string; kind: FieldKind }[] }[] = [
+type Field = { key: string; kind: FieldKind }
+type IconType = typeof LayoutGrid
+// Style categories, switched from the right-edge rail (Webflow/Instatic pattern):
+// one compact, contextual section at a time instead of one long scroll.
+const SECTIONS: { id: string; label: string; icon: IconType; fields: Field[] }[] = [
   {
-    title: "Layout",
+    id: "layout",
+    label: "Layout",
+    icon: LayoutGrid,
     fields: [
       { key: "display", kind: "select" },
       { key: "flexDirection", kind: "select" },
@@ -83,18 +94,37 @@ const GROUPS: { title: string; fields: { key: string; kind: FieldKind }[] }[] = 
       { key: "justifyContent", kind: "select" },
     ],
   },
-  { title: "Spacing", fields: [{ key: "padding", kind: "text" }, { key: "margin", kind: "text" }] },
   {
-    title: "Size",
+    id: "position",
+    label: "Position",
+    icon: Move,
     fields: [
-      { key: "width", kind: "text" },
-      { key: "maxWidth", kind: "text" },
-      { key: "minWidth", kind: "text" },
-      { key: "height", kind: "text" },
+      { key: "position", kind: "select" },
+      { key: "top", kind: "text" },
+      { key: "right", kind: "text" },
+      { key: "bottom", kind: "text" },
+      { key: "left", kind: "text" },
+      { key: "zIndex", kind: "text" },
     ],
   },
   {
-    title: "Typography",
+    id: "size",
+    label: "Size",
+    icon: Maximize2,
+    fields: [
+      { key: "width", kind: "text" },
+      { key: "height", kind: "text" },
+      { key: "minWidth", kind: "text" },
+      { key: "maxWidth", kind: "text" },
+      { key: "minHeight", kind: "text" },
+      { key: "maxHeight", kind: "text" },
+    ],
+  },
+  { id: "spacing", label: "Spacing", icon: Frame, fields: [{ key: "padding", kind: "text" }, { key: "margin", kind: "text" }] },
+  {
+    id: "typography",
+    label: "Typography",
+    icon: Type,
     fields: [
       { key: "color", kind: "color" },
       { key: "fontSize", kind: "text" },
@@ -105,9 +135,11 @@ const GROUPS: { title: string; fields: { key: string; kind: FieldKind }[] }[] = 
       { key: "textTransform", kind: "select" },
     ],
   },
-  { title: "Background", fields: [{ key: "background", kind: "color" }] },
+  { id: "background", label: "Background", icon: PaintBucket, fields: [{ key: "background", kind: "color" }] },
   {
-    title: "Border",
+    id: "border",
+    label: "Border",
+    icon: Square,
     fields: [
       { key: "border", kind: "text" },
       { key: "borderColor", kind: "color" },
@@ -115,7 +147,8 @@ const GROUPS: { title: string; fields: { key: string; kind: FieldKind }[] }[] = 
       { key: "boxShadow", kind: "text" },
     ],
   },
-  { title: "Effects", fields: [{ key: "opacity", kind: "text" }] },
+  { id: "effects", label: "Effects", icon: Sparkles, fields: [{ key: "opacity", kind: "text" }] },
+  { id: "animation", label: "Animation", icon: Wand2, fields: [] },
 ]
 
 const isHex = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)
@@ -139,6 +172,7 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
   const [bindProp, setBindProp] = useState<string | null>(null)
   const [bindSource, setBindSource] = useState<PropBinding["source"]>("item")
   const [bindField, setBindField] = useState("")
+  const [section, setSection] = useState("layout")
 
   if (!node) return <div className="inspector muted small">Select a layer to edit it.</div>
 
@@ -224,6 +258,78 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
       </div>
     )
   }
+
+  const styleField = (f: Field) => {
+    const label = LABELS[f.key] ?? f.key
+    if (f.kind === "select") {
+      return (
+        <div key={f.key} className="field">
+          <span>{label}</span>
+          <Select
+            value={styleVal(f.key)}
+            onValueChange={(v) => setStyle(f.key, v)}
+            options={(SELECTS[f.key] ?? [""]).map((o) => ({ value: o, label: o || "—" }))}
+          />
+        </div>
+      )
+    }
+    if (f.kind === "color") {
+      return (
+        <div key={f.key} className="field">
+          <span>{label}</span>
+          {colorControl(f.key)}
+        </div>
+      )
+    }
+    return (
+      <label key={f.key} className="field">
+        <span>{label}</span>
+        <input
+          value={styleVal(f.key)}
+          placeholder={activeBp ? baseStyle(f.key) || "—" : "—"}
+          onChange={(e) => setStyle(f.key, e.target.value)}
+        />
+      </label>
+    )
+  }
+
+  const animControls = (
+    <>
+      <div className="field">
+        <span>effect</span>
+        <Select value={node.anim?.effect ?? "none"} onValueChange={setEffect} options={ANIM_OPTIONS} />
+      </div>
+      {node.anim && (
+        <>
+          <div className="field">
+            <span>trigger</span>
+            <Select
+              value={node.anim.trigger ?? "load"}
+              onValueChange={(v) => setAnim("trigger", v)}
+              options={[
+                { value: "load", label: "On load" },
+                { value: "scroll", label: "On scroll" },
+              ]}
+            />
+          </div>
+          <label className="field">
+            <span>duration</span>
+            <input type="number" value={node.anim.duration ?? 600} onChange={(e) => setAnim("duration", Number(e.target.value) || 600)} />
+          </label>
+          <label className="field">
+            <span>delay</span>
+            <input type="number" value={node.anim.delay ?? 0} onChange={(e) => setAnim("delay", Number(e.target.value) || 0)} />
+          </label>
+          <div className="field">
+            <span />
+            <Button variant="outline" size="sm" onClick={() => onPreview?.(node.id, node.anim!)}>
+              ▶ Play
+            </Button>
+          </div>
+        </>
+      )}
+    </>
+  )
 
   // ── CMS binding controls (Settings tab) ──
   const setBind = (prop: string, binding: PropBinding | null) =>
@@ -366,6 +472,8 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
       )
     })
 
+  const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0]
+
   return (
     <div className="inspector">
       <div className="inspector-head">
@@ -380,10 +488,10 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
         />
       </div>
 
-      <Tabs defaultValue="settings">
+      <Tabs defaultValue="style">
         <TabsList className="border-b border-border px-2 pt-1">
+          <TabsTab value="style">Styles{activeBp ? ` · ${activeBp}` : ""}</TabsTab>
           <TabsTab value="settings">Settings</TabsTab>
-          <TabsTab value="style">Style{activeBp ? ` · ${activeBp}` : ""}</TabsTab>
         </TabsList>
 
         <TabsPanel value="settings">
@@ -391,28 +499,14 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
             <div className="pt-1">{contentFields}</div>
           ) : (
             <div className="muted small" style={{ padding: "12px" }}>
-              This element has no settings — switch to Style to design it.
+              This element has no settings — switch to Styles to design it.
             </div>
           )}
         </TabsPanel>
 
         <TabsPanel value="style">
-          <div className="section-title">Utility classes</div>
-          <div style={{ padding: "0 12px 6px" }}>
-            <input
-              className="ins-label"
-              style={{ fontFamily: "ui-monospace, Menlo, monospace" }}
-              placeholder="flex gap-4 p-6 rounded-xl bg-base-100"
-              value={node.classes ?? ""}
-              onChange={(e) => patch({ classes: e.target.value || undefined }, `classes:${node.id}`)}
-            />
-          </div>
-
-          <div className="section-title style-head">
-            Classes
-            {activeBp && <span className="bp-tag">{activeBp}</span>}
-          </div>
-          <div className="px-3 pb-2">
+          {/* Selector-first: style a class (reused everywhere) or this element. */}
+          <div className="selector-head">
             {node.styleIds.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-1.5">
                 {node.styleIds.map((sid) => {
@@ -445,7 +539,7 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
             )}
             <input
               className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20"
-              placeholder={node.styleIds.length ? "add a class…" : "name a class to style…"}
+              placeholder={node.styleIds.length ? "add or create a selector…" : "add or create a selector…"}
               value={newClass}
               onChange={(e) => setNewClass(e.target.value)}
               onKeyDown={(e) => {
@@ -462,79 +556,41 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
             </div>
           </div>
 
-          {GROUPS.map((g) => (
-            <div key={g.title} className="field-group">
-              <div className="group-title">{g.title}</div>
-              {g.fields.map((f) => {
-                const label = LABELS[f.key] ?? f.key
-                if (f.kind === "select") {
-                  return (
-                    <div key={f.key} className="field">
-                      <span>{label}</span>
-                      <Select
-                        value={styleVal(f.key)}
-                        onValueChange={(v) => setStyle(f.key, v)}
-                        options={(SELECTS[f.key] ?? [""]).map((o) => ({ value: o, label: o || "—" }))}
-                      />
-                    </div>
-                  )
-                }
-                if (f.kind === "color") {
-                  return (
-                    <div key={f.key} className="field">
-                      <span>{label}</span>
-                      {colorControl(f.key)}
-                    </div>
-                  )
-                }
+          {/* Compact, contextual section + a right-edge category rail. */}
+          <div className="style-body">
+            <div className="style-sections">
+              <div className="group-title">{active.label}</div>
+              {active.id === "animation" ? animControls : active.fields.map(styleField)}
+            </div>
+            <div className="style-rail" role="tablist" aria-label="Style categories">
+              {SECTIONS.map((s) => {
+                const Icon = s.icon
                 return (
-                  <label key={f.key} className="field">
-                    <span>{label}</span>
-                    <input
-                      value={styleVal(f.key)}
-                      placeholder={activeBp ? baseStyle(f.key) || "—" : "—"}
-                      onChange={(e) => setStyle(f.key, e.target.value)}
-                    />
-                  </label>
+                  <button
+                    key={s.id}
+                    className={cn("style-rail-btn", s.id === section && "active")}
+                    title={s.label}
+                    aria-label={s.label}
+                    aria-selected={s.id === section}
+                    onClick={() => setSection(s.id)}
+                  >
+                    <Icon size={15} />
+                  </button>
                 )
               })}
             </div>
-          ))}
-
-          <div className="section-title">Animation</div>
-          <div className="field">
-            <span>effect</span>
-            <Select value={node.anim?.effect ?? "none"} onValueChange={setEffect} options={ANIM_OPTIONS} />
           </div>
-          {node.anim && (
-            <>
-              <div className="field">
-                <span>trigger</span>
-                <Select
-                  value={node.anim.trigger ?? "load"}
-                  onValueChange={(v) => setAnim("trigger", v)}
-                  options={[
-                    { value: "load", label: "On load" },
-                    { value: "scroll", label: "On scroll" },
-                  ]}
-                />
-              </div>
-              <label className="field">
-                <span>duration</span>
-                <input type="number" value={node.anim.duration ?? 600} onChange={(e) => setAnim("duration", Number(e.target.value) || 600)} />
-              </label>
-              <label className="field">
-                <span>delay</span>
-                <input type="number" value={node.anim.delay ?? 0} onChange={(e) => setAnim("delay", Number(e.target.value) || 0)} />
-              </label>
-              <div className="field">
-                <span />
-                <Button variant="outline" size="sm" onClick={() => onPreview?.(node.id, node.anim!)}>
-                  ▶ Play
-                </Button>
-              </div>
-            </>
-          )}
+
+          <div className="section-title">Utility classes</div>
+          <div style={{ padding: "0 12px 10px" }}>
+            <input
+              className="ins-label"
+              style={{ fontFamily: "ui-monospace, Menlo, monospace" }}
+              placeholder="flex gap-4 p-6 rounded-xl bg-base-100"
+              value={node.classes ?? ""}
+              onChange={(e) => patch({ classes: e.target.value || undefined }, `classes:${node.id}`)}
+            />
+          </div>
         </TabsPanel>
       </Tabs>
 
