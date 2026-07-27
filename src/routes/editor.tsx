@@ -117,6 +117,7 @@ import { useHistory } from "../lib/history"
 import { useDocRoom } from "../lib/realtime"
 import { moduleInfo, moduleList, type ModuleInfo } from "../lib/registry"
 import { SAMPLE_DOC } from "../lib/sample"
+import { ADEJAM_DOC } from "../lib/adejam-sample"
 
 // Breakpoint id `null` = the base (desktop) layer; the others match responsive
 // override keys and set the canvas preview width.
@@ -144,7 +145,7 @@ export function EditorPage() {
   const tenant = search.tenant ?? ""
   const navigate = useNavigate()
 
-  const [initialDoc] = useState(() => parseDoc(SAMPLE_DOC))
+  const [initialDoc] = useState(() => parseDoc(pageId === "adejam" ? ADEJAM_DOC : SAMPLE_DOC))
   const sendRef = useRef<(s: string) => void>(() => {})
   const commit = useCallback((d: Doc) => sendRef.current(JSON.stringify(d)), [])
   const { doc, apply, undo, redo, canUndo, canRedo, reset } = useHistory(initialDoc, commit)
@@ -180,7 +181,7 @@ export function EditorPage() {
   const dropTargetRef = useRef<DropTarget | null>(null)
 
   useEffect(() => {
-    if (!tenant || pageId === "sample") return
+    if (!tenant || pageId === "sample" || pageId === "adejam") return
     fetch(`/api/pages/${encodeURIComponent(pageId)}?tenant=${encodeURIComponent(tenant)}`)
       .then((r) => (r.ok ? (r.json() as Promise<{ doc?: unknown; status?: string }>) : null))
       .then((d) => {
