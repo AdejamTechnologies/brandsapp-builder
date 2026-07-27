@@ -209,7 +209,10 @@ export function Canvas({
         {/* Load the theme's webfonts so the canvas matches what publishes (WYSIWYG). */}
         {themeFontHref(doc.theme) && <link rel="stylesheet" href={themeFontHref(doc.theme)!} />}
         <style>{result.css}</style>
-        <style>{utilCss}</style>
+        {/* Scope utility CSS to the canvas so its .bg-primary/.text-primary (daisyUI
+            vars, defined only on .bapp-root) can't bleed into and break the editor
+            chrome, whose own Tailwind uses the same class names. */}
+        <style>{utilCss ? `@scope (.bapp-root) { ${utilCss} }` : ""}</style>
         <style>{ANIMATION_KEYFRAMES}</style>
         <div className="canvas-page" style={width ? { width, margin: "0 auto" } : undefined}>
           {result.node}

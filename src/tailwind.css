@@ -39,26 +39,29 @@
   --color-ring: var(--ring);
 }
 
+/* Framer-inspired chrome: near-white panels, hairline borders, a single blue
+ * accent (Publish, selection, focus), tight radii. The canvas content has its
+ * own daisyUI theme — these tokens style the editor UI only. */
 :root {
   --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 286);
+  --foreground: oklch(0.18 0.004 264);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 286);
+  --card-foreground: oklch(0.18 0.004 264);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 286);
-  --primary: oklch(0.17 0.005 286);
+  --popover-foreground: oklch(0.18 0.004 264);
+  --primary: oklch(0.62 0.18 250); /* Framer blue */
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.968 0.001 264);
-  --secondary-foreground: oklch(0.36 0.008 264);
-  --muted: oklch(0.968 0.001 264);
-  --muted-foreground: oklch(0.475 0.008 264);
-  --accent: oklch(0.968 0.001 264);
-  --accent-foreground: oklch(0.17 0.005 286);
+  --secondary: oklch(0.97 0.001 264);
+  --secondary-foreground: oklch(0.32 0.008 264);
+  --muted: oklch(0.975 0.001 264);
+  --muted-foreground: oklch(0.55 0.006 264);
+  --accent: oklch(0.965 0.003 250);
+  --accent-foreground: oklch(0.4 0.09 250);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.002 264);
-  --input: oklch(0.92 0.002 264);
-  --ring: oklch(0.17 0.005 286);
-  --radius: 0.75rem;
+  --border: oklch(0.935 0.002 264);
+  --input: oklch(0.928 0.002 264);
+  --ring: oklch(0.62 0.18 250);
+  --radius: 0.5rem;
 }
 
 .dark {
@@ -68,18 +71,18 @@
   --card-foreground: oklch(0.965 0 0);
   --popover: oklch(0.135 0.005 264);
   --popover-foreground: oklch(0.965 0 0);
-  --primary: oklch(0.965 0 0);
-  --primary-foreground: oklch(0.1 0.004 264);
+  --primary: oklch(0.68 0.16 248); /* Framer blue (dark) */
+  --primary-foreground: oklch(0.99 0 0);
   --secondary: oklch(0.195 0.006 264);
   --secondary-foreground: oklch(0.9 0.002 264);
   --muted: oklch(0.195 0.006 264);
-  --muted-foreground: oklch(0.555 0.008 264);
-  --accent: oklch(0.195 0.006 264);
-  --accent-foreground: oklch(0.965 0 0);
+  --muted-foreground: oklch(0.6 0.008 264);
+  --accent: oklch(0.24 0.02 250);
+  --accent-foreground: oklch(0.8 0.09 250);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.965 0 0);
+  --ring: oklch(0.68 0.16 248);
 }
 
 @layer base {

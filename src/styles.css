@@ -1,13 +1,13 @@
 :root {
   --bg: #0c111d;
   --panel: #12182400;
-  --line: #e5e7eb;
+  --line: #ececed;
   --muted: #6b7280;
-  --accent: #4f46e5;
+  --accent: #0a84ff; /* Framer blue — selection, focus, primary affordances */
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 * { box-sizing: border-box; }
-body { margin: 0; color: #0c111d; background: #f6f7f9; }
+body { margin: 0; color: #1a1a1a; background: #f5f5f5; }
 a { color: inherit; }
 
 .app { display: flex; flex-direction: column; height: 100vh; }
@@ -58,7 +58,7 @@ textarea {
 .col { min-height: 0; overflow: auto; background: #fff; }
 .col.left { border-right: 1px solid var(--line); }
 .col.right { border-left: 1px solid var(--line); }
-.col.center { display: flex; flex-direction: column; background: #f6f7f9; }
+.col.center { display: flex; flex-direction: column; background: #f5f5f5; }
 .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding: 12px 12px 6px; }
 .palette-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 10px 10px; }
 .chip { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 8px; font-size: 12px; cursor: pointer; text-align: left; }
@@ -79,9 +79,9 @@ textarea {
 
 /* live editing canvas */
 .canvas-wrap { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-.canvas-scroll { position: absolute; inset: 0; overflow: auto; padding: 24px; }
+.canvas-scroll { position: absolute; inset: 0; overflow: auto; padding: 28px; }
 .canvas-page { min-height: 100%; transition: width 0.15s ease; }
-.canvas-scroll .bapp-root { background: #fff; min-height: 100%; box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08); border-radius: 8px; overflow: hidden; }
+.canvas-scroll .bapp-root { background: #fff; min-height: 100%; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 12px 32px -16px rgba(0, 0, 0, 0.14); border-radius: 10px; overflow: hidden; }
 /* editor affordances on the rendered page */
 .canvas-scroll [data-node-id] { cursor: default; }
 .canvas-scroll [data-node-id]:hover { outline: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: -1px; }

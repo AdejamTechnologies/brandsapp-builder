@@ -77,7 +77,9 @@ const BREAKPOINTS: { id: string | null; label: string; width?: number }[] = [
 function IconButton({ tip, children, ...props }: ButtonProps & { tip: string }) {
   return (
     <Tooltip>
-      <TooltipTrigger render={<Button variant="ghost" size="iconSm" {...props} />}>{children}</TooltipTrigger>
+      <TooltipTrigger render={<Button variant="ghost" size="iconSm" aria-label={tip} {...props} />}>
+        {children}
+      </TooltipTrigger>
       <TooltipContent>{tip}</TooltipContent>
     </Tooltip>
   )
@@ -514,7 +516,8 @@ export function EditorPage() {
       </aside>
 
       <main className="col center">
-        <div className="flex items-center gap-1 h-12 px-3 border-b border-border bg-background shrink-0">
+        <div className="flex items-center h-12 px-3 border-b border-border bg-background shrink-0">
+          <div className="flex flex-1 min-w-0 items-center gap-1 overflow-x-auto">
           <IconButton tip="Undo (⌘Z)" onClick={undo} disabled={!canUndo}>
             <Undo2 className="size-4" />
           </IconButton>
@@ -554,33 +557,28 @@ export function EditorPage() {
             <Files className="size-4" />
             Pages
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setLibraryOpen(true)}>
-            <Plus className="size-4" />
-            Section
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={makeComponent}
-            disabled={!selectedId || selectedId === doc.rootId}
-            title="Turn the selected layer into a reusable component"
-          >
-            <ComponentIcon className="size-4" />
-            Make component
-          </Button>
           <Button variant="ghost" size="sm" onClick={() => setThemeOpen(true)}>
             <PaletteIcon className="size-4" />
             Variables
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setImportOpen(true)}>
+          <IconButton tip="Insert section" onClick={() => setLibraryOpen(true)}>
+            <Plus className="size-4" />
+          </IconButton>
+          <IconButton
+            tip="Make component"
+            onClick={makeComponent}
+            disabled={!selectedId || selectedId === doc.rootId}
+          >
+            <ComponentIcon className="size-4" />
+          </IconButton>
+          <IconButton tip="Import HTML" onClick={() => setImportOpen(true)}>
             <FileInput className="size-4" />
-            Import
-          </Button>
-          <Button variant="ghost" size="sm" onClick={doExport} title="Export the selected layer as a marketplace Fragment">
+          </IconButton>
+          <IconButton tip="Export fragment" onClick={doExport}>
             <Download className="size-4" />
-            Export
-          </Button>
-          <div className="flex-1" />
+          </IconButton>
+          </div>
+          <div className="flex shrink-0 items-center gap-1 pl-2">
           {status && <span className="mr-1 text-xs text-muted-foreground">{status}</span>}
           {pageStatus === "published" && (
             <span className="mr-1 inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-emerald-600">
@@ -610,6 +608,7 @@ export function EditorPage() {
             <Rocket className="size-4" />
             {pageStatus === "published" ? "Unpublish" : "Publish"}
           </Button>
+          </div>
         </div>
         {activeComp && (
           <div className="flex items-center gap-2 border-b border-border bg-primary/5 px-3 py-1.5 text-xs text-foreground">

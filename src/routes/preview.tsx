@@ -63,7 +63,8 @@ export function PreviewPage() {
   return (
     <div className="preview-wrap">
       {fontHref && <link rel="stylesheet" href={fontHref} />}
-      <style>{result.css + utilCss}</style>
+      <style>{result.css}</style>
+      <style>{utilCss ? `@scope (.bapp-root) { ${utilCss} }` : ""}</style>
       {result.node}
     </div>
   )
