@@ -100,6 +100,7 @@ import {
   type Node,
 } from "@brandsapp/builder-core"
 import { CommentsDialog } from "../components/comments-dialog"
+import { ContextMenu, type MenuItem } from "../components/context-menu"
 import { Inspector } from "../components/inspector"
 import { LibraryDialog } from "../components/library-dialog"
 import { ThemeDialog } from "../components/theme-dialog"
@@ -107,8 +108,14 @@ import { copyNode, duplicateNode, insertFragmentAt, pasteFragment } from "../lib
 import { Canvas } from "../lib/canvas"
 import { resolveDrop, type DropIndicator, type DropTarget } from "../lib/canvas-dnd"
 import {
+  addClassToNode,
+  ancestorsOf,
+  convertNode,
+  createClass,
   createComponent,
   insertChild,
+  removeClassFromNode,
+  wrapNode,
   seedDefaultChildren,
   insertChildAt,
   moveChild,
@@ -125,6 +132,19 @@ import { entryMatches, paletteSections } from "../lib/palette"
 import { SAMPLE_DOC } from "../lib/sample"
 import { ADEJAM_DOC } from "../lib/adejam-sample"
 import { BLANK_DOC } from "../lib/blank"
+
+/** Webflow's Convert-to / Wrap-in targets, mapped to our modules. */
+const CONVERT_TARGETS = ["box", "grid", "link", "stack", "section", "custom-element"]
+const WRAP_TARGETS = ["box", "link", "stack", "section"]
+const LABEL_OF: Record<string, string> = {
+  box: "Div Block",
+  grid: "Grid",
+  link: "Link Block",
+  stack: "Flex Block",
+  section: "Section",
+  container: "Container",
+  "custom-element": "Custom Element",
+}
 
 // Breakpoint id `null` = the base (desktop) layer; the others match responsive
 // override keys and set the canvas preview width.
@@ -287,6 +307,120 @@ export function EditorPage() {
     apply(removeNode(docRef.current, id))
     setSelectedId(docRef.current.rootId)
   }
+  // ── right-click element menu (Webflow's arrangement) ──
+  const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null)
+
+  const convertTo = (id: string, module: string) => {
+    apply(convertNode(docRef.current, id, module, (n) => registry.get(n)))
+    setSelectedId(id)
+  }
+  const wrapIn = (id: string, module: string) => {
+    const def = registry.get(module)
+    const { doc: next, id: wrapperId } = wrapNode(
+      docRef.current,
+      id,
+      module,
+      def?.defaults ?? {},
+      def?.defaultClasses
+    )
+    if (!wrapperId) return
+    apply(next)
+    setSelectedId(wrapperId) // wrapping is nearly always followed by styling the wrapper
+  }
+
+  /**
+   * Built per right-click so the disabled states are honest: class actions need a
+   * class on the node, and the root can't be wrapped, cut or deleted.
+   */
+  const menuItems = (id: string): MenuItem[] => {
+    const node = docRef.current.nodes[id]
+    if (!node) return []
+    const isRoot = id === activeRootId
+    const hasClass = (node.styleIds?.length ?? 0) > 0
+    const target = (m: string) => ({ label: LABEL_OF[m] ?? m, onSelect: () => convertTo(id, m) })
+
+    return [
+      { label: "Create component", shortcut: "⌘⇧A", disabled: isRoot, onSelect: makeComponent },
+      {
+        label: "Convert to",
+        disabled: isRoot,
+        children: CONVERT_TARGETS.filter((m) => m !== node.module).map(target),
+      },
+      {
+        label: "Wrap in",
+        disabled: isRoot,
+        children: WRAP_TARGETS.map((m) => ({
+          label: LABEL_OF[m] ?? m,
+          onSelect: () => wrapIn(id, m),
+        })),
+      },
+      { separator: true },
+      {
+        label: "Cut",
+        shortcut: "⌘X",
+        disabled: isRoot,
+        onSelect: () => {
+          clipboard.current = copyNode(docRef.current, id)
+          del(id)
+        },
+      },
+      { label: "Copy", shortcut: "⌘C", onSelect: () => (clipboard.current = copyNode(docRef.current, id)) },
+      {
+        label: "Duplicate",
+        shortcut: "⌘D",
+        disabled: isRoot,
+        onSelect: () => {
+          const { doc: next, id: dupId } = duplicateNode(docRef.current, id)
+          if (dupId) {
+            apply(next)
+            setSelectedId(dupId)
+          }
+        },
+      },
+      { label: "Delete", shortcut: "⌫", disabled: isRoot, onSelect: () => del(id) },
+      { separator: true },
+      {
+        label: "Add class",
+        shortcut: "⌘↵",
+        onSelect: () => {
+          const name = window.prompt("Class name")
+          if (!name?.trim()) return
+          const { doc: withClass, id: styleId } = createClass(docRef.current, name.trim())
+          apply(addClassToNode(withClass, id, styleId))
+        },
+      },
+      { label: "Rename class", shortcut: "⌘⇧↵", disabled: !hasClass },
+      { label: "Duplicate class", shortcut: "⌘⌥↵", disabled: !hasClass },
+      {
+        label: "Remove class",
+        shortcut: "⌥⇧↵",
+        disabled: !hasClass,
+        onSelect: () => {
+          const last = node.styleIds?.[node.styleIds.length - 1]
+          if (last) apply(removeClassFromNode(docRef.current, id, last))
+        },
+      },
+      { separator: true },
+      {
+        label: "Select parent",
+        disabled: isRoot,
+        children: ancestorsOf(docRef.current, id).map((a, i) => ({
+          label: a.label ?? LABEL_OF[a.module] ?? a.module,
+          checked: i === 0, // the immediate parent
+          onSelect: () => setSelectedId(a.id),
+        })),
+      },
+      {
+        label: "Rename element",
+        shortcut: "⌥R",
+        onSelect: () => {
+          const name = window.prompt("Element name", node.label ?? node.module)
+          if (name != null) patchNode(id, { label: name.trim() || undefined })
+        },
+      },
+    ]
+  }
+
   // Navigator patch: rename / hide / lock a layer.
   const patchNode = (id: string, p: Partial<Node>, key?: string) => {
     const n = docRef.current.nodes[id]
@@ -726,6 +860,7 @@ export function EditorPage() {
             doc={activeComp ? { ...doc, rootId: activeRootId } : doc}
             selectedId={selectedId}
             onSelect={setSelectedId}
+            onContextMenu={(id, x, y) => id && setMenu({ id, x, y })}
             onCommitText={commitText}
             onMoveNode={doMoveNode}
             scrollRef={scrollRef}
@@ -852,6 +987,10 @@ export function EditorPage() {
         <div className="drag-ghost" style={{ left: ghost.x + 12, top: ghost.y + 12 }}>
           {ghost.label}
         </div>
+      )}
+
+      {menu && (
+        <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.id)} onClose={() => setMenu(null)} />
       )}
     </div>
   )

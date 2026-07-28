@@ -83,6 +83,76 @@ export function seedDefaultChildren(
   return next
 }
 
+/**
+ * Change a node's module in place ("Convert to"). Children, classes, styles and
+ * the layer name all survive — only the module and its prop defaults change, and
+ * existing props are kept where the new module also declares them, so converting
+ * a Div Block to a Section doesn't silently discard the author's settings.
+ */
+export function convertNode(
+  doc: Doc,
+  id: string,
+  module: string,
+  lookup: (name: string) => { defaults?: Record<string, unknown>; schema?: Record<string, unknown> } | undefined
+): Doc {
+  const node = doc.nodes[id]
+  if (!node || node.module === module) return doc
+  const def = lookup(module)
+  const keep: Record<string, unknown> = {}
+  for (const key of Object.keys(def?.schema ?? {})) {
+    if (node.props?.[key] !== undefined) keep[key] = node.props[key]
+  }
+  return {
+    ...doc,
+    nodes: { ...doc.nodes, [id]: { ...node, module, props: { ...(def?.defaults ?? {}), ...keep } } },
+  }
+}
+
+/**
+ * Put a new parent around a node ("Wrap in"), taking its exact place in the
+ * tree so surrounding order is untouched. Returns the wrapper's id so the caller
+ * can select it — wrapping is nearly always followed by styling the wrapper.
+ */
+export function wrapNode(
+  doc: Doc,
+  id: string,
+  module: string,
+  defaults: Record<string, unknown> = {},
+  classes?: string
+): { doc: Doc; id: string } {
+  const node = doc.nodes[id]
+  const parent = parentOf(doc, id)
+  if (!node || !parent) return { doc, id: "" } // the root has nowhere to be wrapped
+  const wrapperId = newId()
+  const wrapper: Node = {
+    id: wrapperId,
+    module,
+    props: { ...defaults },
+    styleIds: [],
+    children: [id],
+    ...(classes ? { classes } : {}),
+  }
+  const children = parent.children.map((c) => (c === id ? wrapperId : c))
+  return {
+    doc: {
+      ...doc,
+      nodes: { ...doc.nodes, [wrapperId]: wrapper, [parent.id]: { ...parent, children } },
+    },
+    id: wrapperId,
+  }
+}
+
+/** Every ancestor of a node, nearest first — the "Select parent" chain. */
+export function ancestorsOf(doc: Doc, id: string): Node[] {
+  const out: Node[] = []
+  let cur = parentOf(doc, id)
+  while (cur) {
+    out.push(cur)
+    cur = parentOf(doc, cur.id)
+  }
+  return out
+}
+
 export function insertChildAt(
   doc: Doc,
   parentId: string,

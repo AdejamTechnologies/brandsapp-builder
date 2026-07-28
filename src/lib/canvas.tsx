@@ -35,6 +35,8 @@ interface CanvasProps {
   doc: Doc
   selectedId: string | null
   onSelect: (id: string | null) => void
+  /** Right-click on a node: the editor opens the element menu at this point. */
+  onContextMenu?: (id: string | null, x: number, y: number) => void
   /** Commit inline-edited text back to the node's prop. */
   onCommitText: (nodeId: string, prop: string, value: string) => void
   /** Re-parent an existing node (canvas drag-to-reorder). */
@@ -60,6 +62,7 @@ export function Canvas({
   doc,
   selectedId,
   onSelect,
+  onContextMenu,
   onCommitText,
   onMoveNode,
   scrollRef,
@@ -120,6 +123,16 @@ export function Canvas({
     e.preventDefault()
     if (suppressClick.current || editingRef.current) return
     onSelect(nodeIdAt(e.target))
+  }
+
+  const onContext = (e: MouseEvent) => {
+    if (!onContextMenu) return
+    e.preventDefault()
+    const id = nodeIdAt(e.target)
+    // Select first: the menu's actions all read the current selection, and
+    // right-clicking a different element should retarget them.
+    if (id) onSelect(id)
+    onContextMenu(id, e.clientX, e.clientY)
   }
 
   // Press a node and move to re-parent it; a press without movement is a click.
@@ -220,6 +233,7 @@ export function Canvas({
         className="canvas-scroll"
         ref={scrollRef}
         onClick={onClick}
+        onContextMenu={onContext}
         onPointerDown={onPointerDown}
         onDoubleClick={onDoubleClick}
       >
