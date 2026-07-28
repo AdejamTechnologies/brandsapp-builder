@@ -12,11 +12,10 @@
 
 import { createElement, type CSSProperties } from "react"
 
+import { rootAttrs } from "../advanced"
 import type { ModuleDefinition, ModuleRenderProps } from "../registry"
 
 const str = (v: unknown, d = "") => (v == null ? d : String(v))
-const ed = (p: ModuleRenderProps): { "data-node-id"?: string } =>
-  p.isEditor ? { "data-node-id": p.nodeId } : {}
 
 const EDITOR_LABEL: CSSProperties = {
   fontSize: "12px",
@@ -44,7 +43,7 @@ const Tabs: ModuleDefinition = {
     { module: "tab-panel", props: { title: "Pricing" }, children: [{ module: "text", props: { text: "Pricing content." } }] },
   ],
   Component: (p: ModuleRenderProps) =>
-    createElement("div", { className: p.className, "data-bapp-tabs": "", ...ed(p) }, p.children),
+    createElement("div", { className: p.className, "data-bapp-tabs": "", ...rootAttrs(p) }, p.children),
 }
 
 const TabPanel: ModuleDefinition = {
@@ -56,7 +55,7 @@ const TabPanel: ModuleDefinition = {
   Component: (p: ModuleRenderProps) =>
     createElement(
       "div",
-      { className: p.className, "data-bapp-tab-panel": "", "data-title": str(p.props.title, "Tab"), ...ed(p) },
+      { className: p.className, "data-bapp-tab-panel": "", "data-title": str(p.props.title, "Tab"), ...rootAttrs(p) },
       p.isEditor ? createElement("div", { style: EDITOR_LABEL }, `Tab: ${str(p.props.title, "Tab")}`) : null,
       p.children
     ),
@@ -86,7 +85,7 @@ const Accordion: ModuleDefinition = {
         className: p.className,
         "data-bapp-accordion": "",
         ...(p.props.multi ? { "data-multi": "" } : {}),
-        ...ed(p),
+        ...rootAttrs(p),
       },
       p.children
     ),
@@ -102,7 +101,7 @@ const AccordionItem: ModuleDefinition = {
   Component: (p: ModuleRenderProps) =>
     createElement(
       "details",
-      { className: p.className, open: p.isEditor || undefined, ...ed(p) },
+      { className: p.className, open: p.isEditor || undefined, ...rootAttrs(p) },
       createElement(
         "summary",
         { style: { cursor: "pointer", padding: "12px 0", fontWeight: 600, listStyle: "none" } },
@@ -130,7 +129,7 @@ const Dropdown: ModuleDefinition = {
   Component: (p: ModuleRenderProps) =>
     createElement(
       "div",
-      { className: p.className, "data-bapp-dropdown": "", ...ed(p) },
+      { className: p.className, "data-bapp-dropdown": "", ...rootAttrs(p) },
       createElement(
         "button",
         {

@@ -10,6 +10,7 @@ import { createElement, Fragment as RFragment, type ReactNode } from "react"
 import { renderToString } from "react-dom/server"
 
 import { animCss, ANIMATION_KEYFRAMES } from "./anim"
+import { truthyProp } from "./advanced"
 import { applyBindings, emptyDataContext, type DataContext } from "./binding"
 import { escapeByControl } from "./escape"
 import { migrateDoc } from "./migrate"
@@ -181,7 +182,14 @@ function resolveProps(node: Node, def: ModuleDefinition, data: DataContext): Rec
 
 function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string): ReactNode {
   const raw = ctx.doc.nodes[id]
-  if (!raw || raw.hidden) return null
+  if (!raw) return null
+  // A hidden node normally vanishes entirely. `keepInHtml` (one of the four
+  // shared "advanced" capabilities — see advanced.ts) opts out of that: the
+  // node still mounts, but `keptHidden` tells the module's Component to
+  // render it inert (rootAttrs adds the `hidden` attribute + display:none)
+  // instead of visible, so an in-page anchor or script can still find it.
+  const keptHidden = raw.hidden === true && truthyProp(raw.props?.keepInHtml)
+  if (raw.hidden && !keptHidden) return null
 
   // Data-driven section: on PUBLISH, drop the whole section (heading + wrapper)
   // when its feed resolves to no items. In the editor it always shows so the
@@ -216,6 +224,7 @@ function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string):
     theme: ctx.doc.theme,
     nodeId: node.id,
     isEditor: ctx.selectable,
+    keptHidden,
   })
 }
 

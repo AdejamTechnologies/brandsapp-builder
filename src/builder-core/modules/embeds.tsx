@@ -9,6 +9,7 @@
 
 import { createElement, type CSSProperties } from "react"
 
+import { rootAttrs } from "../advanced"
 import type { ModuleDefinition, ModuleRenderProps } from "../registry"
 
 const str = (v: unknown, d = "") => (v == null ? d : String(v))
@@ -17,9 +18,6 @@ const num = (v: unknown, d: number) => {
   return Number.isFinite(n) ? n : d
 }
 const bool = (v: unknown) => v === true || v === "true" || v === 1 || v === "1"
-
-const ed = (p: ModuleRenderProps): { "data-node-id"?: string } =>
-  p.isEditor ? { "data-node-id": p.nodeId } : {}
 
 // ── youtube ───────────────────────────────────────────────────────────────────
 
@@ -78,13 +76,13 @@ const Youtube: ModuleDefinition = {
     if (!id) {
       return createElement(
         "div",
-        { className: `${p.className} flex min-h-40 items-center justify-center`, style, ...ed(p) },
+        { className: `${p.className} flex min-h-40 items-center justify-center`, style, ...rootAttrs(p) },
         createElement("span", { className: "px-4 text-center text-sm text-base-content/60" }, "YouTube — paste a video URL in Settings.")
       )
     }
     return createElement(
       "div",
-      { className: p.className, style, ...ed(p) },
+      { className: p.className, style, ...rootAttrs(p) },
       createElement("iframe", {
         className: "h-full w-full rounded-2xl",
         src: `https://www.youtube.com/embed/${id}`,
@@ -123,7 +121,7 @@ const BackgroundVideo: ModuleDefinition = {
     const overlay = Math.min(Math.max(num(p.props.overlay, 40), 0), 100)
     return createElement(
       "div",
-      { className: p.className, ...ed(p) },
+      { className: p.className, ...rootAttrs(p) },
       src
         ? createElement("video", {
             className: "absolute inset-0 h-full w-full object-cover",
@@ -178,7 +176,7 @@ const FileUpload: ModuleDefinition = {
       accept: str(p.props.accept) || undefined,
       multiple: bool(p.props.multiple) || undefined,
       required: bool(p.props.required) || undefined,
-      ...ed(p),
+      ...rootAttrs(p),
     }),
 }
 
@@ -211,7 +209,7 @@ const Search: ModuleDefinition = {
         role: "search",
         action: str(p.props.action, "/search") || "/search",
         method: "get",
-        ...ed(p),
+        ...rootAttrs(p),
       },
       createElement("input", {
         className: SEARCH_INPUT_CLASSES,
@@ -246,7 +244,7 @@ const Map: ModuleDefinition = {
     if (!query) {
       return createElement(
         "div",
-        { className: `${p.className} flex items-center justify-center`, ...ed(p) },
+        { className: `${p.className} flex items-center justify-center`, ...rootAttrs(p) },
         createElement("span", { className: "px-4 text-center text-sm text-base-content/60" }, "Map — set an address in Settings.")
       )
     }
@@ -255,7 +253,7 @@ const Map: ModuleDefinition = {
       src: buildMapSrc(query),
       title: `Map: ${query}`,
       loading: "lazy",
-      ...ed(p),
+      ...rootAttrs(p),
     })
   },
 }
@@ -278,7 +276,7 @@ const CustomElement: ModuleDefinition = {
   Component: (p: ModuleRenderProps) => {
     const requested = str(p.props.tag, "div").trim().toLowerCase()
     const tag = TAG_NAME_RE.test(requested) ? requested : "div"
-    return createElement(tag, { className: p.className, ...ed(p) }, p.children)
+    return createElement(tag, { className: p.className, ...rootAttrs(p) }, p.children)
   },
 }
 

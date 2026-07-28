@@ -35,6 +35,14 @@ export interface ModuleRenderProps {
   theme: ThemeTokens
   nodeId: string
   isEditor: boolean
+  /**
+   * True only when this node is authored `hidden` but also has `keepInHtml`
+   * set — the renderer mounts it instead of dropping it (so scripts/anchors
+   * can still find it), but the module must render it INERT. `rootAttrs`
+   * (see advanced.ts) reads this and emits the `hidden` attribute plus a
+   * `display:none` override; a module using `rootAttrs` needs no extra code.
+   */
+  keptHidden?: boolean
 }
 
 /** A node in a module's starter subtree (see `defaultChildren`). */

@@ -102,6 +102,8 @@ import {
 import { CommentsDialog } from "../components/comments-dialog"
 import { ContextMenu, type MenuItem } from "../components/context-menu"
 import { QuickStackChip, QuickStackPresets } from "../components/quick-stack-presets"
+import { ElementSettings, ElementSettingsChip } from "../components/element-settings"
+import { SettingsFields } from "../components/settings-fields"
 import { Inspector } from "../components/inspector"
 import { LibraryDialog } from "../components/library-dialog"
 import { ThemeDialog } from "../components/theme-dialog"
@@ -311,26 +313,70 @@ export function EditorPage() {
   // ── right-click element menu (Webflow's arrangement) ──
   const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null)
   const [presetsOpen, setPresetsOpen] = useState(false)
+  const [elSettingsOpen, setElSettingsOpen] = useState(false)
 
   // Only elements with real presets get a chip on the selection ring; today
   // that's Quick Stack (our `grid`). Everything else gets a bare ring.
   const selNode = selectedId ? doc.nodes[selectedId] : undefined
   const selCols = Math.max(1, Number(selNode?.props?.columns ?? 3) || 3)
   const selRows = Math.max(1, Number(selNode?.props?.rows ?? 1) || 1)
-  const selectionBadge =
-    selNode?.module === "grid" && selectedId ? (
-      <span className="relative inline-flex">
-        <QuickStackChip cols={selCols} rows={selRows} onOpen={() => setPresetsOpen((v) => !v)} />
-        {presetsOpen && (
-          <QuickStackPresets
-            cols={selCols}
-            rows={selRows}
-            onApply={(next) => apply(updateProps(docRef.current, selectedId, next))}
-            onClose={() => setPresetsOpen(false)}
-          />
-        )}
-      </span>
-    ) : null
+  const hasSettings = !!selNode && Object.keys(moduleInfo(selNode.module)?.schema ?? {}).length > 0
+  // Anything a link's "section" destination could point at: nodes carrying an
+  // explicit elementId, plus every section/container, named by the author's own
+  // label when they've set one.
+  const linkableSections = Object.values(doc.nodes)
+    .filter((n) => n.props?.elementId || n.module === "section" || n.module === "container")
+    .map((n) => ({
+      id: String(n.props?.elementId ?? n.id),
+      label: n.label ?? (n.module === "section" ? "Section" : LABEL_OF[n.module] ?? n.module),
+    }))
+
+  const settingsCtx = {
+    pages: pages.map((pg) => ({ id: pg.id, title: pg.title, slug: pg.slug })),
+    sections: linkableSections,
+  }
+
+  const settingsTitle = selNode ? (selNode.label ?? LABEL_OF[selNode.module] ?? selNode.module) : ""
+
+  const selectionBadge = selectedId ? (
+    <span className="relative inline-flex items-center gap-1">
+      {selNode?.module === "grid" && (
+        <>
+          <QuickStackChip cols={selCols} rows={selRows} onOpen={() => setPresetsOpen((v) => !v)} />
+          {presetsOpen && (
+            <QuickStackPresets
+              cols={selCols}
+              rows={selRows}
+              onApply={(next) => apply(updateProps(docRef.current, selectedId, next))}
+              onClose={() => setPresetsOpen(false)}
+            />
+          )}
+        </>
+      )}
+      {/* The gear only appears when the element HAS settings to show — a Div with
+          an empty schema would open an empty panel. */}
+      {hasSettings && (
+        <>
+          <ElementSettingsChip active={elSettingsOpen} onOpen={() => setElSettingsOpen((v) => !v)} />
+          {elSettingsOpen && selNode && (
+            <ElementSettings
+              title={settingsTitle}
+              onClose={() => setElSettingsOpen(false)}
+              onShowAll={() => {
+                setElSettingsOpen(false)
+                const tab = [...document.querySelectorAll<HTMLElement>('[role="tab"]')].find(
+                  (t) => t.textContent?.trim() === "Settings"
+                )
+                tab?.click()
+              }}
+            >
+              <SettingsFields doc={doc} node={selNode} onChange={apply} ctx={settingsCtx} />
+            </ElementSettings>
+          )}
+        </>
+      )}
+    </span>
+  ) : null
 
   const convertTo = (id: string, module: string) => {
     apply(convertNode(docRef.current, id, module, (n) => registry.get(n)))

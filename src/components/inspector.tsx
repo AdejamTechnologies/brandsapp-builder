@@ -1,22 +1,11 @@
 import { useRef, useState } from "react"
 import { ChevronDown, Frame, LayoutGrid, Maximize2, Move, PaintBucket, Sparkles, Square, Type, Wand2 } from "lucide-react"
 
-import { ALL_BUTTON_TOKENS, buttonClasses, type Doc, type Node, type PropBinding } from "@brandsapp/builder-core"
-import {
-  addClassToNode,
-  createClass,
-  removeClassFromNode,
-  setBinding,
-  updateClassStyle,
-  updateProps,
-  updateResponsiveStyle,
-} from "../lib/doc-ops"
-import { moduleInfo } from "../lib/registry"
-import { MediaDialog } from "./media-dialog"
-import { RichTextDialog } from "./richtext-dialog"
+import { type Doc, type Node } from "@brandsapp/builder-core"
+import { addClassToNode, createClass, removeClassFromNode, updateClassStyle, updateResponsiveStyle } from "../lib/doc-ops"
+import { SettingsFields } from "./settings-fields"
 import { Button } from "./ui/button"
 import { Select } from "./ui/select"
-import { Switch } from "./ui/switch"
 import { Tabs, TabsList, TabsPanel, TabsTab } from "./ui/tabs"
 import { cn } from "../lib/utils"
 
@@ -154,24 +143,9 @@ const SECTIONS: { id: string; label: string; icon: IconType; fields: Field[] }[]
 const isHex = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)
 const tokenVar = (name: string) => `var(--color-${name})`
 
-// CMS binding: which prop types can be overlaid from a data field, and the sources.
-const BINDABLE = new Set(["plain", "url", "media", "richtext", "number"])
-const BIND_SOURCES: { value: PropBinding["source"]; label: string }[] = [
-  { value: "item", label: "Loop item" },
-  { value: "parentItem", label: "Parent item" },
-  { value: "page", label: "Page" },
-  { value: "site", label: "Site" },
-  { value: "route", label: "Route" },
-]
-
 export function Inspector({ doc, node, onChange, activeBp, onPreview }: InspectorProps) {
-  const [mediaKey, setMediaKey] = useState<string | null>(null)
-  const [richKey, setRichKey] = useState<string | null>(null)
   const [newClass, setNewClass] = useState("")
   const [activeClassId, setActiveClassId] = useState<string | null>(null)
-  const [bindProp, setBindProp] = useState<string | null>(null)
-  const [bindSource, setBindSource] = useState<PropBinding["source"]>("item")
-  const [bindField, setBindField] = useState("")
   // Stacked, collapsible sections + a scroll-spy rail (Instatic pattern).
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
   const [activeSection, setActiveSection] = useState("layout")
@@ -180,31 +154,7 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
 
   if (!node) return <div className="inspector muted small">Select a layer to edit it.</div>
 
-  const info = moduleInfo(node.module)
-  const hasContent = info != null && Object.keys(info.schema).length > 0
   const tokens = Object.entries(doc.theme.colors ?? {}) // [name, value] — the variables
-  const setProp = (key: string, value: unknown) => {
-    let next = updateProps(doc, node.id, { [key]: value })
-    // A variant is only real if it restyles. Classes are seeded at insert time
-    // and the author can edit them, so changing variant/size REWRITES the button's
-    // class string from the new pair — otherwise the control would look wired up
-    // and do nothing. Anything the author added beyond the variant set is kept.
-    if (node.module === "button" && (key === "variant" || key === "size")) {
-      const n = next.nodes[node.id]
-      const variant = String(key === "variant" ? value : (n?.props?.variant ?? "default"))
-      const size = String(key === "size" ? value : (n?.props?.size ?? "default"))
-      const generated = new Set(buttonClasses(variant, size).split(/\s+/).filter(Boolean))
-      const everyVariantToken = new Set(ALL_BUTTON_TOKENS)
-      const authored = String(n?.classes ?? "")
-        .split(/\s+/)
-        .filter((c) => c && !everyVariantToken.has(c)) // drop the previous variant's tokens
-      next = {
-        ...next,
-        nodes: { ...next.nodes, [node.id]: { ...n!, classes: [...generated, ...authored].join(" ") } },
-      }
-    }
-    onChange(next, `prop:${node.id}:${key}`)
-  }
   // The active style target: a class (StyleRule id) if the node has one, else the
   // element itself. Editing a class restyles every element that uses it.
   const target =
@@ -409,156 +359,6 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
     </>
   )
 
-  // ── CMS binding controls (Settings tab) ──
-  const setBind = (prop: string, binding: PropBinding | null) =>
-    onChange(setBinding(doc, node.id, prop, binding), `bind:${node.id}:${prop}`)
-  const openBind = (prop: string) => {
-    const b = node.bindings?.[prop]
-    setBindSource(b?.source ?? "item")
-    setBindField(b?.field ?? "")
-    setBindProp(prop)
-  }
-  const bindingUI = (prop: string) => {
-    const bound = node.bindings?.[prop]
-    const editing = bindProp === prop
-    return (
-      <div className="bind-row">
-        {bound ? (
-          <span className="bind-chip">
-            ↔ {bound.source}.{bound.field}
-            <button title="Unbind" onClick={() => setBind(prop, null)}>
-              ×
-            </button>
-            <button title="Edit binding" onClick={() => openBind(prop)}>
-              ✎
-            </button>
-          </span>
-        ) : editing ? null : (
-          <button className="bind-link" onClick={() => openBind(prop)}>
-            ↔ Bind to data
-          </button>
-        )}
-        {editing && (
-          <div className="bind-editor">
-            <Select
-              value={bindSource}
-              onValueChange={(v) => setBindSource(v as PropBinding["source"])}
-              options={BIND_SOURCES}
-            />
-            <input
-              placeholder="field (e.g. title, price)"
-              value={bindField}
-              onChange={(e) => setBindField(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && bindField.trim()) {
-                  setBind(prop, { source: bindSource, field: bindField.trim() })
-                  setBindProp(null)
-                }
-              }}
-            />
-            <div className="bind-actions">
-              <button
-                className="mini"
-                onClick={() => {
-                  if (bindField.trim()) setBind(prop, { source: bindSource, field: bindField.trim() })
-                  setBindProp(null)
-                }}
-              >
-                Bind
-              </button>
-              <button className="mini" onClick={() => setBindProp(null)}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const contentFields =
-    info &&
-    Object.entries(info.schema)
-      // A field can declare `showIf`, so a module only surfaces the inputs that
-      // apply right now — a link's URL box is meaningless once its type is
-      // "email". Hidden fields keep their stored value; they just aren't shown.
-      .filter(([, control]) =>
-        Object.entries(control.showIf ?? {}).every(([dep, allowed]) =>
-          allowed.includes(String(node.props[dep] ?? ""))
-        )
-      )
-      .map(([key, control]) => {
-      const value = node.props[key]
-      const label = control.label ?? key
-      const bindable = BINDABLE.has(control.type)
-      if (control.type === "media") {
-        return (
-          <div key={key}>
-            <div className="field">
-              <span>{label}</span>
-              <div className="media-field">
-                <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
-                <button className="mini" onClick={() => setMediaKey(key)}>
-                  Choose
-                </button>
-              </div>
-            </div>
-            {bindingUI(key)}
-          </div>
-        )
-      }
-      if (control.type === "richtext") {
-        return (
-          <div key={key}>
-            <div className="field">
-              <span>{label}</span>
-              <button className="mini wide" onClick={() => setRichKey(key)}>
-                Edit rich text…
-              </button>
-            </div>
-            {bindingUI(key)}
-          </div>
-        )
-      }
-      if (control.type === "boolean") {
-        return (
-          <div key={key} className="field">
-            <span>{label}</span>
-            <Switch checked={Boolean(value)} onCheckedChange={(c: boolean) => setProp(key, c)} />
-          </div>
-        )
-      }
-      if (control.type === "select" && control.options) {
-        return (
-          <div key={key} className="field">
-            <span>{label}</span>
-            <Select
-              value={String(value ?? "")}
-              onValueChange={(v) => setProp(key, v)}
-              options={control.options.map((o) => ({ value: String(o.value), label: o.label }))}
-            />
-          </div>
-        )
-      }
-      return (
-        <div key={key}>
-          <label className="field">
-            <span>{label}</span>
-            {control.type === "number" ? (
-              <input
-                type="number"
-                value={value == null ? "" : String(value)}
-                onChange={(e) => setProp(key, e.target.value === "" ? undefined : Number(e.target.value))}
-              />
-            ) : (
-              <input value={value == null ? "" : String(value)} onChange={(e) => setProp(key, e.target.value)} />
-            )}
-          </label>
-          {bindable && bindingUI(key)}
-        </div>
-      )
-    })
-
   return (
     <div className="inspector">
       <div className="inspector-head">
@@ -580,13 +380,7 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
         </TabsList>
 
         <TabsPanel value="settings">
-          {hasContent ? (
-            <div className="pt-1">{contentFields}</div>
-          ) : (
-            <div className="muted small" style={{ padding: "12px" }}>
-              This element has no settings — switch to Styles to design it.
-            </div>
-          )}
+          <SettingsFields doc={doc} node={node} onChange={onChange} />
         </TabsPanel>
 
         <TabsPanel value="style">
@@ -699,24 +493,6 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
           </div>
         </TabsPanel>
       </Tabs>
-
-      {mediaKey && (
-        <MediaDialog
-          value={String(node.props[mediaKey] ?? "")}
-          onPick={(url) => setProp(mediaKey, url)}
-          onClose={() => setMediaKey(null)}
-        />
-      )}
-      {richKey && (
-        <RichTextDialog
-          html={String(node.props[richKey] ?? "")}
-          onSave={(h) => {
-            setProp(richKey, h)
-            setRichKey(null)
-          }}
-          onClose={() => setRichKey(null)}
-        />
-      )}
     </div>
   )
 }

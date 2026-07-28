@@ -8,6 +8,7 @@
 
 import { createElement, type ReactNode } from "react"
 
+import { rootAttrs } from "../advanced"
 import type { ModuleDefinition, ModuleRenderProps } from "../registry"
 
 const str = (v: unknown, d = "") => (v == null ? d : String(v))
@@ -16,9 +17,6 @@ const num = (v: unknown, d: number) => {
   return Number.isFinite(n) ? n : d
 }
 const bool = (v: unknown) => v === true || v === "true" || v === 1 || v === "1"
-
-const ed = (p: ModuleRenderProps): { "data-node-id"?: string } =>
-  p.isEditor ? { "data-node-id": p.nodeId } : {}
 
 const INPUT_CLASSES =
   "w-full rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-sm text-base-content placeholder:text-base-content/40 outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15"
@@ -70,7 +68,7 @@ const Form: ModuleDefinition = {
         method: str(p.props.method, "post"),
         "data-bapp-form": "",
         "data-success": str(p.props.successMessage, "Thanks — we'll be in touch."),
-        ...ed(p),
+        ...rootAttrs(p),
       },
       p.children
     ),
@@ -102,7 +100,7 @@ const Input: ModuleDefinition = {
       name: str(p.props.name) || undefined,
       placeholder: str(p.props.placeholder) || undefined,
       required: bool(p.props.required) || undefined,
-      ...ed(p),
+      ...rootAttrs(p),
     }),
 }
 
@@ -125,7 +123,7 @@ const Textarea: ModuleDefinition = {
       placeholder: str(p.props.placeholder) || undefined,
       rows: num(p.props.rows, 4),
       required: bool(p.props.required) || undefined,
-      ...ed(p),
+      ...rootAttrs(p),
     }),
 }
 
@@ -157,7 +155,7 @@ const SelectField: ModuleDefinition = {
         className: p.className,
         name: str(p.props.name) || undefined,
         required: bool(p.props.required) || undefined,
-        ...ed(p),
+        ...rootAttrs(p),
       },
       opts
     )
@@ -181,7 +179,7 @@ const makeToggle = (name: "checkbox" | "radio"): ModuleDefinition => ({
   Component: (p: ModuleRenderProps) =>
     createElement(
       "label",
-      { className: p.className, ...ed(p) },
+      { className: p.className, ...rootAttrs(p) },
       createElement("input", {
         type: name,
         name: str(p.props.name) || undefined,
@@ -205,7 +203,7 @@ const FormLabel: ModuleDefinition = {
   defaultClasses: "text-sm font-medium text-base-content",
   inlineTextEdit: { prop: "text" },
   Component: (p: ModuleRenderProps) =>
-    createElement("label", { className: p.className, htmlFor: str(p.props.for) || undefined, ...ed(p) }, str(p.props.text)),
+    createElement("label", { className: p.className, htmlFor: str(p.props.for) || undefined, ...rootAttrs(p) }, str(p.props.text)),
 }
 
 const Submit: ModuleDefinition = {
@@ -221,7 +219,7 @@ const Submit: ModuleDefinition = {
   defaultClasses:
     "inline-flex items-center justify-center px-6 py-3 rounded-full bg-primary text-primary-content text-sm font-medium transition-colors hover:bg-primary/90",
   Component: (p: ModuleRenderProps) =>
-    createElement("button", { className: p.className, type: "submit", ...ed(p) }, str(p.props.label)),
+    createElement("button", { className: p.className, type: "submit", ...rootAttrs(p) }, str(p.props.label)),
 }
 
 // ── media ─────────────────────────────────────────────────────────────────────
@@ -250,7 +248,7 @@ const Video: ModuleDefinition = {
       loop: bool(p.props.loop) || undefined,
       muted: bool(p.props.muted) || undefined,
       playsInline: true,
-      ...ed(p),
+      ...rootAttrs(p),
     }),
 }
 

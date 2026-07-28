@@ -12,6 +12,7 @@
 
 import { createElement, type CSSProperties } from "react"
 
+import { ADVANCED_DEFAULTS, ADVANCED_SCHEMA, rootAttrs } from "../advanced"
 import { LINK_DEFAULTS, LINK_SCHEMA, linkAttrs, resolveHref } from "../link"
 import type { ModuleDefinition, ModuleRenderProps } from "../registry"
 
@@ -56,10 +57,6 @@ const num = (v: unknown, d: number) => {
   return Number.isFinite(n) ? n : d
 }
 
-/** Editor-only DOM attrs: tag the real element with its node id for selection. */
-const ed = (p: ModuleRenderProps): { "data-node-id"?: string } =>
-  p.isEditor ? { "data-node-id": p.nodeId } : {}
-
 // ── containers ──────────────────────────────────────────────────────────────
 
 const PageRoot: ModuleDefinition = {
@@ -69,18 +66,18 @@ const PageRoot: ModuleDefinition = {
   defaults: {},
   contentModel: { children: "any" },
   Component: (p: ModuleRenderProps) =>
-    createElement("div", { className: p.className, ...ed(p) }, p.children),
+    createElement("div", { className: p.className, ...rootAttrs(p) }, p.children),
 }
 
 const Box: ModuleDefinition = {
   name: "box",
   category: "layout",
-  schema: { tag: { type: "plain" } },
-  defaults: {},
+  schema: { tag: { type: "plain" }, ...ADVANCED_SCHEMA },
+  defaults: { ...ADVANCED_DEFAULTS },
   contentModel: { children: "any" },
   defaultClasses: "p-8 rounded-2xl border border-base-300 bg-base-100 min-h-24",
   Component: (p: ModuleRenderProps) =>
-    createElement(str(p.props.tag, "div"), { className: p.className, ...ed(p) }, p.children),
+    createElement(str(p.props.tag, "div"), { className: p.className, ...rootAttrs(p) }, p.children),
 }
 
 const Stack: ModuleDefinition = {
@@ -91,8 +88,9 @@ const Stack: ModuleDefinition = {
     gap: { type: "plain" },
     align: { type: "plain" },
     justify: { type: "plain" },
+    ...ADVANCED_SCHEMA,
   },
-  defaults: { direction: "column" },
+  defaults: { direction: "column", ...ADVANCED_DEFAULTS },
   contentModel: { children: "any" },
   defaultClasses: "p-6 rounded-2xl border border-base-300 bg-base-100 min-h-24",
   Component: (p: ModuleRenderProps) => {
@@ -103,15 +101,15 @@ const Stack: ModuleDefinition = {
       alignItems: p.props.align != null ? str(p.props.align) : undefined,
       justifyContent: p.props.justify != null ? str(p.props.justify) : undefined,
     }
-    return createElement("div", { className: p.className, style, ...ed(p) }, p.children)
+    return createElement("div", { className: p.className, style, ...rootAttrs(p) }, p.children)
   },
 }
 
 const Grid: ModuleDefinition = {
   name: "grid",
   category: "layout",
-  schema: { columns: { type: "number" }, rows: { type: "number" }, gap: { type: "plain" } },
-  defaults: { columns: 3, rows: 1 },
+  schema: { columns: { type: "number" }, rows: { type: "number" }, gap: { type: "plain" }, ...ADVANCED_SCHEMA },
+  defaults: { columns: 3, rows: 1, ...ADVANCED_DEFAULTS },
   contentModel: { children: "any" },
   defaultClasses: "p-6 rounded-2xl border border-base-300 bg-base-100 min-h-24",
   Component: (p: ModuleRenderProps) => {
@@ -145,7 +143,7 @@ const Grid: ModuleDefinition = {
             })
           )
         : null
-    return createElement("div", { className: p.className, style, ...ed(p) }, ghosts ?? p.children)
+    return createElement("div", { className: p.className, style, ...rootAttrs(p) }, ghosts ?? p.children)
   },
 }
 
@@ -160,7 +158,7 @@ const Divider: ModuleDefinition = {
   // sets a width against a default border-style of `none`, and the editor's own
   // Tailwind reset zeroes hr borders anyway. h-px + bg needs neither reset.
   defaultClasses: "w-full h-px border-0 bg-base-300 my-6",
-  Component: (p: ModuleRenderProps) => createElement("hr", { className: p.className, ...ed(p) }),
+  Component: (p: ModuleRenderProps) => createElement("hr", { className: p.className, ...rootAttrs(p) }),
 }
 
 const Spacer: ModuleDefinition = {
@@ -170,7 +168,7 @@ const Spacer: ModuleDefinition = {
   defaults: { size: "2rem" },
   contentModel: { children: "none" },
   Component: (p: ModuleRenderProps) =>
-    createElement("div", { className: p.className, style: { height: str(p.props.size, "2rem") }, ...ed(p) }),
+    createElement("div", { className: p.className, style: { height: str(p.props.size, "2rem") }, ...rootAttrs(p) }),
 }
 
 // ── content ─────────────────────────────────────────────────────────────────
@@ -181,8 +179,9 @@ const Heading: ModuleDefinition = {
   schema: {
     text: { type: "plain" },
     level: { type: "select", options: [1, 2, 3, 4, 5, 6].map((n) => ({ label: `H${n}`, value: String(n) })) },
+    ...ADVANCED_SCHEMA,
   },
-  defaults: { text: "Heading", level: "2" },
+  defaults: { text: "Heading", level: "2", ...ADVANCED_DEFAULTS },
   // Typography carries the page, so a dropped heading should already sit on the
   // house scale — display face, tight tracking, theme ink — instead of falling
   // back to the browser's default h2. Same vocabulary the sample pages use.
@@ -191,20 +190,20 @@ const Heading: ModuleDefinition = {
   inlineTextEdit: { prop: "text" },
   Component: (p: ModuleRenderProps) => {
     const lvl = Math.min(Math.max(num(p.props.level, 2), 1), 6)
-    return createElement(`h${lvl}`, { className: p.className, ...ed(p) }, str(p.props.text))
+    return createElement(`h${lvl}`, { className: p.className, ...rootAttrs(p) }, str(p.props.text))
   },
 }
 
 const Text: ModuleDefinition = {
   name: "text",
   category: "content",
-  schema: { text: { type: "plain" }, tag: { type: "plain" } },
-  defaults: { text: "Text", tag: "p" },
+  schema: { text: { type: "plain" }, tag: { type: "plain" }, ...ADVANCED_SCHEMA },
+  defaults: { text: "Text", tag: "p", ...ADVANCED_DEFAULTS },
   defaultClasses: "text-base leading-relaxed text-base-content/70",
   contentModel: { children: "none" },
   inlineTextEdit: { prop: "text", multiline: true },
   Component: (p: ModuleRenderProps) =>
-    createElement(str(p.props.tag, "p"), { className: p.className, ...ed(p) }, str(p.props.text)),
+    createElement(str(p.props.tag, "p"), { className: p.className, ...rootAttrs(p) }, str(p.props.text)),
 }
 
 const RichText: ModuleDefinition = {
@@ -221,21 +220,27 @@ const RichText: ModuleDefinition = {
   inlineTextEdit: { prop: "html", multiline: true, html: true },
   defaultClasses: "leading-relaxed text-base-content/70",
   Component: (p: ModuleRenderProps) =>
-    createElement("div", { className: p.className, dangerouslySetInnerHTML: { __html: str(p.props.html) }, ...ed(p) }),
+    createElement("div", { className: p.className, dangerouslySetInnerHTML: { __html: str(p.props.html) }, ...rootAttrs(p) }),
 }
 
 const Image: ModuleDefinition = {
   name: "image",
   category: "media",
-  schema: { src: { type: "media" }, alt: { type: "plain" } },
-  defaults: { src: "https://placehold.co/600x300/e2e8f0/94a3b8?text=Image", alt: "" },
+  schema: { src: { type: "media" }, alt: { type: "plain" }, ...ADVANCED_SCHEMA },
+  defaults: { src: "https://placehold.co/600x300/e2e8f0/94a3b8?text=Image", alt: "", ...ADVANCED_DEFAULTS },
   contentModel: { children: "none" },
   // min-h + a tinted ground so the slot is visible even while the image is still
   // loading, or if its src is cleared/broken — an <img> with no usable source
   // collapses to zero height and the element vanishes off the canvas.
   defaultClasses: "w-full max-w-md rounded-2xl min-h-40 bg-base-200",
   Component: (p: ModuleRenderProps) =>
-    createElement("img", { className: p.className, src: str(p.props.src), alt: str(p.props.alt), loading: "lazy", ...ed(p) }),
+    createElement("img", {
+      className: p.className,
+      src: str(p.props.src),
+      alt: str(p.props.alt),
+      loading: "lazy",
+      ...rootAttrs(p),
+    }),
 }
 
 // A neutral placeholder glyph so a dropped icon is visible and selectable before
@@ -255,7 +260,7 @@ const Icon: ModuleDefinition = {
       className: p.className,
       "aria-hidden": true,
       dangerouslySetInnerHTML: { __html: str(p.props.svg) },
-      ...ed(p),
+      ...rootAttrs(p),
     }),
 }
 
@@ -285,8 +290,9 @@ const Button: ModuleDefinition = {
       ],
     },
     ...LINK_SCHEMA,
+    ...ADVANCED_SCHEMA,
   },
-  defaults: { label: "Button", variant: "default", size: "default", ...LINK_DEFAULTS, href: "" },
+  defaults: { label: "Button", variant: "default", size: "default", ...LINK_DEFAULTS, href: "", ...ADVANCED_DEFAULTS },
   contentModel: { children: "none" },
   inlineTextEdit: { prop: "label" },
   defaultClasses: buttonClasses(),
@@ -298,18 +304,18 @@ const Button: ModuleDefinition = {
     return href
       ? createElement(
           "a",
-          { className: p.className, href, ...linkAttrs(p.props), ...ed(p) },
+          { className: p.className, href, ...linkAttrs(p.props), ...rootAttrs(p) },
           str(p.props.label)
         )
-      : createElement("button", { className: p.className, type: "button", ...ed(p) }, str(p.props.label))
+      : createElement("button", { className: p.className, type: "button", ...rootAttrs(p) }, str(p.props.label))
   },
 }
 
 const Link: ModuleDefinition = {
   name: "link",
   category: "interactive",
-  schema: { text: { type: "plain" }, ...LINK_SCHEMA },
-  defaults: { text: "Link", ...LINK_DEFAULTS },
+  schema: { text: { type: "plain" }, ...LINK_SCHEMA, ...ADVANCED_SCHEMA },
+  defaults: { text: "Link", ...LINK_DEFAULTS, ...ADVANCED_DEFAULTS },
   contentModel: { children: "any" },
   inlineTextEdit: { prop: "text" },
   defaultClasses:
@@ -317,7 +323,7 @@ const Link: ModuleDefinition = {
   Component: (p: ModuleRenderProps) =>
     createElement(
       "a",
-      { className: p.className, href: resolveHref(p.props) || "#", ...linkAttrs(p.props), ...ed(p) },
+      { className: p.className, href: resolveHref(p.props) || "#", ...linkAttrs(p.props), ...rootAttrs(p) },
       p.children ?? str(p.props.text)
     ),
 }
@@ -333,7 +339,11 @@ const Embed: ModuleDefinition = {
   contentModel: { children: "none" },
   defaultClasses: "w-full py-6",
   Component: (p: ModuleRenderProps) =>
-    createElement("div", { className: p.className, dangerouslySetInnerHTML: { __html: str(p.props.html) }, ...ed(p) }),
+    createElement("div", {
+      className: p.className,
+      dangerouslySetInnerHTML: { __html: str(p.props.html) },
+      ...rootAttrs(p),
+    }),
 }
 
 export const PRIMITIVES: ModuleDefinition[] = [
