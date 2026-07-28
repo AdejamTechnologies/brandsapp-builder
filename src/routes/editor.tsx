@@ -4,6 +4,7 @@ import {
   Blocks,
   Box,
   Check,
+  ChevronDown,
   Code2,
   Component as ComponentIcon,
   Download,
@@ -39,6 +40,7 @@ import {
   Redo2,
   Rocket,
   Save,
+  Search,
   Share2,
   Smartphone,
   Tablet,
@@ -82,6 +84,7 @@ const moduleIcon = (m: string) => MODULE_ICONS[m] ?? Box
 
 import { Button, type ButtonProps } from "../components/ui/button"
 import { Dialog, DialogFooter } from "../components/ui/dialog"
+import { Input } from "../components/ui/input"
 import { Tabs, TabsList, TabsPanel, TabsTab } from "../components/ui/tabs"
 import { Textarea } from "../components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip"
@@ -117,7 +120,8 @@ import {
 } from "../lib/doc-ops"
 import { useHistory } from "../lib/history"
 import { useDocRoom } from "../lib/realtime"
-import { moduleInfo, moduleList, registry, type ModuleInfo } from "../lib/registry"
+import { moduleInfo, registry, type ModuleInfo } from "../lib/registry"
+import { entryMatches, paletteSections } from "../lib/palette"
 import { SAMPLE_DOC } from "../lib/sample"
 import { ADEJAM_DOC } from "../lib/adejam-sample"
 import { BLANK_DOC } from "../lib/blank"
@@ -432,10 +436,10 @@ export function EditorPage() {
     window.addEventListener("pointerup", up)
   }
 
-  const startModuleDrag = (m: ModuleInfo, e: React.PointerEvent) =>
+  const startModuleDrag = (m: ModuleInfo & { label?: string }, e: React.PointerEvent) =>
     startDrag(
       {
-        label: m.name,
+        label: m.label ?? m.name,
         dragModule: m.name,
         insert: (pid, idx) => {
           const res = insertChildAt(docRef.current, pid, idx, m.name, m.defaults, m.defaultClasses)
@@ -853,47 +857,84 @@ export function EditorPage() {
   )
 }
 
-// Element palette grouped like Webflow's Add panel. Order + friendly headers;
-// anything with an unlisted category falls through to "Other".
-const CAT_ORDER = ["layout", "content", "media", "forms", "interactive", "advanced", "data"]
-const CAT_LABEL: Record<string, string> = {
-  layout: "Layout",
-  content: "Typography",
-  media: "Media",
-  forms: "Forms",
-  interactive: "Interactive",
-  advanced: "Advanced",
-  data: "Dynamic",
-}
+/**
+ * The Add panel. Arrangement, section names and element names follow Webflow's
+ * element panel (see lib/palette.ts) so the muscle memory transfers; the chrome
+ * stays ours. Sections collapse individually and a search filters across all of
+ * them, auto-revealing whatever matches.
+ */
+function Palette({ onDragStart }: { onDragStart: (m: ModuleInfo & { label: string }, e: React.PointerEvent) => void }) {
+  const [query, setQuery] = useState("")
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const sections = paletteSections()
+  const q = query.trim()
 
-function Palette({ onDragStart }: { onDragStart: (m: ModuleInfo, e: React.PointerEvent) => void }) {
-  const mods = moduleList().filter((m) => m.name !== "page-root" && m.name !== "loop")
-  const groups = new Map<string, ModuleInfo[]>()
-  for (const m of mods) {
-    const cat = CAT_ORDER.includes(m.category) ? m.category : "other"
-    ;(groups.get(cat) ?? groups.set(cat, []).get(cat)!).push(m)
-  }
-  const cats = [...CAT_ORDER.filter((c) => groups.has(c)), ...(groups.has("other") ? ["other"] : [])]
+  const visible = sections
+    .map((s) => ({ ...s, items: s.items.filter(({ entry }) => entryMatches(entry, q)) }))
+    .filter((s) => s.items.length > 0)
+
+  const toggle = (id: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
   return (
-    <div className="p-3">
-      {cats.map((cat) => (
-        <div key={cat} className="mb-3 last:mb-0">
-          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {CAT_LABEL[cat] ?? "Other"}
-          </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            {groups.get(cat)!.map((m) => (
-              <button
-                key={m.name}
-                onPointerDown={(e) => onDragStart(m, e)}
-                className="flex cursor-grab items-center rounded-md border border-border bg-background px-2.5 py-2 text-xs capitalize text-foreground transition-colors hover:border-ring hover:text-foreground active:cursor-grabbing"
-              >
-                {m.name.replace(/-/g, " ")}
-              </button>
-            ))}
-          </div>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 border-b border-border p-2.5">
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search elements"
+            className="h-7 pl-7 text-xs"
+          />
         </div>
-      ))}
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-2.5">
+        {visible.length === 0 ? (
+          <p className="px-1 py-6 text-center text-xs text-muted-foreground">No elements match “{q}”.</p>
+        ) : (
+          visible.map((s) => {
+            // A search result is always shown expanded — collapsing while
+            // filtering would hide the very thing being searched for.
+            const isOpen = !!q || !collapsed.has(s.id)
+            return (
+              <div key={s.id} className="mb-1.5 last:mb-0">
+                <button
+                  type="button"
+                  onClick={() => toggle(s.id)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center justify-between rounded-md px-1 py-1.5 text-[11px] font-semibold tracking-wide text-foreground transition-colors hover:bg-muted"
+                >
+                  {s.label}
+                  <ChevronDown
+                    className={cn("size-3.5 text-muted-foreground transition-transform", !isOpen && "-rotate-90")}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="mt-1 mb-2 grid grid-cols-2 gap-1.5">
+                    {s.items.map(({ entry, info }) => (
+                      <button
+                        key={`${s.id}:${entry.label}`}
+                        onPointerDown={(e) => onDragStart(info, e)}
+                        title={entry.label}
+                        className="flex cursor-grab items-center rounded-md border border-border bg-background px-2.5 py-2 text-left text-xs text-foreground transition-colors hover:border-ring active:cursor-grabbing"
+                      >
+                        <span className="truncate">{entry.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
     </div>
   )
 }

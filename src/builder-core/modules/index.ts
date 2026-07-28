@@ -4,6 +4,8 @@ import { ModuleRegistry, type ModuleDefinition, type ModuleRenderProps } from ".
 import { FORM_MODULES } from "./forms"
 import { INTERACTIVE_MODULES } from "./interactive"
 import { PRIMITIVES } from "./primitives"
+import { EMBED_MODULES } from "./embeds"
+import { STRUCTURE_MODULES } from "./structure"
 
 /**
  * `loop` is special-cased by the renderer (it iterates a source and re-renders its
@@ -61,6 +63,8 @@ const Instance: ModuleDefinition = {
 export function createDefaultRegistry(): ModuleRegistry {
   return new ModuleRegistry().registerAll([
     ...PRIMITIVES,
+    ...STRUCTURE_MODULES,
+    ...EMBED_MODULES,
     ...INTERACTIVE_MODULES,
     ...FORM_MODULES,
     Loop,
