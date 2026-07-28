@@ -35,6 +35,14 @@ const Tabs: ModuleDefinition = {
   defaults: {},
   contentModel: { children: ["tab-panel"] },
   needsRuntime: true,
+  // Drops in as a working three-tab set. An empty `tabs` renders nothing at all
+  // (the runtime builds the bar FROM the panels), so it needs starter panels the
+  // way a form needs fields. Add or remove panels freely afterwards.
+  defaultChildren: [
+    { module: "tab-panel", props: { title: "Overview" }, children: [{ module: "text", props: { text: "Overview content." } }] },
+    { module: "tab-panel", props: { title: "Features" }, children: [{ module: "text", props: { text: "Features content." } }] },
+    { module: "tab-panel", props: { title: "Pricing" }, children: [{ module: "text", props: { text: "Pricing content." } }] },
+  ],
   Component: (p: ModuleRenderProps) =>
     createElement("div", { className: p.className, "data-bapp-tabs": "", ...ed(p) }, p.children),
 }
@@ -65,6 +73,11 @@ const Accordion: ModuleDefinition = {
   defaults: { multi: false },
   contentModel: { children: ["accordion-item"] },
   needsRuntime: true,
+  defaultChildren: [
+    { module: "accordion-item", props: { title: "What's included?" }, children: [{ module: "text", props: { text: "Everything in the plan, with no setup fee." } }] },
+    { module: "accordion-item", props: { title: "How does billing work?" }, children: [{ module: "text", props: { text: "You're billed monthly and can change plans anytime." } }] },
+    { module: "accordion-item", props: { title: "Can I cancel anytime?" }, children: [{ module: "text", props: { text: "Yes — cancel from your dashboard, no phone calls." } }] },
+  ],
   defaultClasses: "flex flex-col gap-2",
   Component: (p: ModuleRenderProps) =>
     createElement(
@@ -107,6 +120,12 @@ const Dropdown: ModuleDefinition = {
   defaults: { label: "Menu" },
   contentModel: { children: "any" },
   needsRuntime: true,
+  // Without items the menu opens onto nothing, so seed a few links.
+  defaultChildren: [
+    { module: "link", props: { text: "First item", href: "#" }, classes: "block px-3 py-2 rounded-md text-sm text-base-content no-underline hover:bg-base-200" },
+    { module: "link", props: { text: "Second item", href: "#" }, classes: "block px-3 py-2 rounded-md text-sm text-base-content no-underline hover:bg-base-200" },
+    { module: "link", props: { text: "Third item", href: "#" }, classes: "block px-3 py-2 rounded-md text-sm text-base-content no-underline hover:bg-base-200" },
+  ],
   defaultClasses: "relative inline-block",
   Component: (p: ModuleRenderProps) =>
     createElement(
