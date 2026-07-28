@@ -28,6 +28,7 @@ export {
   ANIMATION_LOADER,
   buttonClasses,
   createDefaultRegistry,
+  LIGHTBOX_RUNTIME,
   PRIMITIVES,
   RECAPTCHA_LOADER,
 } from "./modules"

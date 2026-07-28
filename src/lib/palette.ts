@@ -90,6 +90,7 @@ export const PALETTE: PaletteSection[] = [
       { label: "Lottie Animation", module: "lottie", keywords: "animation json motion" },
       { label: "Spline Scene", module: "spline", keywords: "3d scene splinecode" },
       { label: "Rive", module: "rive", keywords: "animation riv interactive state machine" },
+      { label: "Lightbox", module: "lightbox", keywords: "gallery modal zoom image popup" },
     ],
   },
   {
@@ -121,6 +122,8 @@ export const PALETTE: PaletteSection[] = [
       { label: "Map", module: "map", keywords: "location address" },
       { label: "Custom Element", module: "custom-element", keywords: "tag web component" },
       { label: "Code Block", module: "code-block", keywords: "pre snippet syntax" },
+      { label: "Facebook", module: "facebook", keywords: "social like share" },
+      { label: "X (Twitter)", module: "x-twitter", keywords: "social tweet follow" },
     ],
   },
   {

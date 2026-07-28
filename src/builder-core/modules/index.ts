@@ -6,6 +6,7 @@ import { INTERACTIVE_MODULES } from "./interactive"
 import { PRIMITIVES } from "./primitives"
 import { ANIMATION_MODULES } from "./animation"
 import { CAPTCHA_MODULES } from "./captcha"
+import { LIGHTBOX_MODULES } from "./lightbox"
 import { EMBED_MODULES } from "./embeds"
 import { STRUCTURE_MODULES } from "./structure"
 
@@ -69,6 +70,7 @@ export function createDefaultRegistry(): ModuleRegistry {
     ...EMBED_MODULES,
     ...ANIMATION_MODULES,
     ...CAPTCHA_MODULES,
+    ...LIGHTBOX_MODULES,
     ...INTERACTIVE_MODULES,
     ...FORM_MODULES,
     Loop,
@@ -82,5 +84,6 @@ export function createDefaultRegistry(): ModuleRegistry {
 // actually contains a lottie/spline/rive element.
 export { ANIMATION_LOADER } from "./animation"
 export { RECAPTCHA_LOADER } from "./captcha"
+export { LIGHTBOX_RUNTIME } from "./lightbox"
 export { ALL_BUTTON_TOKENS, buttonClasses } from "./primitives"
 export { PRIMITIVES }

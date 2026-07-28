@@ -115,8 +115,23 @@ const AccordionItem: ModuleDefinition = {
 const Dropdown: ModuleDefinition = {
   name: "dropdown",
   category: "interactive",
-  schema: { label: { type: "plain" } },
-  defaults: { label: "Menu" },
+  schema: {
+    label: { type: "plain" },
+    // Editor-only: hold the menu open so its items can be selected and styled.
+    // Published pages always start closed.
+    menuOpen: {
+      type: "select",
+      label: "menu",
+      segmented: true,
+      options: [
+        { label: "Hide", value: "false" },
+        { label: "Show", value: "true" },
+      ],
+    },
+    openOnHover: { type: "boolean", label: "open menu on hover" },
+    closeDelay: { type: "number", label: "close delay (ms)" },
+  },
+  defaults: { label: "Menu", menuOpen: "false", openOnHover: false, closeDelay: 0 },
   contentModel: { children: "any" },
   needsRuntime: true,
   // Without items the menu opens onto nothing, so seed a few links.
@@ -129,7 +144,13 @@ const Dropdown: ModuleDefinition = {
   Component: (p: ModuleRenderProps) =>
     createElement(
       "div",
-      { className: p.className, "data-bapp-dropdown": "", ...rootAttrs(p) },
+      {
+        className: p.className,
+        "data-bapp-dropdown": "",
+        ...(p.props.openOnHover ? { "data-hover": "" } : {}),
+        ...(Number(p.props.closeDelay) > 0 ? { "data-close-delay": String(Number(p.props.closeDelay)) } : {}),
+        ...rootAttrs(p),
+      },
       createElement(
         "button",
         {
@@ -151,7 +172,9 @@ const Dropdown: ModuleDefinition = {
         {
           "data-bapp-dropdown-menu": "",
           style: {
-            display: p.isEditor ? "block" : "none", position: "absolute", top: "calc(100% + 6px)", left: 0,
+            // In the editor the author can pin the menu open to style it; on a
+            // published page it always starts closed and the runtime opens it.
+            display: p.isEditor && String(p.props.menuOpen) === "true" ? "block" : "none", position: "absolute", top: "calc(100% + 6px)", left: 0,
             minWidth: "180px", background: "hsl(var(--b1, 0 0% 100%))",
             border: "1px solid hsl(var(--b3, 180 2% 90%))", borderRadius: "10px",
             boxShadow: "0 10px 30px -10px rgba(0,0,0,.2)", padding: "6px", zIndex: 50,

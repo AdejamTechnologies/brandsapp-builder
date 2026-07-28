@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useParams, useSearch } from "@tanstack/react-router"
 
 import { ANIMATION_LOADER,
+  LIGHTBOX_RUNTIME,
   RECAPTCHA_LOADER,
   BUILDER_RUNTIME, generateUtilityCss, parseDoc, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
 import { registry } from "../lib/registry"
@@ -57,7 +58,8 @@ export function PreviewPage() {
     s.textContent =
       BUILDER_RUNTIME +
       (/data-bapp-(lottie|spline|rive)/.test(document.body.innerHTML) ? "\n" + ANIMATION_LOADER : "") +
-      (/data-bapp-recaptcha/.test(document.body.innerHTML) ? "\n" + RECAPTCHA_LOADER : "")
+      (/data-bapp-recaptcha/.test(document.body.innerHTML) ? "\n" + RECAPTCHA_LOADER : "") +
+      (/data-bapp-lightbox/.test(document.body.innerHTML) ? "\n" + LIGHTBOX_RUNTIME : "")
     document.body.appendChild(s)
     return () => {
       s.remove()

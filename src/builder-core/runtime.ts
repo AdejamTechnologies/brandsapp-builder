@@ -48,6 +48,8 @@ export const BUILDER_RUNTIME = `(function(){
       +'summary.bapp-sum{display:flex;align-items:center;gap:.5em;cursor:pointer;list-style:none}'
       +'summary.bapp-sum::-webkit-details-marker{display:none}'
       +'.bapp-acc-trigger{display:flex;align-items:center;gap:.5em;width:100%;text-align:left;font:inherit;font-weight:600;background:transparent;border:0;cursor:pointer;padding:12px 0;color:inherit}'
+      +'.bapp-bgv-btn{position:absolute;right:12px;bottom:12px;z-index:2;width:36px;height:36px;border:0;border-radius:999px;cursor:pointer;font-size:13px;line-height:1;background:hsl(var(--b1, 0 0% 100%)/.85);color:'+ink+';box-shadow:0 2px 10px rgba(0,0,0,.18)}'
+      +'.bapp-bgv-btn:focus-visible{outline:2px solid '+accent+';outline-offset:2px}'
       +'@media (prefers-reduced-motion: reduce){.bapp-acc-panel,.bapp-chev{transition:none!important}}';
     var s=DOC.createElement('style'); s.id='bapp-runtime-css'; s.textContent=css;
     (DOC.head||DOC.documentElement).appendChild(s);
@@ -199,6 +201,19 @@ export const BUILDER_RUNTIME = `(function(){
     }
     trigger.addEventListener('click',function(e){ e.stopPropagation(); set(!open) });
     DOC.addEventListener('click',function(e){ if(open&&!root.contains(e.target))set(false) });
+
+    /* Hover opening is opt-in and POINTER-only: on a touch screen there is no
+       hover, and binding it there would make the first tap open-then-close. */
+    if(root.hasAttribute('data-hover')&&window.matchMedia('(hover: hover)').matches){
+      var delay=parseInt(root.getAttribute('data-close-delay')||'0',10)||0, leaveT;
+      root.addEventListener('mouseenter',function(){ clearTimeout(leaveT); set(true) });
+      root.addEventListener('mouseleave',function(){
+        clearTimeout(leaveT);
+        /* The delay exists so a diagonal mouse path from trigger to menu does
+           not close it mid-travel. */
+        leaveT=setTimeout(function(){ set(false) }, delay);
+      });
+    }
     root.addEventListener('keydown',function(e){
       if(e.key==='Escape'&&open){ e.stopPropagation(); set(false); trigger.focus() }
     });
@@ -260,6 +275,35 @@ export const BUILDER_RUNTIME = `(function(){
     });
   }
 
+  /* ── Background video ─────────────────────────────────────────────────────
+     Autoplaying video is a comfort AND a data question: it is muted+playsinline
+     in the markup (browsers block anything else), we do not autoplay at all when
+     the visitor asks for reduced motion, and the optional button lets anyone
+     stop it. */
+  function initBgVideo(root){
+    var v=root.querySelector('video'); if(!v)return;
+    var wantsAuto=root.getAttribute('data-autoplay')!=='false';
+    if(reduced()){ wantsAuto=false; try{ v.pause() }catch(e){} }
+    if(root.getAttribute('data-controls')==='false')return;
+
+    var btn=DOC.createElement('button');
+    btn.type='button';
+    btn.className='bapp-bgv-btn';
+    function sync(){
+      var playing=!v.paused;
+      btn.setAttribute('aria-label', playing?'Pause background video':'Play background video');
+      btn.textContent = playing ? '\u2016' : '\u25B6';
+    }
+    btn.addEventListener('click',function(){
+      if(v.paused){ v.play().catch(function(){}) } else { v.pause() }
+      sync();
+    });
+    v.addEventListener('play',sync); v.addEventListener('pause',sync);
+    if(!wantsAuto){ try{ v.pause() }catch(e){} }
+    sync();
+    root.appendChild(btn);
+  }
+
   /* ── Scroll reveal ────────────────────────────────────────────────────── */
   function initReveal(d){
     var els=[].slice.call(d.querySelectorAll('.bapp-reveal'));
@@ -278,6 +322,7 @@ export const BUILDER_RUNTIME = `(function(){
     d.querySelectorAll('[data-bapp-accordion]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initAccordion(el) });
     d.querySelectorAll('[data-bapp-dropdown]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initDropdown(el) });
     d.querySelectorAll('[data-bapp-form]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initForm(el) });
+    d.querySelectorAll('[data-bapp-bgvideo]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initBgVideo(el) });
     initReveal(d);
   }
   if(DOC.readyState!=='loading')init();
