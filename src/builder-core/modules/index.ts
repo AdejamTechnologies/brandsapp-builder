@@ -22,6 +22,8 @@ const Loop: ModuleDefinition = {
         { label: "CMS collection", value: "data.rows" },
         { label: "Products · Featured", value: "products.featured" },
         { label: "Products · Newest", value: "products.newest" },
+        { label: "Products · Best-selling", value: "products.bestselling" },
+        { label: "Products · Trending", value: "products.trending" },
         { label: "Courses · Newest", value: "courses.newest" },
         { label: "Courses · Popular", value: "courses.popular" },
         { label: "Courses · Featured", value: "courses.featured" },
