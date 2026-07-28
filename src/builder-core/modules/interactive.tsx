@@ -98,7 +98,7 @@ const AccordionItem: ModuleDefinition = {
   schema: { title: { type: "plain" } },
   defaults: { title: "Section title" },
   contentModel: { children: "any" },
-  defaultClasses: "border border-base-300 rounded-xl px-4",
+  defaultClasses: "border border-base-300 rounded-2xl px-5 bg-base-100",
   Component: (p: ModuleRenderProps) =>
     createElement(
       "details",

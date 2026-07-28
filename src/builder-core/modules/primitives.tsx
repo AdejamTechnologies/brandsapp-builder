@@ -42,7 +42,7 @@ const Box: ModuleDefinition = {
   schema: { tag: { type: "plain" } },
   defaults: {},
   contentModel: { children: "any" },
-  defaultClasses: "p-6 border border-base-300 rounded-xl min-h-24",
+  defaultClasses: "p-8 rounded-2xl border border-base-300 bg-base-100 min-h-24",
   Component: (p: ModuleRenderProps) =>
     createElement(str(p.props.tag, "div"), { className: p.className, ...ed(p) }, p.children),
 }
@@ -58,7 +58,7 @@ const Stack: ModuleDefinition = {
   },
   defaults: { direction: "column" },
   contentModel: { children: "any" },
-  defaultClasses: "p-4 border border-base-300 rounded-xl min-h-24",
+  defaultClasses: "p-6 rounded-2xl border border-base-300 bg-base-100 min-h-24",
   Component: (p: ModuleRenderProps) => {
     const style: CSSProperties = {
       display: "flex",
@@ -77,7 +77,7 @@ const Grid: ModuleDefinition = {
   schema: { columns: { type: "number" }, gap: { type: "plain" } },
   defaults: { columns: 3 },
   contentModel: { children: "any" },
-  defaultClasses: "p-4 border border-base-300 rounded-xl min-h-24",
+  defaultClasses: "p-6 rounded-2xl border border-base-300 bg-base-100 min-h-24",
   Component: (p: ModuleRenderProps) => {
     const cols = Math.min(Math.max(num(p.props.columns, 3), 1), 12)
     const style: CSSProperties = {
@@ -123,6 +123,10 @@ const Heading: ModuleDefinition = {
     level: { type: "select", options: [1, 2, 3, 4, 5, 6].map((n) => ({ label: `H${n}`, value: String(n) })) },
   },
   defaults: { text: "Heading", level: "2" },
+  // Typography carries the page, so a dropped heading should already sit on the
+  // house scale — display face, tight tracking, theme ink — instead of falling
+  // back to the browser's default h2. Same vocabulary the sample pages use.
+  defaultClasses: "font-display text-3xl font-bold tracking-tight text-base-content",
   contentModel: { children: "none" },
   inlineTextEdit: { prop: "text" },
   Component: (p: ModuleRenderProps) => {
@@ -136,6 +140,7 @@ const Text: ModuleDefinition = {
   category: "content",
   schema: { text: { type: "plain" }, tag: { type: "plain" } },
   defaults: { text: "Text", tag: "p" },
+  defaultClasses: "text-base leading-relaxed text-base-content/70",
   contentModel: { children: "none" },
   inlineTextEdit: { prop: "text", multiline: true },
   Component: (p: ModuleRenderProps) =>
@@ -154,7 +159,7 @@ const RichText: ModuleDefinition = {
   // Edited in place like heading/text, but committed as HTML so formatting the
   // author applied (and the tags they pasted) survive the round-trip.
   inlineTextEdit: { prop: "html", multiline: true, html: true },
-  defaultClasses: "leading-relaxed",
+  defaultClasses: "leading-relaxed text-base-content/70",
   Component: (p: ModuleRenderProps) =>
     createElement("div", { className: p.className, dangerouslySetInnerHTML: { __html: str(p.props.html) }, ...ed(p) }),
 }
@@ -168,7 +173,7 @@ const Image: ModuleDefinition = {
   // min-h + a tinted ground so the slot is visible even while the image is still
   // loading, or if its src is cleared/broken — an <img> with no usable source
   // collapses to zero height and the element vanishes off the canvas.
-  defaultClasses: "w-full max-w-md rounded-lg min-h-40 bg-base-200",
+  defaultClasses: "w-full max-w-md rounded-2xl min-h-40 bg-base-200",
   Component: (p: ModuleRenderProps) =>
     createElement("img", { className: p.className, src: str(p.props.src), alt: str(p.props.alt), loading: "lazy", ...ed(p) }),
 }
@@ -203,7 +208,8 @@ const Button: ModuleDefinition = {
   defaults: { label: "Button", href: "" },
   contentModel: { children: "none" },
   inlineTextEdit: { prop: "label" },
-  defaultClasses: "inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary text-primary-content text-sm font-medium",
+  defaultClasses:
+    "inline-flex items-center justify-center px-6 py-3 rounded-full bg-primary text-primary-content text-sm font-medium no-underline transition-colors hover:bg-primary/90",
   Component: (p: ModuleRenderProps) => {
     const href = str(p.props.href)
     return href
@@ -218,7 +224,8 @@ const Link: ModuleDefinition = {
   schema: { href: { type: "url" }, text: { type: "plain" } },
   defaults: { href: "#", text: "Link" },
   contentModel: { children: "any" },
-  defaultClasses: "text-primary underline underline-offset-2",
+  defaultClasses:
+    "text-primary underline underline-offset-4 decoration-primary/30 transition-colors hover:decoration-primary",
   Component: (p: ModuleRenderProps) =>
     createElement("a", { className: p.className, href: str(p.props.href, "#"), ...ed(p) }, p.children ?? str(p.props.text)),
 }

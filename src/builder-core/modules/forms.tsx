@@ -21,7 +21,7 @@ const ed = (p: ModuleRenderProps): { "data-node-id"?: string } =>
   p.isEditor ? { "data-node-id": p.nodeId } : {}
 
 const INPUT_CLASSES =
-  "w-full rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content placeholder:text-base-content/40 outline-none focus:border-primary"
+  "w-full rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-sm text-base-content placeholder:text-base-content/40 outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15"
 
 // ── form container ────────────────────────────────────────────────────────────
 
@@ -215,8 +215,11 @@ const Submit: ModuleDefinition = {
   defaults: { label: "Submit" },
   contentModel: { children: "none" },
   inlineTextEdit: { prop: "label" },
+  // Matches the `button` primitive exactly — a form's submit is the same control
+  // as any other CTA, and having one be a pill and the other a rounded rectangle
+  // is the sort of drift that makes a page look assembled rather than designed.
   defaultClasses:
-    "inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-primary text-primary-content text-sm font-medium",
+    "inline-flex items-center justify-center px-6 py-3 rounded-full bg-primary text-primary-content text-sm font-medium transition-colors hover:bg-primary/90",
   Component: (p: ModuleRenderProps) =>
     createElement("button", { className: p.className, type: "submit", ...ed(p) }, str(p.props.label)),
 }
@@ -236,7 +239,7 @@ const Video: ModuleDefinition = {
   },
   defaults: { src: "", poster: "", controls: true, autoplay: false, loop: false, muted: false },
   contentModel: { children: "none" },
-  defaultClasses: "w-full rounded-lg",
+  defaultClasses: "w-full rounded-2xl",
   Component: (p: ModuleRenderProps) =>
     createElement("video", {
       className: p.className,
