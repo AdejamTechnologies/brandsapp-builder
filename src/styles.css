@@ -141,18 +141,25 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
    panel (right) so the two sides read as the same product. Hover is a whisper,
    not a full-width slab — the row is already obviously a control, so it only
    needs to acknowledge the pointer. Focus is OUR ring, never the browser's. */
+/* A rule ABOVE each header, not a box around it — the sections read as one
+   continuous list divided into parts, which is what a side panel wants. The
+   first header in a panel drops the rule so it doesn't double up with the
+   panel's own top edge. */
 .sec-head {
   width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 7px 8px; border: 0; background: transparent; border-radius: 7px; cursor: pointer;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: #1a1a1a; text-align: left;
+  padding: 9px 10px; border: 0; border-top: 1px solid var(--line); background: transparent;
+  cursor: pointer; text-align: left;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: #1a1a1a;
   transition: background 0.12s ease, color 0.12s ease;
 }
-.sec-head:hover { background: rgba(0, 0, 0, 0.035); }
-.sec-head:active { background: rgba(0, 0, 0, 0.06); }
-.sec-head:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent); }
+.sec-head:hover { background: rgba(0, 0, 0, 0.025); }
+.sec-head:active { background: rgba(0, 0, 0, 0.05); }
+.sec-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent); }
 .sec-head svg { flex: none; color: var(--muted); transition: transform 0.15s ease; }
+.sec-list > *:first-child > .sec-head,
+.style-section:first-child .sec-head { border-top: 0; }
 
-.style-section { border-top: 1px solid color-mix(in srgb, var(--line) 55%, transparent); }
+/* The header's own top rule divides the sections now. */
 .style-section:first-child { border-top: 0; }
 .style-section-body { padding-bottom: 6px; }
 /* box-model spacing widget (margin frame → padding frame, per-side inputs) */

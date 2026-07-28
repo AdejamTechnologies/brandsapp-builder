@@ -895,7 +895,7 @@ function Palette({ onDragStart }: { onDragStart: (m: ModuleInfo & { label: strin
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2.5">
+      <div className="sec-list min-h-0 flex-1 overflow-y-auto p-2.5">
         {visible.length === 0 ? (
           <p className="px-1 py-6 text-center text-xs text-muted-foreground">No elements match “{q}”.</p>
         ) : (
