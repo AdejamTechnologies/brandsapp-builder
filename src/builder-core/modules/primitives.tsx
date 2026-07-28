@@ -151,6 +151,9 @@ const RichText: ModuleDefinition = {
   // It's replaced the moment you type.
   defaults: { html: "<p>Rich text. Double-click to edit, or paste HTML in Settings.</p>" },
   contentModel: { children: "none" },
+  // Edited in place like heading/text, but committed as HTML so formatting the
+  // author applied (and the tags they pasted) survive the round-trip.
+  inlineTextEdit: { prop: "html", multiline: true, html: true },
   defaultClasses: "leading-relaxed",
   Component: (p: ModuleRenderProps) =>
     createElement("div", { className: p.className, dangerouslySetInnerHTML: { __html: str(p.props.html) }, ...ed(p) }),

@@ -167,10 +167,10 @@ export function Canvas({
     const def = registry.get(doc.nodes[id]?.module ?? "")
     const edit = def?.inlineTextEdit
     if (!edit) return
-    startInlineEdit(el, id, edit.prop)
+    startInlineEdit(el, id, edit.prop, !!edit.html)
   }
 
-  const startInlineEdit = (el: HTMLElement, id: string, prop: string) => {
+  const startInlineEdit = (el: HTMLElement, id: string, prop: string, isHtml = false) => {
     editingRef.current = id
     el.setAttribute("contenteditable", "true")
     el.focus()
@@ -186,11 +186,15 @@ export function Canvas({
       el.removeEventListener("keydown", onKey)
       el.removeAttribute("contenteditable")
       editingRef.current = null
+      const stored = String(doc.nodes[id]?.props[prop] ?? "")
       if (commit) {
-        onCommitText(id, prop, el.textContent ?? "")
+        // A richtext prop holds markup: commit innerHTML, or every tag the author
+        // wrote would be flattened to plain text on the first edit.
+        onCommitText(id, prop, isHtml ? el.innerHTML : (el.textContent ?? ""))
+      } else if (isHtml) {
+        el.innerHTML = stored // Discard: restore from the (unchanged) doc.
       } else {
-        // Discard: restore the element's text from the (unchanged) doc.
-        el.textContent = String(doc.nodes[id]?.props[prop] ?? "")
+        el.textContent = stored
       }
     }
     const onBlur = () => finish(true)

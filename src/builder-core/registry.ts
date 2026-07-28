@@ -45,7 +45,16 @@ export interface ModuleDefinition {
    * the prop that holds the text (e.g. "label" for button). The editor makes the
    * rendered element contentEditable on double-click and writes back to this prop.
    */
-  inlineTextEdit?: { prop: string; multiline?: boolean }
+  inlineTextEdit?: {
+    prop: string
+    multiline?: boolean
+    /**
+     * The prop holds HTML, not plain text (richtext). The editor commits the
+     * element's innerHTML instead of its textContent — committing textContent
+     * would silently flatten every tag the author had written.
+     */
+    html?: boolean
+  }
   /**
    * Utility classes seeded onto a freshly-inserted node's `classes`, so a new
    * element is visible and reasonably styled out of the box (containers get a
