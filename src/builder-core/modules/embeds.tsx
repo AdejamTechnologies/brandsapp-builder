@@ -56,14 +56,45 @@ function extractYouTubeId(raw: unknown): string | null {
 
 const ASPECT_OPTIONS = ["16:9", "4:3", "1:1", "9:16"].map((v) => ({ label: v, value: v }))
 
+/**
+ * "00:00", "mm:ss", or "hh:mm:ss" → seconds for the `start=` param. A bare
+ * digit string ("90") is accepted as already-seconds. Anything else (empty,
+ * garbage) resolves to 0, which means "omit the param" to the caller — there's
+ * no such thing as an invalid start time worth guessing at, only "no start time".
+ */
+function parseStartSeconds(raw: unknown): number {
+  const s = str(raw).trim()
+  if (!s) return 0
+  if (/^\d+$/.test(s)) return Number(s)
+  const parts = s.split(":").map((p) => p.trim())
+  if (parts.length < 2 || parts.length > 3 || parts.some((p) => !/^\d+$/.test(p))) return 0
+  const nums = parts.map(Number)
+  return nums.length === 3 ? nums[0] * 3600 + nums[1] * 60 + nums[2] : nums[0] * 60 + nums[1]
+}
+
 const Youtube: ModuleDefinition = {
   name: "youtube",
   category: "media",
   schema: {
     url: { type: "url" },
     aspect: { type: "select", options: ASPECT_OPTIONS },
+    startAt: { type: "plain", label: "start at (mm:ss)" },
+    mute: { type: "boolean" },
+    autoplay: { type: "boolean" },
+    controls: { type: "boolean" },
+    privacyMode: { type: "boolean", label: "privacy-enhanced mode (youtube-nocookie.com)" },
+    limitRelated: { type: "boolean", label: "limit related videos to this channel" },
   },
-  defaults: { url: "", aspect: "16:9" },
+  defaults: {
+    url: "",
+    aspect: "16:9",
+    startAt: "",
+    mute: false,
+    autoplay: false,
+    controls: true,
+    privacyMode: false,
+    limitRelated: true,
+  },
   contentModel: { children: "none" },
   // The aspect-ratio wrapper (rather than a padding-bottom hack) keeps the slot
   // sized — and visible, with the tinted ground — even with no url yet, or a
@@ -80,12 +111,33 @@ const Youtube: ModuleDefinition = {
         createElement("span", { className: "px-4 text-center text-sm text-base-content/60" }, "YouTube — paste a video URL in Settings.")
       )
     }
+
+    const autoplay = bool(p.props.autoplay)
+    // Modern browsers refuse unmuted autoplay outright — an autoplaying-but-
+    // silent-forever embed reads as "broken" to the author with no clue why.
+    // Rather than silently ship that, force mute whenever autoplay is on; the
+    // author's own `mute` toggle only matters when autoplay is off.
+    const mute = bool(p.props.mute) || autoplay
+    const controls = bool(p.props.controls)
+    const limitRelated = bool(p.props.limitRelated)
+    const host = bool(p.props.privacyMode) ? "www.youtube-nocookie.com" : "www.youtube.com"
+    const start = parseStartSeconds(p.props.startAt)
+
+    const params = new URLSearchParams()
+    params.set("mute", mute ? "1" : "0")
+    params.set("autoplay", autoplay ? "1" : "0")
+    params.set("controls", controls ? "1" : "0")
+    // rel=0 restricts "related videos" (shown at the end) to the same channel;
+    // rel=1 (YouTube's own default) allows any channel.
+    params.set("rel", limitRelated ? "0" : "1")
+    if (start > 0) params.set("start", String(start))
+
     return createElement(
       "div",
       { className: p.className, style, ...rootAttrs(p) },
       createElement("iframe", {
         className: "h-full w-full rounded-2xl",
-        src: `https://www.youtube.com/embed/${id}`,
+        src: `https://${host}/embed/${id}?${params.toString()}`,
         title: "YouTube video player",
         allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share",
         allowFullScreen: true,

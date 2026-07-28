@@ -22,6 +22,20 @@ export interface PropControl {
    * field shows when EVERY listed prop matches one of its allowed values.
    */
   showIf?: Record<string, string[]>
+  /**
+   * Presentation hint only — the renderer is untouched by this flag. Use when
+   * the value is long-form copy (a paragraph, a quote): the editor renders a
+   * textarea instead of a single-line input so the author can see/write more
+   * than one line at a time.
+   */
+  multiline?: boolean
+  /**
+   * Presentation hint only — the renderer is untouched by this flag. Use with
+   * a SMALL `options` list (roughly <= 6 short values) that reads better as a
+   * row of buttons than a dropdown — heading level 1–6, a Visible/Hidden pair.
+   * Anything longer (or with long labels) should stay a plain `select`.
+   */
+  segmented?: boolean
 }
 export type PropSchema = Record<string, PropControl>
 

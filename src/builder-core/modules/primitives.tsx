@@ -12,7 +12,7 @@
 
 import { createElement, type CSSProperties } from "react"
 
-import { ADVANCED_DEFAULTS, ADVANCED_SCHEMA, rootAttrs } from "../advanced"
+import { ADVANCED_DEFAULTS, ADVANCED_SCHEMA, rootAttrs, truthyProp } from "../advanced"
 import { LINK_DEFAULTS, LINK_SCHEMA, linkAttrs, resolveHref } from "../link"
 import type { ModuleDefinition, ModuleRenderProps } from "../registry"
 
@@ -55,6 +55,20 @@ const str = (v: unknown, d = "") => (v == null ? d : String(v))
 const num = (v: unknown, d: number) => {
   const n = Number(v)
   return Number.isFinite(n) ? n : d
+}
+
+/**
+ * Image `width`/`height`: author types "Auto" (or leaves it blank) to emit no
+ * attribute at all — the element sizes itself from CSS/its own intrinsic size
+ * — or a plain number/`px` value to pin it, matching Webflow's own field. Never
+ * returns 0/negative: an attribute of `width="0"` would hide the image, which
+ * is never what a blank-ish value means here.
+ */
+const parseDimension = (v: unknown): number | undefined => {
+  const s = str(v).trim()
+  if (!s || /^auto$/i.test(s)) return undefined
+  const n = Number(s.replace(/px$/i, "").trim())
+  return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
 // ── containers ──────────────────────────────────────────────────────────────
@@ -178,7 +192,12 @@ const Heading: ModuleDefinition = {
   category: "content",
   schema: {
     text: { type: "plain" },
-    level: { type: "select", options: [1, 2, 3, 4, 5, 6].map((n) => ({ label: `H${n}`, value: String(n) })) },
+    level: {
+      type: "select",
+      label: "tag",
+      segmented: true,
+      options: [1, 2, 3, 4, 5, 6].map((n) => ({ label: `H${n}`, value: String(n) })),
+    },
     ...ADVANCED_SCHEMA,
   },
   defaults: { text: "Heading", level: "2", ...ADVANCED_DEFAULTS },
@@ -197,7 +216,7 @@ const Heading: ModuleDefinition = {
 const Text: ModuleDefinition = {
   name: "text",
   category: "content",
-  schema: { text: { type: "plain" }, tag: { type: "plain" }, ...ADVANCED_SCHEMA },
+  schema: { text: { type: "plain", multiline: true }, tag: { type: "plain" }, ...ADVANCED_SCHEMA },
   defaults: { text: "Text", tag: "p", ...ADVANCED_DEFAULTS },
   defaultClasses: "text-base leading-relaxed text-base-content/70",
   contentModel: { children: "none" },
@@ -206,41 +225,125 @@ const Text: ModuleDefinition = {
     createElement(str(p.props.tag, "p"), { className: p.className, ...rootAttrs(p) }, str(p.props.text)),
 }
 
+// The only tags richtext is allowed to render as — all plain flow containers,
+// so wrapping arbitrary sanitized HTML in any of them is always valid markup.
+const RICHTEXT_TAGS = new Set(["div", "section", "article", "main", "aside"])
+const sanitizeRichTextTag = (v: unknown): string => {
+  const s = str(v, "div")
+  return RICHTEXT_TAGS.has(s) ? s : "div"
+}
+
 const RichText: ModuleDefinition = {
   name: "richtext",
   category: "content",
-  schema: { html: { type: "richtext" } },
+  schema: {
+    html: { type: "richtext" },
+    tag: {
+      type: "select",
+      label: "tag",
+      options: [
+        { label: "Div", value: "div" },
+        { label: "Section", value: "section" },
+        { label: "Article", value: "article" },
+        { label: "Main", value: "main" },
+        { label: "Aside", value: "aside" },
+      ],
+    },
+  },
   // Placeholder copy, the same convention heading/text use. Empty content plus no
   // styling made this drop in as a zero-height div — invisible AND unselectable.
   // It's replaced the moment you type.
-  defaults: { html: "<p>Rich text. Double-click to edit, or paste HTML in Settings.</p>" },
+  defaults: { html: "<p>Rich text. Double-click to edit, or paste HTML in Settings.</p>", tag: "div" },
   contentModel: { children: "none" },
   // Edited in place like heading/text, but committed as HTML so formatting the
   // author applied (and the tags they pasted) survive the round-trip.
   inlineTextEdit: { prop: "html", multiline: true, html: true },
   defaultClasses: "leading-relaxed text-base-content/70",
   Component: (p: ModuleRenderProps) =>
-    createElement("div", { className: p.className, dangerouslySetInnerHTML: { __html: str(p.props.html) }, ...rootAttrs(p) }),
+    createElement(sanitizeRichTextTag(p.props.tag), {
+      className: p.className,
+      dangerouslySetInnerHTML: { __html: str(p.props.html) },
+      ...rootAttrs(p),
+    }),
 }
 
 const Image: ModuleDefinition = {
   name: "image",
   category: "media",
-  schema: { src: { type: "media" }, alt: { type: "plain" }, ...ADVANCED_SCHEMA },
-  defaults: { src: "https://placehold.co/600x300/e2e8f0/94a3b8?text=Image", alt: "", ...ADVANCED_DEFAULTS },
+  schema: {
+    src: { type: "media" },
+    altMode: {
+      type: "select",
+      label: "alt text",
+      options: [
+        { label: "Use asset's alt text", value: "asset" },
+        { label: "Set custom alt text", value: "custom" },
+        { label: "Decorative image", value: "decorative" },
+      ],
+    },
+    // Free-typed only in "custom" mode. In "asset" mode the VALUE still renders
+    // (see Component) — it's meant to be populated by the media picker off the
+    // chosen asset's own stored alt text rather than hand-typed here, so the box
+    // is hidden rather than the capability being dropped. In "decorative" mode
+    // the value is ignored outright and forced to "".
+    alt: { type: "plain", label: "alt text", showIf: { altMode: ["custom"] } },
+    hiDpi: { type: "boolean", label: "HiDPI image" },
+    disableResponsive: { type: "boolean", label: "disable responsive sizes" },
+    width: { type: "plain", label: "width" },
+    height: { type: "plain", label: "height" },
+    loading: {
+      type: "select",
+      label: "loading",
+      options: [
+        { label: "Lazy: loads on scroll", value: "lazy" },
+        { label: "Eager: loads immediately", value: "eager" },
+      ],
+    },
+    ...ADVANCED_SCHEMA,
+  },
+  defaults: {
+    src: "https://placehold.co/600x300/e2e8f0/94a3b8?text=Image",
+    altMode: "asset",
+    alt: "",
+    hiDpi: false,
+    disableResponsive: false,
+    width: "Auto",
+    height: "Auto",
+    loading: "lazy",
+    ...ADVANCED_DEFAULTS,
+  },
   contentModel: { children: "none" },
   // min-h + a tinted ground so the slot is visible even while the image is still
   // loading, or if its src is cleared/broken — an <img> with no usable source
   // collapses to zero height and the element vanishes off the canvas.
   defaultClasses: "w-full max-w-md rounded-2xl min-h-40 bg-base-200",
-  Component: (p: ModuleRenderProps) =>
-    createElement("img", {
+  Component: (p: ModuleRenderProps) => {
+    const src = str(p.props.src)
+    const decorative = str(p.props.altMode, "asset") === "decorative"
+    const width = parseDimension(p.props.width)
+    const height = parseDimension(p.props.height)
+    const loading = str(p.props.loading, "lazy") === "eager" ? "eager" : "lazy"
+    return createElement("img", {
       className: p.className,
-      src: str(p.props.src),
-      alt: str(p.props.alt),
-      loading: "lazy",
+      src,
+      // Decorative MUST both blank the alt AND take the image out of the
+      // accessibility tree — `alt=""` alone still leaves some assistive tech
+      // free to fall back to the filename/title; `role="presentation"` is what
+      // actually suppresses that. That pairing is the entire point of the option.
+      alt: decorative ? "" : str(p.props.alt),
+      ...(decorative ? { role: "presentation" } : {}),
+      // One 2x descriptor is the whole of our responsive story today — there is
+      // no width-descriptor srcset, so no accompanying `sizes` to withhold.
+      // `disableResponsive` simply refuses to emit even that, hiDpi or not.
+      ...(truthyProp(p.props.hiDpi) && !truthyProp(p.props.disableResponsive) && src
+        ? { srcSet: `${src} 2x` }
+        : {}),
+      ...(width !== undefined ? { width } : {}),
+      ...(height !== undefined ? { height } : {}),
+      loading,
       ...rootAttrs(p),
-    }),
+    })
+  },
 }
 
 // A neutral placeholder glyph so a dropped icon is visible and selectable before

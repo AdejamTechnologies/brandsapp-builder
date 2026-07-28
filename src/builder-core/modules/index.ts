@@ -4,6 +4,7 @@ import { ModuleRegistry, type ModuleDefinition, type ModuleRenderProps } from ".
 import { FORM_MODULES } from "./forms"
 import { INTERACTIVE_MODULES } from "./interactive"
 import { PRIMITIVES } from "./primitives"
+import { ANIMATION_MODULES } from "./animation"
 import { EMBED_MODULES } from "./embeds"
 import { STRUCTURE_MODULES } from "./structure"
 
@@ -65,6 +66,7 @@ export function createDefaultRegistry(): ModuleRegistry {
     ...PRIMITIVES,
     ...STRUCTURE_MODULES,
     ...EMBED_MODULES,
+    ...ANIMATION_MODULES,
     ...INTERACTIVE_MODULES,
     ...FORM_MODULES,
     Loop,
@@ -74,5 +76,8 @@ export function createDefaultRegistry(): ModuleRegistry {
 
 // Re-exported so hosts can compute a button's look from variant + size
 // (the Inspector rewrites a button's classes when either changes).
+// The lazy third-party player loader — hosts inject it only when a page
+// actually contains a lottie/spline/rive element.
+export { ANIMATION_LOADER } from "./animation"
 export { ALL_BUTTON_TOKENS, buttonClasses } from "./primitives"
 export { PRIMITIVES }

@@ -107,6 +107,8 @@ textarea {
    opts back in on its own. */
 .sel-tag { position: absolute; top: -19px; left: -2px; display: flex; align-items: center; gap: 4px; pointer-events: none; z-index: 6; }
 .sel-tag > *:not(.sel-label) { pointer-events: auto; }
+/* The type token that rides inside the element label ("H1", "P", "UL"). */
+.sel-type { display: inline-block; margin-right: 5px; padding: 0 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.24); font-size: 9px; font-weight: 800; letter-spacing: 0.02em; }
 .sel-label { background: var(--ui-accent); color: #fff; font-size: 10px; font-weight: 700; line-height: 1; padding: 3px 6px; border-radius: 4px 4px 4px 0; white-space: nowrap; }
 .canvas-error, .canvas-missing { position: absolute; left: 12px; bottom: 12px; z-index: 6; font-size: 12px; padding: 6px 10px; border-radius: 6px; }
 .canvas-error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }

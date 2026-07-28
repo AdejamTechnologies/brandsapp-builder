@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEven
 
 import { ANIMATION_KEYFRAMES, generateUtilityCss, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
 import { resolveDrop, type DropIndicator, type DropTarget } from "./canvas-dnd"
+import { describeNode } from "./describe-node"
 import { registry } from "./registry"
 import { SelectionOverlay } from "./selection-overlay"
 
@@ -255,9 +256,20 @@ export function Canvas({
       <SelectionOverlay
         scrollRef={scrollRef}
         selectedId={selectedId}
-        // Prefer the author's own name — renaming an element should be visible
-        // on the canvas, not only in the Layers tree.
-        label={doc.nodes[selectedId ?? ""]?.label ?? doc.nodes[selectedId ?? ""]?.module}
+        label={(() => {
+          const n = doc.nodes[selectedId ?? ""]
+          if (!n) return undefined
+          // Type badge + name, where the name is the element's own CONTENT for
+          // text-bearing elements — "Paragraph" on every paragraph tells you
+          // nothing. An author-set label still wins (see describeNode).
+          const { badge, name } = describeNode(n)
+          return (
+            <>
+              {badge && <span className="sel-type">{badge}</span>}
+              {name}
+            </>
+          )
+        })()}
         badge={selectionBadge}
       />
       {indicator && (

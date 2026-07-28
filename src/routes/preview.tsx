@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useSearch } from "@tanstack/react-router"
 
-import { BUILDER_RUNTIME, generateUtilityCss, parseDoc, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
+import { ANIMATION_LOADER,
+  BUILDER_RUNTIME, generateUtilityCss, parseDoc, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
 import { registry } from "../lib/registry"
 
 /**
@@ -50,7 +51,11 @@ export function PreviewPage() {
   useEffect(() => {
     if (!result?.usesRuntime) return
     const s = document.createElement("script")
-    s.textContent = BUILDER_RUNTIME
+    // Same rule as the tenant host: the animation loader only ships when the
+    // page actually contains one of those elements.
+    s.textContent =
+      BUILDER_RUNTIME +
+      (/data-bapp-(lottie|spline|rive)/.test(document.body.innerHTML) ? "\n" + ANIMATION_LOADER : "")
     document.body.appendChild(s)
     return () => {
       s.remove()

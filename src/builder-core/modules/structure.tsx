@@ -133,6 +133,7 @@ const List: ModuleDefinition = {
     ordered: {
       type: "select",
       label: "type",
+      segmented: true,
       options: [
         { label: "Unordered", value: "false" },
         { label: "Ordered", value: "true" },
@@ -141,6 +142,7 @@ const List: ModuleDefinition = {
     bullets: {
       type: "select",
       label: "style",
+      segmented: true,
       options: [
         { label: "Bullets", value: "bullets" },
         { label: "No bullets", value: "none" },

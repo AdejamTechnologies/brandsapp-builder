@@ -85,8 +85,11 @@ export const PALETTE: PaletteSection[] = [
     label: "Media",
     entries: [
       { label: "Image", module: "image", keywords: "picture photo img" },
-      { label: "Video", module: "video", keywords: "mp4 player" },
+      { label: "Video", module: "video", keywords: "mp4 player embed vimeo" },
       { label: "YouTube", module: "youtube", keywords: "video embed" },
+      { label: "Lottie Animation", module: "lottie", keywords: "animation json motion" },
+      { label: "Spline Scene", module: "spline", keywords: "3d scene splinecode" },
+      { label: "Rive", module: "rive", keywords: "animation riv interactive state machine" },
     ],
   },
   {

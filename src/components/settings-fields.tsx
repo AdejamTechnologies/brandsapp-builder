@@ -2,7 +2,16 @@ import { useMemo, useRef, useState } from "react"
 import { Popover as P } from "@base-ui/react/popover"
 import { Check, ChevronDown, Search } from "lucide-react"
 
-import { ALL_BUTTON_TOKENS, buttonClasses, type Doc, type Node, type PropBinding } from "@brandsapp/builder-core"
+import {
+  ALL_BUTTON_TOKENS,
+  buttonClasses,
+  filterCustomAttributes,
+  type CustomAttributeEntry,
+  type Doc,
+  type Node,
+  type PropBinding,
+  type PropControl,
+} from "@brandsapp/builder-core"
 import { setBinding, updateProps } from "../lib/doc-ops"
 import { moduleInfo } from "../lib/registry"
 import { MediaDialog } from "./media-dialog"
@@ -10,6 +19,53 @@ import { RichTextDialog } from "./richtext-dialog"
 import { Select } from "./ui/select"
 import { Switch } from "./ui/switch"
 import { cn } from "../lib/utils"
+
+// A parallel edit to builder-core/registry.ts is landing two OPTIONAL, purely
+// presentational hints on `PropControl` (`multiline`, `segmented`). Widen the
+// type locally instead of depending on the exact vendored snapshot having them
+// yet — an intersection with the same optional key/type is a no-op once the
+// upstream type catches up, so this works before AND after that sync.
+type ExtControl = PropControl & {
+  multiline?: boolean
+  segmented?: boolean
+}
+
+// Shared 28px control chrome (matches ui/select.tsx's trigger) for plain
+// inputs/buttons in this file that aren't styled by the legacy `.field input`
+// CSS selector (e.g. a <textarea>, or an action button standing in for a row).
+const CONTROL_CLASS =
+  "flex h-7 w-full items-center rounded-[7px] border border-input bg-white px-2 text-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20"
+
+// ── Segmented button row (Webflow-style) — reuses the existing `.bp-switch`
+// chrome (styles.css) that the breakpoint switcher already established as
+// "one row of small buttons, the active one filled", so this reads as the
+// same control family rather than a new one-off. ──
+function SegmentedField({
+  value,
+  onChange,
+  options,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: Array<{ label: string; value: string }>
+}) {
+  return (
+    <div className="bp-switch" role="radiogroup">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="radio"
+          aria-checked={value === o.value}
+          className={cn("ghost", value === o.value && "on")}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 // CMS binding: which prop types can be overlaid from a data field, and the sources.
 const BINDABLE = new Set(["plain", "url", "media", "richtext", "number"])
@@ -20,6 +76,90 @@ const BIND_SOURCES: { value: PropBinding["source"]; label: string }[] = [
   { value: "site", label: "Site" },
   { value: "route", label: "Route" },
 ]
+
+// ── Custom attributes repeater ──
+// `filterCustomAttributes` (imported from builder-core) is the actual gate the
+// RENDERER applies at publish time — it alone decides what survives. We call it
+// per-row (a single-entry array) purely to know whether THIS row would survive,
+// and show a non-blocking hint when it wouldn't; the author's typed value is
+// still saved either way (the renderer is free to drop it later; nothing here
+// blocks authoring). `attrRefusalReason` below is a best-effort, MESSAGE-ONLY
+// mirror of the filter's known rejection cases so the hint can say WHY —
+// it is never consulted to decide accept/reject, only to phrase the hint that
+// `filterCustomAttributes` already told us is warranted. If it drifts from the
+// real rules, worst case is a vague hint, never a wrong accept/reject.
+const ATTR_BLOCKED_NAMES = new Set([
+  "style",
+  "id",
+  "class",
+  "data-node-id",
+  "ref",
+  "key",
+  "children",
+  "dangerouslysetinnerhtml",
+])
+const ATTR_NAME_RE = /^[a-zA-Z_:][-a-zA-Z0-9_:.]*$/
+function attrRefusalReason(name: string, value: string): string | null {
+  const n = name.trim()
+  if (!n) return null
+  if (!ATTR_NAME_RE.test(n)) return "not a valid attribute name"
+  const lower = n.toLowerCase()
+  if (/^on/i.test(lower)) return "event-handler attributes (on*) are never applied"
+  if (ATTR_BLOCKED_NAMES.has(lower)) return "this name is reserved by the editor/renderer"
+  if (/^\s*javascript:/i.test(value.trim().toLowerCase())) return "javascript: values are never applied"
+  return null
+}
+
+function CustomAttributesField({
+  entries,
+  onChange,
+}: {
+  entries: CustomAttributeEntry[]
+  onChange: (next: CustomAttributeEntry[]) => void
+}) {
+  const update = (i: number, patch: Partial<CustomAttributeEntry>) =>
+    onChange(entries.map((e, idx) => (idx === i ? { ...e, ...patch } : e)))
+  const remove = (i: number) => onChange(entries.filter((_, idx) => idx !== i))
+  const add = () => onChange([...entries, { name: "", value: "" }])
+
+  return (
+    <div className="flex flex-col gap-1.5 py-1">
+      {entries.map((entry, i) => {
+        const name = entry.name ?? ""
+        const value = entry.value ?? ""
+        // The renderer is the source of truth for whether this survives —
+        // ask it directly rather than re-deriving the verdict ourselves.
+        const applied = name.trim() === "" || filterCustomAttributes([{ name, value }]).length > 0
+        const reason = applied ? null : attrRefusalReason(name, value)
+        return (
+          <div key={i} className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <input
+                value={name}
+                onChange={(e) => update(i, { name: e.target.value })}
+                placeholder="name"
+                className={cn(CONTROL_CLASS, "w-[38%]")}
+              />
+              <input
+                value={value}
+                onChange={(e) => update(i, { value: e.target.value })}
+                placeholder="value"
+                className={cn(CONTROL_CLASS, "flex-1")}
+              />
+              <button type="button" className="mini" title="Remove attribute" onClick={() => remove(i)}>
+                ×
+              </button>
+            </div>
+            {reason && <div className="text-[11px] text-amber-600">Won't apply — {reason}</div>}
+          </div>
+        )
+      })}
+      <button type="button" className="mini wide" onClick={add}>
+        + Add attribute
+      </button>
+    </div>
+  )
+}
 
 export interface SettingsCtx {
   /** Pages in this site, for the Page picker. May be empty. */
@@ -195,12 +335,39 @@ export function SettingsFields({ doc, node, onChange, ctx }: SettingsFieldsProps
   const [bindSource, setBindSource] = useState<PropBinding["source"]>("item")
   const [bindField, setBindField] = useState("")
 
+  // ── Visibility (node.hidden) ──
+  // Lives on the NODE, not in `props` — a module's schema knows nothing about
+  // it — so it's rendered as its own row rather than folded into the
+  // per-module field map below, and it patches `doc.nodes` directly through
+  // the same `onChange(doc)` mechanism every other control here uses.
+  const setHidden = (hidden: boolean) =>
+    onChange(
+      { ...doc, nodes: { ...doc.nodes, [node.id]: { ...node, hidden: hidden || undefined } } },
+      `hidden:${node.id}`
+    )
+  const visibilityRow = (
+    <div className="field">
+      <span>visibility</span>
+      <SegmentedField
+        value={node.hidden ? "hidden" : "visible"}
+        onChange={(v) => setHidden(v === "hidden")}
+        options={[
+          { value: "visible", label: "Visible" },
+          { value: "hidden", label: "Hidden" },
+        ]}
+      />
+    </div>
+  )
+
   const info = moduleInfo(node.module)
   if (!info || Object.keys(info.schema).length === 0) {
     return (
-      <div className="muted small" style={{ padding: "12px" }}>
-        This element has no settings — switch to Styles to design it.
-      </div>
+      <>
+        <div className="pt-1">{visibilityRow}</div>
+        <div className="muted small" style={{ padding: "12px" }}>
+          This element has no settings — switch to Styles to design it.
+        </div>
+      </>
     )
   }
 
@@ -342,6 +509,21 @@ export function SettingsFields({ doc, node, onChange, ctx }: SettingsFieldsProps
         )
       }
 
+      // Repeater, not the useless single text box a "json" control falls
+      // through to by default — keyed by NAME (like pageSlug/sectionId above)
+      // since the {name,value}[] shape is specific to this one prop.
+      if (key === "customAttributes") {
+        const arr: CustomAttributeEntry[] = Array.isArray(value) ? (value as CustomAttributeEntry[]) : []
+        return (
+          <div key={key}>
+            <div className="field" style={{ alignItems: "start" }}>
+              <span className="pt-1">{label}</span>
+              <CustomAttributesField entries={arr} onChange={(next) => setProp(key, next)} />
+            </div>
+          </div>
+        )
+      }
+
       if (control.type === "media") {
         return (
           <div key={key}>
@@ -363,8 +545,8 @@ export function SettingsFields({ doc, node, onChange, ctx }: SettingsFieldsProps
           <div key={key}>
             <div className="field">
               <span>{label}</span>
-              <button className="mini wide" onClick={() => setRichKey(key)}>
-                Edit rich text…
+              <button type="button" className={CONTROL_CLASS} onClick={() => setRichKey(key)}>
+                Edit Rich Text
               </button>
             </div>
             {bindingUI(key)}
@@ -380,14 +562,31 @@ export function SettingsFields({ doc, node, onChange, ctx }: SettingsFieldsProps
         )
       }
       if (control.type === "select" && control.options) {
+        const opts = control.options.map((o) => ({ value: String(o.value), label: o.label }))
         return (
           <div key={key} className="field">
             <span>{label}</span>
-            <Select
-              value={String(value ?? "")}
-              onValueChange={(v) => setProp(key, v)}
-              options={control.options.map((o) => ({ value: String(o.value), label: o.label }))}
-            />
+            {(control as ExtControl).segmented ? (
+              <SegmentedField value={String(value ?? "")} onChange={(v) => setProp(key, v)} options={opts} />
+            ) : (
+              <Select value={String(value ?? "")} onValueChange={(v) => setProp(key, v)} options={opts} />
+            )}
+          </div>
+        )
+      }
+      if ((control as ExtControl).multiline) {
+        return (
+          <div key={key}>
+            <label className="field" style={{ alignItems: "start" }}>
+              <span className="pt-1">{label}</span>
+              <textarea
+                rows={4}
+                value={value == null ? "" : String(value)}
+                onChange={(e) => setProp(key, e.target.value)}
+                className={cn(CONTROL_CLASS, "h-auto min-h-[72px] resize-y items-start py-1.5")}
+              />
+            </label>
+            {bindable && bindingUI(key)}
           </div>
         )
       }
@@ -412,7 +611,10 @@ export function SettingsFields({ doc, node, onChange, ctx }: SettingsFieldsProps
 
   return (
     <>
-      <div className="pt-1">{fields}</div>
+      <div className="pt-1">
+        {visibilityRow}
+        {fields}
+      </div>
       {mediaKey && (
         <MediaDialog
           value={String(node.props[mediaKey] ?? "")}

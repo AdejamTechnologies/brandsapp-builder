@@ -60,8 +60,19 @@ export function linkAttrs(props: Record<string, unknown>): {
 } {
   const newTab = props.newTab === true || props.newTab === "true"
   const isFile = str(props.linkType, "url") === "file"
+
+  // Two independent sources can each want a `rel` token: opening in a new tab
+  // needs the security pair (`noopener noreferrer`), and the author's chosen
+  // `preload` strategy can want `prefetch`. Collect whichever apply and join
+  // them into ONE rel — emitting a second `rel` attribute would just have the
+  // last one win and silently drop the other.
+  const relTokens: string[] = []
+  if (newTab) relTokens.push("noopener", "noreferrer")
+  if (str(props.preload, "default") === "prefetch") relTokens.push("prefetch")
+
   return {
-    ...(newTab ? { target: "_blank", rel: "noopener noreferrer" } : {}),
+    ...(newTab ? { target: "_blank" } : {}),
+    ...(relTokens.length ? { rel: relTokens.join(" ") } : {}),
     // A hosted asset should save rather than navigate when opened in place.
     ...(isFile && !newTab ? { download: true } : {}),
   }
@@ -92,6 +103,15 @@ export const LINK_SCHEMA: PropSchema = {
   phone: { type: "plain", label: "phone", showIf: { linkType: ["phone"] } },
   assetUrl: { type: "media", label: "file", showIf: { linkType: ["file"] } },
   newTab: { type: "boolean", label: "open in new tab" },
+  preload: {
+    type: "select",
+    label: "preload",
+    options: [
+      { label: "Default", value: "default" },
+      { label: "None", value: "none" },
+      { label: "Prefetch", value: "prefetch" },
+    ],
+  },
 }
 
 export const LINK_DEFAULTS = {
@@ -104,4 +124,5 @@ export const LINK_DEFAULTS = {
   phone: "",
   assetUrl: "",
   newTab: false,
+  preload: "default",
 }

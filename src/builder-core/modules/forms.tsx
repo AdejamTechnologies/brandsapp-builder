@@ -224,24 +224,129 @@ const Submit: ModuleDefinition = {
 
 // ── media ─────────────────────────────────────────────────────────────────────
 
+// In Webflow the "Video" element is EMBED-BY-URL first (YouTube/Vimeo/etc, via a
+// Title field for the iframe's accessible name) and a raw file player second.
+// Ours started as file-only; `url`/`title` below add the embed path on top
+// without dropping the file behaviour that's already useful on its own.
+const YOUTUBE_VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/
+const VIMEO_VIDEO_ID_RE = /^[0-9]+$/
+
+/**
+ * Resolve a pasted embed URL to a same-origin-safe iframe src we build
+ * ourselves — never the author's raw string. Only YouTube and Vimeo shapes are
+ * recognized (watch/short/embed links, or player.vimeo.com); anything else
+ * returns null so the caller can show a friendly placeholder instead of
+ * guessing at an iframe src for an unknown provider.
+ */
+function resolveVideoEmbedSrc(raw: unknown): string | null {
+  const value = str(raw).trim()
+  if (!value) return null
+  let url: URL
+  try {
+    url = new URL(value.includes("://") ? value : `https://${value}`)
+  } catch {
+    return null
+  }
+  const host = url.hostname.replace(/^www\./, "")
+  if (host === "youtu.be") {
+    const id = url.pathname.split("/").filter(Boolean)[0]
+    return id && YOUTUBE_VIDEO_ID_RE.test(id) ? `https://www.youtube.com/embed/${id}` : null
+  }
+  if (host === "youtube.com" || host === "m.youtube.com") {
+    const vParam = url.searchParams.get("v")
+    if (vParam && YOUTUBE_VIDEO_ID_RE.test(vParam)) return `https://www.youtube.com/embed/${vParam}`
+    const parts = url.pathname.split("/").filter(Boolean)
+    const last = parts[parts.length - 1]
+    return last && YOUTUBE_VIDEO_ID_RE.test(last) ? `https://www.youtube.com/embed/${last}` : null
+  }
+  if (host === "vimeo.com" || host === "player.vimeo.com") {
+    const parts = url.pathname.split("/").filter(Boolean)
+    const id = parts[parts.length - 1]
+    return id && VIMEO_VIDEO_ID_RE.test(id) ? `https://player.vimeo.com/video/${id}` : null
+  }
+  return null
+}
+
 const Video: ModuleDefinition = {
   name: "video",
   category: "media",
   schema: {
-    src: { type: "url" },
+    url: { type: "url", label: "embed URL (YouTube or Vimeo)" },
+    title: { type: "plain", label: "title" },
+    src: { type: "url", label: "video file URL" },
     poster: { type: "media" },
     controls: { type: "boolean" },
     autoplay: { type: "boolean" },
     loop: { type: "boolean" },
     muted: { type: "boolean" },
   },
-  defaults: { src: "", poster: "", controls: true, autoplay: false, loop: false, muted: false },
+  defaults: {
+    url: "",
+    title: "",
+    src: "",
+    poster: "",
+    controls: true,
+    autoplay: false,
+    loop: false,
+    muted: false,
+  },
   contentModel: { children: "none" },
   defaultClasses: "w-full rounded-2xl",
-  Component: (p: ModuleRenderProps) =>
-    createElement("video", {
+  Component: (p: ModuleRenderProps) => {
+    const url = str(p.props.url).trim()
+    const title = str(p.props.title).trim() || "Video"
+
+    if (url) {
+      const embedSrc = resolveVideoEmbedSrc(url)
+      // The aspect-ratio wrapper keeps the slot sized (and visible, with a
+      // tinted ground) whether or not the URL resolved — an unrecognized
+      // provider still shows a real, selectable placeholder instead of nothing.
+      return createElement(
+        "div",
+        {
+          className: `${p.className} relative w-full overflow-hidden bg-base-200`,
+          style: { aspectRatio: "16/9" },
+          ...rootAttrs(p),
+        },
+        embedSrc
+          ? createElement("iframe", {
+              className: "absolute inset-0 h-full w-full",
+              src: embedSrc,
+              title,
+              allow:
+                "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share",
+              allowFullScreen: true,
+              loading: "lazy",
+            })
+          : createElement(
+              "span",
+              {
+                className:
+                  "absolute inset-0 flex items-center justify-center px-4 text-center text-sm text-base-content/60",
+              },
+              "Video embed — paste a YouTube or Vimeo URL."
+            )
+      )
+    }
+
+    const src = str(p.props.src).trim()
+    if (!src) {
+      // Neither an embed URL nor a file src is set — keep the slot visible with
+      // a placeholder rather than a bare, sizeless <video>.
+      return createElement(
+        "div",
+        { className: `${p.className} flex min-h-40 items-center justify-center bg-base-200`, ...rootAttrs(p) },
+        createElement(
+          "span",
+          { className: "px-4 text-center text-sm text-base-content/60" },
+          "Video — paste an embed URL or a file URL in Settings."
+        )
+      )
+    }
+
+    return createElement("video", {
       className: p.className,
-      src: str(p.props.src) || undefined,
+      src,
       poster: str(p.props.poster) || undefined,
       controls: bool(p.props.controls) || undefined,
       autoPlay: bool(p.props.autoplay) || undefined,
@@ -249,7 +354,8 @@ const Video: ModuleDefinition = {
       muted: bool(p.props.muted) || undefined,
       playsInline: true,
       ...rootAttrs(p),
-    }),
+    })
+  },
 }
 
 export const FORM_MODULES: ModuleDefinition[] = [

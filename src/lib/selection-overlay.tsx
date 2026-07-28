@@ -11,7 +11,7 @@ interface OverlayProps {
   /** The scrolling canvas viewport that holds the rendered `[data-node-id]` nodes. */
   scrollRef: RefObject<HTMLDivElement | null>
   selectedId: string | null
-  label?: string
+  label?: ReactNode
   /** Optional control pinned to the ring's top-right (e.g. Quick Stack presets). */
   badge?: ReactNode
 }
