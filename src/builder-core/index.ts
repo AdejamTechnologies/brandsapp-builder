@@ -23,4 +23,11 @@ export * from "./runtime"
 export * from "./unocss"
 export * from "./import-html"
 export * from "./authoring"
-export { ALL_BUTTON_TOKENS, ANIMATION_LOADER, buttonClasses, createDefaultRegistry, PRIMITIVES } from "./modules"
+export {
+  ALL_BUTTON_TOKENS,
+  ANIMATION_LOADER,
+  buttonClasses,
+  createDefaultRegistry,
+  PRIMITIVES,
+  RECAPTCHA_LOADER,
+} from "./modules"

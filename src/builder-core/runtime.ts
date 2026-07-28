@@ -215,25 +215,47 @@ export const BUILDER_RUNTIME = `(function(){
       var action=form.getAttribute('action')||'/api/public/contact';
       var btn=form.querySelector('[type=submit]');
       var label=btn?btn.textContent:'';
+      var waiting=(btn&&btn.getAttribute('data-wait'))||'Please wait\u2026';
       var data={};
       new FormData(form).forEach(function(v,k){ data[k]=typeof v==='string'?v:''; });
-      form.__busy=1; if(btn){ btn.disabled=true; btn.textContent='Sending…' }
+
+      /* The author can design real success/error blocks; if they haven't, fall
+         back to a plain note so feedback is never silently missing. */
+      var okBox=form.querySelector('[data-bapp-form-success]');
+      var errBox=form.querySelector('[data-bapp-form-error]');
       var note=form.querySelector('[data-bapp-form-note]');
-      if(!note){ note=DOC.createElement('p'); note.setAttribute('data-bapp-form-note',''); note.style.cssText='margin:0;font-size:14px'; form.appendChild(note) }
-      note.textContent='';
+      if(!okBox&&!errBox&&!note){
+        note=DOC.createElement('p');
+        note.setAttribute('data-bapp-form-note','');
+        note.style.cssText='margin:0;font-size:14px';
+        form.appendChild(note);
+      }
+      function hide(el){ if(el)el.style.display='none' }
+      function show(el,text){ if(!el)return; if(text)el.textContent=text; el.style.display='' }
+      hide(okBox); hide(errBox); if(note)note.textContent='';
+
+      form.__busy=1; if(btn){ btn.disabled=true; btn.textContent=waiting }
       fetch(action,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)})
         .then(function(r){ return r.json().catch(function(){ return {} }).then(function(j){ return {ok:r.ok,j:j} }) })
         .then(function(res){
           if(res.ok){
-            note.style.color='hsl(var(--bc, 215 28% 17%))';
-            note.textContent=form.getAttribute('data-success')||'Thanks — we\\'ll be in touch.';
+            show(okBox);
+            if(note){ note.style.color='hsl(var(--bc, 215 28% 17%))'; note.textContent=form.getAttribute('data-success')||'Thanks \u2014 we will be in touch.' }
             form.reset();
+            /* Redirect AFTER the success state is on screen, so a fast network
+               doesn't make the confirmation flash past unread. */
+            var to=form.getAttribute('data-redirect');
+            if(to){ setTimeout(function(){ window.location.assign(to) }, 600) }
           } else {
-            note.style.color='#dc2626';
-            note.textContent=(res.j&&res.j.error)||'Something went wrong. Please try again.';
+            var msg=(res.j&&res.j.error)||form.getAttribute('data-error')||'Something went wrong. Please try again.';
+            show(errBox,errBox&&errBox.getAttribute('data-keep-text')?null:msg);
+            if(note){ note.style.color='#dc2626'; note.textContent=msg }
           }
         })
-        .catch(function(){ note.style.color='#dc2626'; note.textContent='Network error. Please try again.' })
+        .catch(function(){
+          var msg=form.getAttribute('data-error')||'Network error. Please try again.';
+          show(errBox); if(note){ note.style.color='#dc2626'; note.textContent=msg }
+        })
         .then(function(){ form.__busy=0; if(btn){ btn.disabled=false; btn.textContent=label } });
     });
   }

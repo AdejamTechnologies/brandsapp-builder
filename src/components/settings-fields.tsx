@@ -161,6 +161,214 @@ function CustomAttributesField({
   )
 }
 
+// ── Select-field choices repeater ──
+// Modelled on CustomAttributesField above: one row per choice, label + value
+// inputs, a delete button. Move-up/move-down (rather than drag-and-drop) since
+// order is meaningful in a dropdown and buttons are far more robust here.
+interface ChoiceEntry {
+  label: string
+  value: string
+}
+function ChoicesField({
+  choices,
+  onChange,
+}: {
+  choices: ChoiceEntry[]
+  onChange: (next: ChoiceEntry[]) => void
+}) {
+  const update = (i: number, patch: Partial<ChoiceEntry>) =>
+    onChange(choices.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
+  const remove = (i: number) => onChange(choices.filter((_, idx) => idx !== i))
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir
+    if (j < 0 || j >= choices.length) return
+    const next = choices.slice()
+    ;[next[i], next[j]] = [next[j], next[i]]
+    onChange(next)
+  }
+  const add = () => onChange([...choices, { label: "", value: "" }])
+
+  return (
+    <div className="flex flex-col gap-1.5 py-1">
+      {choices.map((c, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <input
+            value={c.label}
+            onChange={(e) => update(i, { label: e.target.value })}
+            placeholder="label"
+            className={cn(CONTROL_CLASS, "w-[38%]")}
+          />
+          <input
+            value={c.value}
+            onChange={(e) => update(i, { value: e.target.value })}
+            placeholder="value"
+            className={cn(CONTROL_CLASS, "flex-1")}
+          />
+          <button type="button" className="mini" title="Move up" disabled={i === 0} onClick={() => move(i, -1)}>
+            ↑
+          </button>
+          <button
+            type="button"
+            className="mini"
+            title="Move down"
+            disabled={i === choices.length - 1}
+            onClick={() => move(i, 1)}
+          >
+            ↓
+          </button>
+          <button type="button" className="mini" title="Remove choice" onClick={() => remove(i)}>
+            ×
+          </button>
+        </div>
+      ))}
+      <button type="button" className="mini wide" onClick={add}>
+        + Add choice
+      </button>
+    </div>
+  )
+}
+
+/** Mirrors builder-core forms.tsx `parseOptions`: split on newlines/commas, trim, drop empties. */
+function parseLegacyOptions(raw: string): ChoiceEntry[] {
+  return raw
+    .split(/[\n,]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => ({ label: s, value: s }))
+}
+
+// ── `select-field` choices editor (Webflow-parity) ──
+// Deliberately NOT a name-keyed exception inside the schema-iteration loop
+// below (unlike customAttributes) — its shape depends on the NODE'S DATA, not
+// on whether `choices` happens to be declared in the schema yet. A doc
+// authored before builder-core's `select-field` module grew a `choices` prop
+// still carries a plain newline-separated `options` string; this renders the
+// same editor either way once a `choices` array exists, and a conversion
+// button (never an automatic rewrite) otherwise.
+function selectFieldChoicesUI(
+  schema: Record<string, PropControl>,
+  node: Node,
+  setProp: (k: string, v: unknown) => void
+) {
+  const choicesVal = node.props.choices
+  const hasChoices = Array.isArray(choicesVal)
+  const legacyOptions = typeof node.props.options === "string" ? (node.props.options as string) : ""
+  const choicesLabel = schema.choices?.label ?? "choices"
+  const optionsLabel = schema.options?.label ?? "options"
+
+  if (hasChoices) {
+    const arr = (choicesVal as unknown[]).map((c) => {
+      const entry = c as Partial<ChoiceEntry> | null
+      return { label: String(entry?.label ?? ""), value: String(entry?.value ?? "") }
+    })
+    return (
+      <div key="choices">
+        <div className="field" style={{ alignItems: "start" }}>
+          <span className="pt-1">{choicesLabel}</span>
+          <ChoicesField choices={arr} onChange={(next) => setProp("choices", next)} />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div key="choices">
+      <label className="field">
+        <span>{optionsLabel}</span>
+        <input value={legacyOptions} onChange={(e) => setProp("options", e.target.value)} />
+      </label>
+      {legacyOptions.trim() && (
+        <div className="flex flex-col gap-1 px-3 pb-1.5">
+          <div className="text-[11px] text-amber-600">
+            This field still uses the old one-per-line list — convert it to reorder choices or edit them individually.
+          </div>
+          <button
+            type="button"
+            className="mini wide"
+            onClick={() => setProp("choices", parseLegacyOptions(legacyOptions))}
+          >
+            Convert to choices
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── `form` "Fields" list (Webflow-parity, READ-ONLY) ──
+// Selection lives in editor.tsx, which this file does not own, so there is no
+// prop here to wire "click a row to select it" — this is informational only.
+// If a selection callback is ever threaded down into SettingsCtx/props, a row
+// click could call it with the field node's id.
+const FORM_FIELD_MODULES = new Set([
+  "input",
+  "textarea",
+  "select-field",
+  "checkbox",
+  "radio",
+  "file-upload",
+  "recaptcha",
+])
+const FORM_FIELD_TYPE_LABELS: Record<string, string> = {
+  textarea: "Textarea",
+  "select-field": "Select",
+  checkbox: "Checkbox",
+  radio: "Radio",
+  "file-upload": "File upload",
+  recaptcha: "reCAPTCHA",
+}
+function fieldTypeLabel(n: Node): string {
+  if (n.module === "input") return `Input · ${String(n.props.type ?? "text")}`
+  return FORM_FIELD_TYPE_LABELS[n.module] ?? n.module
+}
+function fieldDisplayName(n: Node, index: number): string {
+  const name = typeof n.props.name === "string" ? n.props.name.trim() : ""
+  if (name) return name
+  const label = typeof n.props.label === "string" ? n.props.label.trim() : ""
+  if (label) return label
+  const placeholder = typeof n.props.placeholder === "string" ? n.props.placeholder.trim() : ""
+  if (placeholder) return placeholder
+  return `Field ${index + 1}`
+}
+/** Walks `doc` from the form node's children (not just direct children — fields can sit inside layout wrappers) collecting form-field nodes. */
+function collectFormFields(doc: Doc, formNode: Node): Node[] {
+  const out: Node[] = []
+  const seen = new Set<string>()
+  const walk = (id: string) => {
+    if (seen.has(id)) return // guard against any accidental cycle in `children`
+    seen.add(id)
+    const n = doc.nodes[id]
+    if (!n) return
+    if (FORM_FIELD_MODULES.has(n.module)) out.push(n)
+    for (const childId of n.children) walk(childId)
+  }
+  for (const childId of formNode.children) walk(childId)
+  return out
+}
+function FormFieldsList({ doc, node }: { doc: Doc; node: Node }) {
+  const fieldNodes = useMemo(() => collectFormFields(doc, node), [doc, node])
+  return (
+    <div className="flex flex-col gap-1 px-3 py-1.5">
+      <div className="text-[11px] font-medium text-muted-foreground">Fields</div>
+      {fieldNodes.length === 0 ? (
+        <div className="muted small">No fields yet — drop an input, select, or checkbox into this form.</div>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {fieldNodes.map((n, i) => (
+            <li
+              key={n.id}
+              className="flex items-center justify-between gap-2 rounded-md border border-input bg-white px-2 py-1 text-xs"
+            >
+              <span className="truncate">{fieldDisplayName(n, i)}</span>
+              <span className="shrink-0 text-[10px] text-muted-foreground">{fieldTypeLabel(n)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export interface SettingsCtx {
   /** Pages in this site, for the Page picker. May be empty. */
   pages?: Array<{ id: string; title: string; slug: string }>
@@ -468,6 +676,11 @@ export function SettingsFields({ doc, node, onChange, ctx }: SettingsFieldsProps
     .filter(([, control]) =>
       Object.entries(control.showIf ?? {}).every(([dep, allowed]) => allowed.includes(String(node.props[dep] ?? "")))
     )
+    // select-field's `choices`/`options` are rendered by the dedicated
+    // selectFieldChoicesUI block below instead (its editor choice depends on
+    // the NODE'S DATA — legacy string vs. converted array — not on which of
+    // these two keys the schema currently declares).
+    .filter(([key]) => !(node.module === "select-field" && (key === "choices" || key === "options")))
     .map(([key, control]) => {
       const value = node.props[key]
       const label = control.label ?? key
@@ -614,6 +827,8 @@ export function SettingsFields({ doc, node, onChange, ctx }: SettingsFieldsProps
       <div className="pt-1">
         {visibilityRow}
         {fields}
+        {node.module === "select-field" && selectFieldChoicesUI(info.schema, node, setProp)}
+        {node.module === "form" && <FormFieldsList doc={doc} node={node} />}
       </div>
       {mediaKey && (
         <MediaDialog

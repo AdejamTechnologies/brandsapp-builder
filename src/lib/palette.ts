@@ -105,6 +105,7 @@ export const PALETTE: PaletteSection[] = [
       { label: "Radio Button", module: "radio", keywords: "option" },
       { label: "Select", module: "select-field", keywords: "dropdown options" },
       { label: "Form Button", module: "submit", keywords: "submit send" },
+      { label: "reCAPTCHA", module: "recaptcha", keywords: "captcha spam bot verify" },
     ],
   },
   {
