@@ -72,4 +72,7 @@ export function createDefaultRegistry(): ModuleRegistry {
   ])
 }
 
+// Re-exported so hosts can compute a button's look from variant + size
+// (the Inspector rewrites a button's classes when either changes).
+export { ALL_BUTTON_TOKENS, buttonClasses } from "./primitives"
 export { PRIMITIVES }

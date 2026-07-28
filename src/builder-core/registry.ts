@@ -16,6 +16,12 @@ export interface PropControl {
   label?: string
   options?: Array<{ label: string; value: string }>
   default?: unknown
+  /**
+   * Only show this field when another prop has one of these values — a link's
+   * URL box is meaningless once its type is "email". Keyed by prop name; the
+   * field shows when EVERY listed prop matches one of its allowed values.
+   */
+  showIf?: Record<string, string[]>
 }
 export type PropSchema = Record<string, PropControl>
 
@@ -48,6 +54,12 @@ export interface ModuleDefinition {
   defaults: Record<string, unknown>
   /** "none" = leaf, "any" = any child, or an allow-list of module names. */
   contentModel: { children: "none" | "any" | string[] }
+  /**
+   * This module may ONLY be placed inside these parents. The child half of the
+   * nesting contract — a `list-item` outside a `list` is invalid HTML, and the
+   * parent's own allow-list can't prevent a Div from accepting one.
+   */
+  allowedParents?: string[]
   /** Needs per-request data → rendered as a hole in the static bake (see render). */
   dynamic?: boolean
   /**
@@ -112,11 +124,21 @@ export class ModuleRegistry {
   controlFor(moduleName: string, prop: string): ControlType | undefined {
     return this.map.get(moduleName)?.schema[prop]?.type
   }
-  /** Is `child` allowed inside `parent` per the parent's contentModel? */
+  /**
+   * Is `child` allowed inside `parent`? BOTH sides must agree: the parent's
+   * contentModel has to accept the child, AND — if the child declares
+   * `allowedParents` — the parent has to be one of them. Without the second
+   * rule a `list-item` could be dropped into any Div, producing an <li> with no
+   * list around it.
+   */
   allowsChild(parent: string, child: string): boolean {
     const model = this.map.get(parent)?.contentModel
     if (!model) return false
     if (model.children === "none") return false
+
+    const only = this.map.get(child)?.allowedParents
+    if (only && !only.includes(parent)) return false
+
     if (model.children === "any") return true
     return model.children.includes(child)
   }

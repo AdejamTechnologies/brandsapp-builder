@@ -12,7 +12,43 @@
 
 import { createElement, type CSSProperties } from "react"
 
+import { LINK_DEFAULTS, LINK_SCHEMA, linkAttrs, resolveHref } from "../link"
 import type { ModuleDefinition, ModuleRenderProps } from "../registry"
+
+/**
+ * Button variants, in shadcn's vocabulary so the naming is familiar. Each maps to
+ * theme tokens rather than fixed colours, so a tenant's palette re-skins them.
+ */
+const BUTTON_BASE =
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium no-underline transition-colors disabled:pointer-events-none disabled:opacity-50"
+const BUTTON_VARIANTS: Record<string, string> = {
+  default: "bg-primary text-primary-content hover:bg-primary/90",
+  secondary: "bg-secondary text-secondary-content hover:bg-secondary/85",
+  outline: "border border-base-300 bg-base-100 text-base-content hover:bg-base-200",
+  ghost: "text-base-content hover:bg-base-200",
+  link: "text-primary underline underline-offset-4 hover:decoration-primary",
+  destructive: "bg-error text-error-content hover:bg-error/90",
+}
+const BUTTON_SIZES: Record<string, string> = {
+  sm: "h-9 px-4 text-sm",
+  default: "h-11 px-6 text-sm",
+  lg: "h-12 px-8 text-base",
+  icon: "size-11 p-0",
+}
+/** Every class any variant/size can contribute — the Inspector strips these
+ *  before applying a new pair, so switching variants doesn't accumulate. */
+export const ALL_BUTTON_TOKENS: string[] = [
+  ...new Set(
+    [BUTTON_BASE, ...Object.values(BUTTON_VARIANTS), ...Object.values(BUTTON_SIZES)]
+      .join(" ")
+      .split(/\s+/)
+      .filter(Boolean)
+  ),
+]
+
+/** Classes for a variant+size pair, used as the button's defaultClasses. */
+export const buttonClasses = (variant = "default", size = "default"): string =>
+  [BUTTON_BASE, BUTTON_VARIANTS[variant] ?? BUTTON_VARIANTS.default, BUTTON_SIZES[size] ?? BUTTON_SIZES.default].join(" ")
 
 const str = (v: unknown, d = "") => (v == null ? d : String(v))
 const num = (v: unknown, d: number) => {
@@ -228,16 +264,43 @@ const Icon: ModuleDefinition = {
 const Button: ModuleDefinition = {
   name: "button",
   category: "interactive",
-  schema: { label: { type: "plain" }, href: { type: "url" } },
-  defaults: { label: "Button", href: "" },
+  schema: {
+    label: { type: "plain" },
+    variant: {
+      type: "select",
+      label: "variant",
+      options: ["default", "secondary", "outline", "ghost", "link", "destructive"].map((v) => ({
+        label: v[0].toUpperCase() + v.slice(1),
+        value: v,
+      })),
+    },
+    size: {
+      type: "select",
+      label: "size",
+      options: [
+        { label: "Small", value: "sm" },
+        { label: "Default", value: "default" },
+        { label: "Large", value: "lg" },
+        { label: "Icon", value: "icon" },
+      ],
+    },
+    ...LINK_SCHEMA,
+  },
+  defaults: { label: "Button", variant: "default", size: "default", ...LINK_DEFAULTS, href: "" },
   contentModel: { children: "none" },
   inlineTextEdit: { prop: "label" },
-  defaultClasses:
-    "inline-flex items-center justify-center px-6 py-3 rounded-full bg-primary text-primary-content text-sm font-medium no-underline transition-colors hover:bg-primary/90",
+  defaultClasses: buttonClasses(),
   Component: (p: ModuleRenderProps) => {
-    const href = str(p.props.href)
+    const href = resolveHref(p.props)
+    // Variant/size drive the LOOK only when the author hasn't taken over the
+    // classes themselves — otherwise switching variant would silently discard
+    // their styling. `className` already carries whatever they set.
     return href
-      ? createElement("a", { className: p.className, href, ...ed(p) }, str(p.props.label))
+      ? createElement(
+          "a",
+          { className: p.className, href, ...linkAttrs(p.props), ...ed(p) },
+          str(p.props.label)
+        )
       : createElement("button", { className: p.className, type: "button", ...ed(p) }, str(p.props.label))
   },
 }
@@ -245,13 +308,18 @@ const Button: ModuleDefinition = {
 const Link: ModuleDefinition = {
   name: "link",
   category: "interactive",
-  schema: { href: { type: "url" }, text: { type: "plain" } },
-  defaults: { href: "#", text: "Link" },
+  schema: { text: { type: "plain" }, ...LINK_SCHEMA },
+  defaults: { text: "Link", ...LINK_DEFAULTS },
   contentModel: { children: "any" },
+  inlineTextEdit: { prop: "text" },
   defaultClasses:
     "text-primary underline underline-offset-4 decoration-primary/30 transition-colors hover:decoration-primary",
   Component: (p: ModuleRenderProps) =>
-    createElement("a", { className: p.className, href: str(p.props.href, "#"), ...ed(p) }, p.children ?? str(p.props.text)),
+    createElement(
+      "a",
+      { className: p.className, href: resolveHref(p.props) || "#", ...linkAttrs(p.props), ...ed(p) },
+      p.children ?? str(p.props.text)
+    ),
 }
 
 const Embed: ModuleDefinition = {

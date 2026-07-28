@@ -115,6 +115,9 @@ const ListItem: ModuleDefinition = {
   schema: { text: { type: "plain" } },
   defaults: { text: "List item" },
   contentModel: { children: "any" },
+  // An <li> outside a list is invalid HTML, so the drag layer refuses to drop one
+  // anywhere else (see ModuleRegistry.allowsChild).
+  allowedParents: ["list"],
   inlineTextEdit: { prop: "text" },
   defaultClasses: "text-base-content/70 leading-relaxed",
   // Same convention as `link`: prefer real children (an icon + text row, say) and
@@ -126,8 +129,25 @@ const ListItem: ModuleDefinition = {
 const List: ModuleDefinition = {
   name: "list",
   category: "content",
-  schema: { ordered: { type: "boolean" } },
-  defaults: { ordered: false },
+  schema: {
+    ordered: {
+      type: "select",
+      label: "type",
+      options: [
+        { label: "Unordered", value: "false" },
+        { label: "Ordered", value: "true" },
+      ],
+    },
+    bullets: {
+      type: "select",
+      label: "style",
+      options: [
+        { label: "Bullets", value: "bullets" },
+        { label: "No bullets", value: "none" },
+      ],
+    },
+  },
+  defaults: { ordered: "false", bullets: "bullets" },
   contentModel: { children: ["list-item"] },
   defaultClasses: "flex flex-col gap-2 pl-5 text-base-content",
   // Bullet vs. number is driven by an inline style rather than swapping
@@ -140,7 +160,12 @@ const List: ModuleDefinition = {
   ],
   Component: (p: ModuleRenderProps) => {
     const ordered = bool(p.props.ordered)
-    const style: CSSProperties = { listStyleType: ordered ? "decimal" : "disc" }
+    const marker = str(p.props.bullets, "bullets") === "none" ? "none" : ordered ? "decimal" : "disc"
+    const style: CSSProperties = {
+      listStyleType: marker,
+      // Without markers the indent is dead space, so drop it too.
+      ...(marker === "none" ? { paddingLeft: 0 } : {}),
+    }
     return createElement(ordered ? "ol" : "ul", { className: p.className, style, ...ed(p) }, p.children)
   },
 }

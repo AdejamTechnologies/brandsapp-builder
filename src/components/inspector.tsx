@@ -1,7 +1,7 @@
 import { useRef, useState } from "react"
 import { ChevronDown, Frame, LayoutGrid, Maximize2, Move, PaintBucket, Sparkles, Square, Type, Wand2 } from "lucide-react"
 
-import type { Doc, Node, PropBinding } from "@brandsapp/builder-core"
+import { ALL_BUTTON_TOKENS, buttonClasses, type Doc, type Node, type PropBinding } from "@brandsapp/builder-core"
 import {
   addClassToNode,
   createClass,
@@ -183,8 +183,28 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
   const info = moduleInfo(node.module)
   const hasContent = info != null && Object.keys(info.schema).length > 0
   const tokens = Object.entries(doc.theme.colors ?? {}) // [name, value] — the variables
-  const setProp = (key: string, value: unknown) =>
-    onChange(updateProps(doc, node.id, { [key]: value }), `prop:${node.id}:${key}`)
+  const setProp = (key: string, value: unknown) => {
+    let next = updateProps(doc, node.id, { [key]: value })
+    // A variant is only real if it restyles. Classes are seeded at insert time
+    // and the author can edit them, so changing variant/size REWRITES the button's
+    // class string from the new pair — otherwise the control would look wired up
+    // and do nothing. Anything the author added beyond the variant set is kept.
+    if (node.module === "button" && (key === "variant" || key === "size")) {
+      const n = next.nodes[node.id]
+      const variant = String(key === "variant" ? value : (n?.props?.variant ?? "default"))
+      const size = String(key === "size" ? value : (n?.props?.size ?? "default"))
+      const generated = new Set(buttonClasses(variant, size).split(/\s+/).filter(Boolean))
+      const everyVariantToken = new Set(ALL_BUTTON_TOKENS)
+      const authored = String(n?.classes ?? "")
+        .split(/\s+/)
+        .filter((c) => c && !everyVariantToken.has(c)) // drop the previous variant's tokens
+      next = {
+        ...next,
+        nodes: { ...next.nodes, [node.id]: { ...n!, classes: [...generated, ...authored].join(" ") } },
+      }
+    }
+    onChange(next, `prop:${node.id}:${key}`)
+  }
   // The active style target: a class (StyleRule id) if the node has one, else the
   // element itself. Editing a class restyles every element that uses it.
   const target =
@@ -458,7 +478,16 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
 
   const contentFields =
     info &&
-    Object.entries(info.schema).map(([key, control]) => {
+    Object.entries(info.schema)
+      // A field can declare `showIf`, so a module only surfaces the inputs that
+      // apply right now — a link's URL box is meaningless once its type is
+      // "email". Hidden fields keep their stored value; they just aren't shown.
+      .filter(([, control]) =>
+        Object.entries(control.showIf ?? {}).every(([dep, allowed]) =>
+          allowed.includes(String(node.props[dep] ?? ""))
+        )
+      )
+      .map(([key, control]) => {
       const value = node.props[key]
       const label = control.label ?? key
       const bindable = BINDABLE.has(control.type)
