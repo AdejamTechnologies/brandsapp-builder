@@ -74,15 +74,19 @@ const Stack: ModuleDefinition = {
 const Grid: ModuleDefinition = {
   name: "grid",
   category: "layout",
-  schema: { columns: { type: "number" }, gap: { type: "plain" } },
-  defaults: { columns: 3 },
+  schema: { columns: { type: "number" }, rows: { type: "number" }, gap: { type: "plain" } },
+  defaults: { columns: 3, rows: 1 },
   contentModel: { children: "any" },
   defaultClasses: "p-6 rounded-2xl border border-base-300 bg-base-100 min-h-24",
   Component: (p: ModuleRenderProps) => {
     const cols = Math.min(Math.max(num(p.props.columns, 3), 1), 12)
+    const rows = Math.min(Math.max(num(p.props.rows, 1), 1), 12)
     const style: CSSProperties = {
       display: "grid",
       gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+      // Only pin row tracks when more than one is asked for — an implicit single
+      // row lets content size itself, which is what most grids want.
+      ...(rows > 1 ? { gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` } : {}),
       gap: p.props.gap != null ? str(p.props.gap) : "1rem",
     }
     return createElement("div", { className: p.className, style, ...ed(p) }, p.children)

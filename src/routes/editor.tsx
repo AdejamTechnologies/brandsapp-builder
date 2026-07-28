@@ -101,6 +101,7 @@ import {
 } from "@brandsapp/builder-core"
 import { CommentsDialog } from "../components/comments-dialog"
 import { ContextMenu, type MenuItem } from "../components/context-menu"
+import { QuickStackChip, QuickStackPresets } from "../components/quick-stack-presets"
 import { Inspector } from "../components/inspector"
 import { LibraryDialog } from "../components/library-dialog"
 import { ThemeDialog } from "../components/theme-dialog"
@@ -309,6 +310,27 @@ export function EditorPage() {
   }
   // ── right-click element menu (Webflow's arrangement) ──
   const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null)
+  const [presetsOpen, setPresetsOpen] = useState(false)
+
+  // Only elements with real presets get a chip on the selection ring; today
+  // that's Quick Stack (our `grid`). Everything else gets a bare ring.
+  const selNode = selectedId ? doc.nodes[selectedId] : undefined
+  const selCols = Math.max(1, Number(selNode?.props?.columns ?? 3) || 3)
+  const selRows = Math.max(1, Number(selNode?.props?.rows ?? 1) || 1)
+  const selectionBadge =
+    selNode?.module === "grid" && selectedId ? (
+      <span className="relative inline-flex">
+        <QuickStackChip cols={selCols} rows={selRows} onOpen={() => setPresetsOpen((v) => !v)} />
+        {presetsOpen && (
+          <QuickStackPresets
+            cols={selCols}
+            rows={selRows}
+            onApply={(next) => apply(updateProps(docRef.current, selectedId, next))}
+            onClose={() => setPresetsOpen(false)}
+          />
+        )}
+      </span>
+    ) : null
 
   const convertTo = (id: string, module: string) => {
     apply(convertNode(docRef.current, id, module, (n) => registry.get(n)))
@@ -861,6 +883,7 @@ export function EditorPage() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             onContextMenu={(id, x, y) => id && setMenu({ id, x, y })}
+            selectionBadge={selectionBadge}
             onCommitText={commitText}
             onMoveNode={doMoveNode}
             scrollRef={scrollRef}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react"
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react"
 
 interface Box {
   x: number
@@ -12,6 +12,8 @@ interface OverlayProps {
   scrollRef: RefObject<HTMLDivElement | null>
   selectedId: string | null
   label?: string
+  /** Optional control pinned to the ring's top-right (e.g. Quick Stack presets). */
+  badge?: ReactNode
 }
 
 const same = (a: Box | null, b: Box | null) =>
@@ -25,7 +27,7 @@ const same = (a: Box | null, b: Box | null) =>
  * inline/flex authoring). Coordinates are relative to the non-scrolling wrapper,
  * so the ring tracks the node as the canvas scrolls or the layout reflows.
  */
-export function SelectionOverlay({ scrollRef, selectedId, label }: OverlayProps) {
+export function SelectionOverlay({ scrollRef, selectedId, label, badge }: OverlayProps) {
   const [box, setBox] = useState<Box | null>(null)
   const boxRef = useRef<Box | null>(null)
 
@@ -62,6 +64,7 @@ export function SelectionOverlay({ scrollRef, selectedId, label }: OverlayProps)
   return (
     <div className="sel-ring" style={{ transform: `translate(${box.x}px, ${box.y}px)`, width: box.w, height: box.h }}>
       {label && <span className="sel-label">{label}</span>}
+      {badge && <span className="sel-badge">{badge}</span>}
     </div>
   )
 }

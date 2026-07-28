@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from "react"
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react"
 
 import { ANIMATION_KEYFRAMES, generateUtilityCss, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
 import { resolveDrop, type DropIndicator, type DropTarget } from "./canvas-dnd"
@@ -37,6 +37,8 @@ interface CanvasProps {
   onSelect: (id: string | null) => void
   /** Right-click on a node: the editor opens the element menu at this point. */
   onContextMenu?: (id: string | null, x: number, y: number) => void
+  /** Control pinned to the selection ring (Quick Stack presets, etc.). */
+  selectionBadge?: ReactNode
   /** Commit inline-edited text back to the node's prop. */
   onCommitText: (nodeId: string, prop: string, value: string) => void
   /** Re-parent an existing node (canvas drag-to-reorder). */
@@ -63,6 +65,7 @@ export function Canvas({
   selectedId,
   onSelect,
   onContextMenu,
+  selectionBadge,
   onCommitText,
   onMoveNode,
   scrollRef,
@@ -249,7 +252,12 @@ export function Canvas({
           {result.node}
         </div>
       </div>
-      <SelectionOverlay scrollRef={scrollRef} selectedId={selectedId} label={doc.nodes[selectedId ?? ""]?.module} />
+      <SelectionOverlay
+        scrollRef={scrollRef}
+        selectedId={selectedId}
+        label={doc.nodes[selectedId ?? ""]?.module}
+        badge={selectionBadge}
+      />
       {indicator && (
         <div
           className="drop-indicator"
