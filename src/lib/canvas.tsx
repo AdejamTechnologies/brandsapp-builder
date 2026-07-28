@@ -255,7 +255,9 @@ export function Canvas({
       <SelectionOverlay
         scrollRef={scrollRef}
         selectedId={selectedId}
-        label={doc.nodes[selectedId ?? ""]?.module}
+        // Prefer the author's own name — renaming an element should be visible
+        // on the canvas, not only in the Layers tree.
+        label={doc.nodes[selectedId ?? ""]?.label ?? doc.nodes[selectedId ?? ""]?.module}
         badge={selectionBadge}
       />
       {indicator && (
