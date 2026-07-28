@@ -146,8 +146,12 @@ const RichText: ModuleDefinition = {
   name: "richtext",
   category: "content",
   schema: { html: { type: "richtext" } },
-  defaults: { html: "" },
+  // Placeholder copy, the same convention heading/text use. Empty content plus no
+  // styling made this drop in as a zero-height div — invisible AND unselectable.
+  // It's replaced the moment you type.
+  defaults: { html: "<p>Rich text. Double-click to edit, or paste HTML in Settings.</p>" },
   contentModel: { children: "none" },
+  defaultClasses: "leading-relaxed",
   Component: (p: ModuleRenderProps) =>
     createElement("div", { className: p.className, dangerouslySetInnerHTML: { __html: str(p.props.html) }, ...ed(p) }),
 }
@@ -158,17 +162,26 @@ const Image: ModuleDefinition = {
   schema: { src: { type: "media" }, alt: { type: "plain" } },
   defaults: { src: "https://placehold.co/600x300/e2e8f0/94a3b8?text=Image", alt: "" },
   contentModel: { children: "none" },
-  defaultClasses: "w-full max-w-md rounded-lg",
+  // min-h + a tinted ground so the slot is visible even while the image is still
+  // loading, or if its src is cleared/broken — an <img> with no usable source
+  // collapses to zero height and the element vanishes off the canvas.
+  defaultClasses: "w-full max-w-md rounded-lg min-h-40 bg-base-200",
   Component: (p: ModuleRenderProps) =>
     createElement("img", { className: p.className, src: str(p.props.src), alt: str(p.props.alt), loading: "lazy", ...ed(p) }),
 }
+
+// A neutral placeholder glyph so a dropped icon is visible and selectable before
+// you paste your own SVG (an empty <span> measures 0x0 and cannot be clicked).
+const PLACEHOLDER_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 2.5"/></svg>'
 
 const Icon: ModuleDefinition = {
   name: "icon",
   category: "media",
   schema: { svg: { type: "svg" } },
-  defaults: { svg: "" },
+  defaults: { svg: PLACEHOLDER_ICON },
   contentModel: { children: "none" },
+  defaultClasses: "inline-block w-6 h-6 text-base-content",
   Component: (p: ModuleRenderProps) =>
     createElement("span", {
       className: p.className,
@@ -211,8 +224,12 @@ const Embed: ModuleDefinition = {
   name: "embed",
   category: "advanced",
   schema: { html: { type: "richtext" } },
-  defaults: { html: "" },
+  // Placeholder markup rather than a styled empty-state frame: it disappears as
+  // soon as real embed code is pasted, whereas a dashed placeholder BORDER would
+  // linger around the author's iframe and follow it into the published page.
+  defaults: { html: '<p style="text-align:center;opacity:.6">Embed — paste HTML or an iframe in Settings.</p>' },
   contentModel: { children: "none" },
+  defaultClasses: "w-full py-6",
   Component: (p: ModuleRenderProps) =>
     createElement("div", { className: p.className, dangerouslySetInnerHTML: { __html: str(p.props.html) }, ...ed(p) }),
 }
