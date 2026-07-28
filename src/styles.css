@@ -127,11 +127,33 @@ textarea {
 .selector-head { padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .style-body { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
 .style-scroll { position: relative; flex: 1; min-width: 0; max-height: calc(100vh - 232px); overflow-y: auto; padding-bottom: 8px; }
+/* Anything pressable says so. Cheaper and more reliable than remembering
+   cursor-pointer on every new control. The canvas opts out below (its nodes are
+   selectable, not clickable) — `.canvas-scroll [data-node-id]` outranks this. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+summary,
+label:has(input[type="checkbox"]),
+label:has(input[type="radio"]) { cursor: pointer; }
+button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
+
+/* One collapsible-section header, shared by the Add panel (left) and the Style
+   panel (right) so the two sides read as the same product. Hover is a whisper,
+   not a full-width slab — the row is already obviously a control, so it only
+   needs to acknowledge the pointer. Focus is OUR ring, never the browser's. */
+.sec-head {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 7px 8px; border: 0; background: transparent; border-radius: 7px; cursor: pointer;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: #1a1a1a; text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.sec-head:hover { background: rgba(0, 0, 0, 0.035); }
+.sec-head:active { background: rgba(0, 0, 0, 0.06); }
+.sec-head:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent); }
+.sec-head svg { flex: none; color: var(--muted); transition: transform 0.15s ease; }
+
 .style-section { border-top: 1px solid color-mix(in srgb, var(--line) 55%, transparent); }
 .style-section:first-child { border-top: 0; }
-.style-section-head { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 9px 12px 6px; background: transparent; border: 0; cursor: pointer; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #9aa1ac; }
-.style-section-head:hover { color: #1a1a1a; }
-.style-section-head svg { color: #b6bcc6; }
 .style-section-body { padding-bottom: 6px; }
 /* box-model spacing widget (margin frame → padding frame, per-side inputs) */
 /* Each ring needs a band tall enough to hold its own inputs: the margin band is

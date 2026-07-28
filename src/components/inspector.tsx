@@ -626,7 +626,7 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
                     }}
                     className="style-section"
                   >
-                    <button className="style-section-head" onClick={() => toggleSection(s.id)}>
+                    <button className="sec-head" onClick={() => toggleSection(s.id)}>
                       <span>{s.label}</span>
                       <ChevronDown className={cn("size-3 transition-transform", !open && "-rotate-90")} />
                     </button>

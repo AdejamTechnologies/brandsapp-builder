@@ -905,16 +905,9 @@ function Palette({ onDragStart }: { onDragStart: (m: ModuleInfo & { label: strin
             const isOpen = !!q || !collapsed.has(s.id)
             return (
               <div key={s.id} className="mb-1.5 last:mb-0">
-                <button
-                  type="button"
-                  onClick={() => toggle(s.id)}
-                  aria-expanded={isOpen}
-                  className="flex w-full items-center justify-between rounded-md px-1 py-1.5 text-[11px] font-semibold tracking-wide text-foreground transition-colors hover:bg-muted"
-                >
+                <button type="button" onClick={() => toggle(s.id)} aria-expanded={isOpen} className="sec-head">
                   {s.label}
-                  <ChevronDown
-                    className={cn("size-3.5 text-muted-foreground transition-transform", !isOpen && "-rotate-90")}
-                  />
+                  <ChevronDown className={cn("size-3.5", !isOpen && "-rotate-90")} />
                 </button>
                 {isOpen && (
                   <div className="mt-1 mb-2 grid grid-cols-2 gap-1.5">
