@@ -146,6 +146,17 @@ textarea {
 /* Anything pressable says so. Cheaper and more reliable than remembering
    cursor-pointer on every new control. The canvas opts out below (its nodes are
    selectable, not clickable) — `.canvas-scroll [data-node-id]` outranks this. */
+/* Chrome paints an unstyled <button> with the UA `buttonface` grey (#efefef).
+   Every control that only sets a border — context-menu rows, the preset steppers
+   and thumbnails — inherited it, which is why menus read as grey slabs on a
+   white panel. Neutralise it once here; anything that sets its own background
+   (.toolbar button, .actions button, utility classes) still wins on specificity. */
+@layer base {
+  /* MUST be layered: an unlayered rule outranks every @layer utilities rule, so
+     a bare `button {}` here would also kill hover:bg-muted on those same rows. */
+  button { background-color: transparent; }
+}
+
 button:not(:disabled),
 [role="button"]:not([aria-disabled="true"]),
 summary,

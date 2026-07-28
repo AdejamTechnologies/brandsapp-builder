@@ -75,12 +75,18 @@ await clickItem("Delete")
 after = await nodeCount()
 check("Delete removes the node", after < before, `${before} → ${after}`)
 
-// ── Rename element (prompt) ──
-page.once("dialog", (d) => d.accept("My Hero"))
+// ── Rename element (focuses the Inspector name field — no browser dialog) ──
+let renameUsedDialog = false
+const noteDialog = () => { renameUsedDialog = true }
+page.on("dialog", noteDialog)
 await openMenuOn(".bapp-root [data-node-id]", 1)
 await clickItem("Rename element")
 await page.waitForTimeout(500)
-await page.waitForTimeout(400)
+page.off("dialog", noteDialog)
+const focused = await page.evaluate(() => document.activeElement?.getAttribute("placeholder"))
+check("Rename focuses the name field, no dialog", focused === "layer name" && !renameUsedDialog, `focused=${focused} dialog=${renameUsedDialog}`)
+await page.keyboard.type("My Hero")
+await page.waitForTimeout(700)
 const renamed = await page.evaluate(() => (document.querySelector(".sel-label")?.textContent || "").includes("My Hero"))
 check("Rename element sets the layer name", renamed)
 

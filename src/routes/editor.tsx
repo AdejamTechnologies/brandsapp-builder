@@ -435,9 +435,18 @@ export function EditorPage() {
       {
         label: "Rename element",
         shortcut: "⌥R",
+        // Focus the Inspector's name field rather than window.prompt. Browsers
+        // suppress repeat dialogs (Chrome offers "prevent additional dialogs"),
+        // and once suppressed the menu item silently does nothing. Editing in
+        // place also shows the rename land, and reuses the one input that
+        // already writes the node's `label`.
         onSelect: () => {
-          const name = window.prompt("Element name", node.label ?? node.module)
-          if (name != null) patchNode(id, { label: name.trim() || undefined })
+          setSelectedId(id)
+          requestAnimationFrame(() => {
+            const field = document.querySelector<HTMLInputElement>('input[placeholder="layer name"]')
+            field?.focus()
+            field?.select()
+          })
         },
       },
     ]
