@@ -1,4 +1,4 @@
-import type { Doc, Node, PropBinding, StyleRule } from "@brandsapp/builder-core"
+import type { DefaultChild, Doc, Node, PropBinding, StyleRule } from "@brandsapp/builder-core"
 
 /** Immutable Doc operations for the editor (no external state lib needed). */
 
@@ -50,6 +50,37 @@ export function insertChild(
     },
     id,
   }
+}
+
+/**
+ * Recursively insert a module's `defaultChildren` under a freshly-created node,
+ * so a container arrives usable rather than empty (a `form` comes with real
+ * fields and a submit button). Each child gets its own module's `defaults` and
+ * `defaultClasses`, with the declaration's values layered on top — exactly what
+ * inserting each one by hand would produce. A no-op for modules without any.
+ */
+export function seedDefaultChildren(
+  doc: Doc,
+  parentId: string,
+  module: string,
+  lookup: (name: string) => { defaults?: Record<string, unknown>; defaultClasses?: string; defaultChildren?: DefaultChild[] } | undefined
+): Doc {
+  const kids = lookup(module)?.defaultChildren
+  if (!kids?.length) return doc
+  let next = doc
+  for (const kid of kids) {
+    const def = lookup(kid.module)
+    const { doc: withKid, id } = insertChild(
+      next,
+      parentId,
+      kid.module,
+      { ...(def?.defaults ?? {}), ...(kid.props ?? {}) },
+      kid.classes ?? def?.defaultClasses
+    )
+    next = withKid
+    if (id) next = seedDefaultChildren(next, id, kid.module, lookup)
+  }
+  return next
 }
 
 export function insertChildAt(

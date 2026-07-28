@@ -106,6 +106,7 @@ import { resolveDrop, type DropIndicator, type DropTarget } from "../lib/canvas-
 import {
   createComponent,
   insertChild,
+  seedDefaultChildren,
   insertChildAt,
   moveChild,
   moveNode,
@@ -116,7 +117,7 @@ import {
 } from "../lib/doc-ops"
 import { useHistory } from "../lib/history"
 import { useDocRoom } from "../lib/realtime"
-import { moduleInfo, moduleList, type ModuleInfo } from "../lib/registry"
+import { moduleInfo, moduleList, registry, type ModuleInfo } from "../lib/registry"
 import { SAMPLE_DOC } from "../lib/sample"
 import { ADEJAM_DOC } from "../lib/adejam-sample"
 import { BLANK_DOC } from "../lib/blank"
@@ -272,7 +273,9 @@ export function EditorPage() {
     const canNest = selected && moduleInfo(selected.module)?.canHaveChildren
     const parentId = canNest ? selected!.id : activeRootId
     const { doc: next, id } = insertChild(doc, parentId, m.name, m.defaults, m.defaultClasses)
-    apply(next)
+    // A container with a starter subtree (e.g. form → fields + submit) arrives
+    // usable rather than empty.
+    apply(seedDefaultChildren(next, id, m.name, (n) => registry.get(n)))
     setSelectedId(id)
   }
   const del = (id: string) => {
@@ -434,7 +437,10 @@ export function EditorPage() {
       {
         label: m.name,
         dragModule: m.name,
-        insert: (pid, idx) => insertChildAt(docRef.current, pid, idx, m.name, m.defaults, m.defaultClasses),
+        insert: (pid, idx) => {
+          const res = insertChildAt(docRef.current, pid, idx, m.name, m.defaults, m.defaultClasses)
+          return { ...res, doc: seedDefaultChildren(res.doc, res.id, m.name, (n) => registry.get(n)) }
+        },
         onClick: () => insert(m),
       },
       e

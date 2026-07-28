@@ -204,6 +204,40 @@ export const BUILDER_RUNTIME = `(function(){
     });
   }
 
+  /* ── Form submit ──────────────────────────────────────────────────────────
+     Posts the fields as JSON and swaps in a confirmation, instead of navigating
+     away to a bare JSON response. Without JS the form still posts natively (the
+     endpoint accepts urlencoded too), so this is enhancement, not a dependency. */
+  function initForm(form){
+    form.addEventListener('submit',function(e){
+      e.preventDefault();
+      if(form.__busy)return;
+      var action=form.getAttribute('action')||'/api/public/contact';
+      var btn=form.querySelector('[type=submit]');
+      var label=btn?btn.textContent:'';
+      var data={};
+      new FormData(form).forEach(function(v,k){ data[k]=typeof v==='string'?v:''; });
+      form.__busy=1; if(btn){ btn.disabled=true; btn.textContent='Sending…' }
+      var note=form.querySelector('[data-bapp-form-note]');
+      if(!note){ note=DOC.createElement('p'); note.setAttribute('data-bapp-form-note',''); note.style.cssText='margin:0;font-size:14px'; form.appendChild(note) }
+      note.textContent='';
+      fetch(action,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)})
+        .then(function(r){ return r.json().catch(function(){ return {} }).then(function(j){ return {ok:r.ok,j:j} }) })
+        .then(function(res){
+          if(res.ok){
+            note.style.color='hsl(var(--bc, 215 28% 17%))';
+            note.textContent=form.getAttribute('data-success')||'Thanks — we\\'ll be in touch.';
+            form.reset();
+          } else {
+            note.style.color='#dc2626';
+            note.textContent=(res.j&&res.j.error)||'Something went wrong. Please try again.';
+          }
+        })
+        .catch(function(){ note.style.color='#dc2626'; note.textContent='Network error. Please try again.' })
+        .then(function(){ form.__busy=0; if(btn){ btn.disabled=false; btn.textContent=label } });
+    });
+  }
+
   /* ── Scroll reveal ────────────────────────────────────────────────────── */
   function initReveal(d){
     var els=[].slice.call(d.querySelectorAll('.bapp-reveal'));
@@ -221,6 +255,7 @@ export const BUILDER_RUNTIME = `(function(){
     d.querySelectorAll('[data-bapp-tabs]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initTabs(el) });
     d.querySelectorAll('[data-bapp-accordion]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initAccordion(el) });
     d.querySelectorAll('[data-bapp-dropdown]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initDropdown(el) });
+    d.querySelectorAll('[data-bapp-form]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initForm(el) });
     initReveal(d);
   }
   if(DOC.readyState!=='loading')init();

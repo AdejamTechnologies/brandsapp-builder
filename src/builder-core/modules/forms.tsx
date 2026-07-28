@@ -25,23 +25,51 @@ const INPUT_CLASSES =
 
 // ── form container ────────────────────────────────────────────────────────────
 
+/**
+ * The tenant's built-in submission endpoint. It stores the post and surfaces it
+ * on the admin's Leads screen, so a dropped form works with no configuration.
+ * Point `action` anywhere else and the runtime posts there instead.
+ */
+export const DEFAULT_FORM_ACTION = "/api/public/contact"
+
 const Form: ModuleDefinition = {
   name: "form",
   category: "forms",
   schema: {
     action: { type: "url" },
     method: { type: "select", options: [{ label: "POST", value: "post" }, { label: "GET", value: "get" }] },
+    successMessage: { type: "plain", label: "message shown after sending" },
   },
-  defaults: { action: "", method: "post" },
+  defaults: {
+    action: DEFAULT_FORM_ACTION,
+    method: "post",
+    successMessage: "Thanks — we'll be in touch.",
+  },
   contentModel: { children: "any" },
-  defaultClasses: "flex flex-col gap-4",
+  defaultClasses: "flex flex-col gap-4 w-full max-w-md",
+  // Submitted by the runtime (fetch + inline confirmation) rather than a full
+  // page navigation. The markup still posts natively if JS never runs.
+  needsRuntime: true,
+  // Drops in as a WORKING contact form. The field `name`s match what
+  // /api/public/contact reads (name + message required, email/phone optional).
+  defaultChildren: [
+    { module: "form-label", props: { text: "Name" } },
+    { module: "input", props: { type: "text", name: "name", placeholder: "Your name", required: true } },
+    { module: "form-label", props: { text: "Email" } },
+    { module: "input", props: { type: "email", name: "email", placeholder: "you@example.com" } },
+    { module: "form-label", props: { text: "Message" } },
+    { module: "textarea", props: { name: "message", placeholder: "How can we help?", rows: 4, required: true } },
+    { module: "submit", props: { label: "Send message" } },
+  ],
   Component: (p: ModuleRenderProps) =>
     createElement(
       "form",
       {
         className: p.className,
-        action: str(p.props.action) || undefined,
+        action: str(p.props.action, DEFAULT_FORM_ACTION) || undefined,
         method: str(p.props.method, "post"),
+        "data-bapp-form": "",
+        "data-success": str(p.props.successMessage, "Thanks — we'll be in touch."),
         ...ed(p),
       },
       p.children

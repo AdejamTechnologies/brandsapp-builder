@@ -31,6 +31,16 @@ export interface ModuleRenderProps {
   isEditor: boolean
 }
 
+/** A node in a module's starter subtree (see `defaultChildren`). */
+export interface DefaultChild {
+  module: string
+  /** Merged over the child module's own `defaults`. */
+  props?: Record<string, unknown>
+  /** Overrides the child module's `defaultClasses` when given. */
+  classes?: string
+  children?: DefaultChild[]
+}
+
 export interface ModuleDefinition {
   name: string
   category: string
@@ -62,6 +72,13 @@ export interface ModuleDefinition {
    * or removable afterwards via the Inspector.
    */
   defaultClasses?: string
+  /**
+   * A starter subtree inserted with the node, so a container arrives usable
+   * rather than empty — a `form` drops in with real fields and a submit button.
+   * Seeded once at insert time (like `defaults`/`defaultClasses`) and fully
+   * editable afterwards; it is NOT re-applied on render.
+   */
+  defaultChildren?: DefaultChild[]
   /**
    * This module is interactive on the published page via the shared vanilla-JS
    * runtime (BUILDER_RUNTIME) — e.g. tabs. The renderer flags `usesRuntime` so the
