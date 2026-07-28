@@ -95,6 +95,11 @@ const Divider: ModuleDefinition = {
   schema: {},
   defaults: {},
   contentModel: { children: "none" },
+  // Drawn as a 1px BACKGROUND, not a border. A bare <hr> was invisible when
+  // dropped: utilities are generated with `preflights: false`, so `border-t`
+  // sets a width against a default border-style of `none`, and the editor's own
+  // Tailwind reset zeroes hr borders anyway. h-px + bg needs neither reset.
+  defaultClasses: "w-full h-px border-0 bg-base-300 my-6",
   Component: (p: ModuleRenderProps) => createElement("hr", { className: p.className, ...ed(p) }),
 }
 
