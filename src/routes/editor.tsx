@@ -89,7 +89,7 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from "../components/ui/tabs"
 import { Textarea } from "../components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip"
 import { cn } from "../lib/utils"
-import { COMPONENTS, SECTIONS, type Template } from "../lib/templates"
+import { SECTIONS, type Template } from "../lib/templates"
 
 import {
   extractFragment,
@@ -560,10 +560,10 @@ export function EditorPage() {
               <Layers className="size-4" />
             </TabsTab>
           </TabsList>
-          <TabsPanel value="elements">
+          <TabsPanel value="elements" className="min-h-0 flex-1">
+            {/* Just the element palette. The daisyUI component set that used to
+                sit underneath is parked (see COMPONENTS in lib/templates.ts). */}
             <Palette onDragStart={startModuleDrag} />
-            <div className="border-t border-border" />
-            <SectionPalette items={COMPONENTS} onDragStart={startSectionDrag} />
           </TabsPanel>
           <TabsPanel value="sections">
             <SectionPalette items={SECTIONS} onDragStart={startSectionDrag} searchable />

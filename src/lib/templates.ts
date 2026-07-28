@@ -453,9 +453,12 @@ export const TEMPLATES: Template[] = [
 
 /**
  * Individual UI components (daisyUI classes → themeable via the Theme dialog).
- * Rendered in the Components tab; drag onto the canvas like anything else.
+ *
+ * PARKED — deliberately not shown in the Components tab for now; we're coming
+ * back to them. The definitions are kept intact rather than deleted so restoring
+ * the panel is a one-line change: export COMPONENTS = COMPONENTS_PARKED below.
  */
-export const COMPONENTS: Template[] = [
+const COMPONENTS_PARKED: Template[] = [
   fromHtml("Buttons", "Button", `<a class="btn btn-primary">Button</a>`),
   fromHtml("Buttons", "Button outline", `<a class="btn btn-outline">Button</a>`),
   fromHtml("Buttons", "Button ghost", `<a class="btn btn-ghost">Button</a>`),
@@ -487,6 +490,12 @@ export const COMPONENTS: Template[] = [
     )
   ),
 ]
+
+/**
+ * What the Components tab actually renders. Empty while the set above is parked —
+ * swap in COMPONENTS_PARKED to bring them all back.
+ */
+export const COMPONENTS: Template[] = []
 
 /**
  * Imported MIT blocks (HyperUI + Meraki UI), generated from their repos → htmlToDoc.
