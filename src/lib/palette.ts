@@ -1,3 +1,12 @@
+import {
+  AlignLeft, AtSign, Box, Boxes, Braces, ChevronDown, CircleDot, ClipboardList, Code, Code2,
+  Columns3, CornerDownRight, Expand, Film, FormInput, Frame, Heading, Image as ImageIcon,
+  LayoutGrid, Link, Link2, List, MapPin, Menu, MousePointerClick, PanelTop, Pilcrow, Play,
+  Quote, Rows3, Search, ShieldCheck, Sparkles, Square, SquareCheck, Tag, ThumbsUp, Type,
+  Upload, Video,
+} from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+
 import { registry } from "./registry"
 import type { ModuleInfo } from "./registry"
 
@@ -24,6 +33,12 @@ export interface PaletteEntry {
   classes?: string
   /** Extra words to match when searching (aliases, our own naming). */
   keywords?: string
+  /**
+   * Glyph shown in the panel. Per ENTRY rather than per module, because entries
+   * that share a module still need telling apart at a glance — V Flex and H Flex
+   * are one `stack`, and the icon is the only thing distinguishing them.
+   */
+  icon: LucideIcon
 }
 
 export interface PaletteSection {
@@ -39,99 +54,99 @@ export const PALETTE: PaletteSection[] = [
     id: "structure",
     label: "Structure",
     entries: [
-      { label: "Section", module: "section", keywords: "band region" },
-      { label: "Container", module: "container", keywords: "wrapper centred" },
-      { label: "Quick Stack", module: "grid", props: { columns: 2 }, keywords: "layout responsive" },
-      { label: "V Flex", module: "stack", props: { direction: "column" }, keywords: "vertical column flex" },
-      { label: "H Flex", module: "stack", props: { direction: "row" }, keywords: "horizontal row flex" },
+      { label: "Section", icon: PanelTop, module: "section", keywords: "band region" },
+      { label: "Container", icon: Frame, module: "container", keywords: "wrapper centred" },
+      { label: "Quick Stack", icon: LayoutGrid, module: "grid", props: { columns: 2 }, keywords: "layout responsive" },
+      { label: "V Flex", icon: Rows3, module: "stack", props: { direction: "column" }, keywords: "vertical column flex" },
+      { label: "H Flex", icon: Columns3, module: "stack", props: { direction: "row" }, keywords: "horizontal row flex" },
     ],
   },
   {
     id: "basic",
     label: "Basic",
     entries: [
-      { label: "Div Block", module: "box", keywords: "div container block" },
-      { label: "List", module: "list", keywords: "ul ol bullets" },
-      { label: "List Item", module: "list-item", keywords: "li" },
+      { label: "Div Block", icon: Square, module: "box", keywords: "div container block" },
+      { label: "List", icon: List, module: "list", keywords: "ul ol bullets" },
+      { label: "List Item", icon: CornerDownRight, module: "list-item", keywords: "li" },
       {
-        label: "Link Block",
+        label: "Link Block", icon: Link,
         module: "link",
         classes: "block no-underline text-inherit",
         keywords: "anchor wrapper clickable",
       },
-      { label: "Button", module: "button", keywords: "cta" },
+      { label: "Button", icon: MousePointerClick, module: "button", keywords: "cta" },
     ],
   },
   {
     id: "typography",
     label: "Typography",
     entries: [
-      { label: "Heading", module: "heading", keywords: "h1 h2 title" },
-      { label: "Paragraph", module: "text", props: { tag: "p" }, keywords: "copy body" },
-      { label: "Text Link", module: "link", keywords: "anchor href" },
-      { label: "Text Block", module: "text", props: { tag: "div" }, keywords: "copy span" },
+      { label: "Heading", icon: Heading, module: "heading", keywords: "h1 h2 title" },
+      { label: "Paragraph", icon: Pilcrow, module: "text", props: { tag: "p" }, keywords: "copy body" },
+      { label: "Text Link", icon: Link2, module: "link", keywords: "anchor href" },
+      { label: "Text Block", icon: Type, module: "text", props: { tag: "div" }, keywords: "copy span" },
       {
-        label: "Block Quote",
+        label: "Block Quote", icon: Quote,
         module: "text",
         props: { tag: "blockquote", text: "A quote worth pulling out of the copy." },
         classes: "border-l-2 border-primary pl-5 text-lg italic leading-relaxed text-base-content/80",
         keywords: "quote pullquote",
       },
-      { label: "Rich Text", module: "richtext", keywords: "wysiwyg html prose" },
+      { label: "Rich Text", icon: AlignLeft, module: "richtext", keywords: "wysiwyg html prose" },
     ],
   },
   {
     id: "media",
     label: "Media",
     entries: [
-      { label: "Image", module: "image", keywords: "picture photo img" },
-      { label: "Video", module: "video", keywords: "mp4 player embed vimeo" },
-      { label: "YouTube", module: "youtube", keywords: "video embed" },
-      { label: "Lottie Animation", module: "lottie", keywords: "animation json motion" },
-      { label: "Spline Scene", module: "spline", keywords: "3d scene splinecode" },
-      { label: "Rive", module: "rive", keywords: "animation riv interactive state machine" },
-      { label: "Lightbox", module: "lightbox", keywords: "gallery modal zoom image popup" },
+      { label: "Image", icon: ImageIcon, module: "image", keywords: "picture photo img" },
+      { label: "Video", icon: Video, module: "video", keywords: "mp4 player embed vimeo" },
+      { label: "YouTube", icon: Play, module: "youtube", keywords: "video embed" },
+      { label: "Lottie Animation", icon: Sparkles, module: "lottie", keywords: "animation json motion" },
+      { label: "Spline Scene", icon: Box, module: "spline", keywords: "3d scene splinecode" },
+      { label: "Rive", icon: Boxes, module: "rive", keywords: "animation riv interactive state machine" },
+      { label: "Lightbox", icon: Expand, module: "lightbox", keywords: "gallery modal zoom image popup" },
     ],
   },
   {
     id: "forms",
     label: "Forms",
     entries: [
-      { label: "Form Block", module: "form", keywords: "contact" },
-      { label: "Label", module: "form-label", keywords: "field label" },
-      { label: "Input", module: "input", keywords: "text field" },
-      { label: "File Upload", module: "file-upload", keywords: "attachment file" },
-      { label: "Text Area", module: "textarea", keywords: "message multiline" },
-      { label: "Checkbox", module: "checkbox", keywords: "tick" },
-      { label: "Radio Button", module: "radio", keywords: "option" },
-      { label: "Select", module: "select-field", keywords: "dropdown options" },
-      { label: "Form Button", module: "submit", keywords: "submit send" },
-      { label: "reCAPTCHA", module: "recaptcha", keywords: "captcha spam bot verify" },
+      { label: "Form Block", icon: ClipboardList, module: "form", keywords: "contact" },
+      { label: "Label", icon: Tag, module: "form-label", keywords: "field label" },
+      { label: "Input", icon: FormInput, module: "input", keywords: "text field" },
+      { label: "File Upload", icon: Upload, module: "file-upload", keywords: "attachment file" },
+      { label: "Text Area", icon: AlignLeft, module: "textarea", keywords: "message multiline" },
+      { label: "Checkbox", icon: SquareCheck, module: "checkbox", keywords: "tick" },
+      { label: "Radio Button", icon: CircleDot, module: "radio", keywords: "option" },
+      { label: "Select", icon: ChevronDown, module: "select-field", keywords: "dropdown options" },
+      { label: "Form Button", icon: MousePointerClick, module: "submit", keywords: "submit send" },
+      { label: "reCAPTCHA", icon: ShieldCheck, module: "recaptcha", keywords: "captcha spam bot verify" },
     ],
   },
   {
     id: "advanced",
     label: "Advanced",
     entries: [
-      { label: "Search", module: "search", keywords: "find query" },
-      { label: "Background Video", module: "background-video", keywords: "hero video" },
-      { label: "Dropdown", module: "dropdown", keywords: "menu" },
-      { label: "Code Embed", module: "embed", keywords: "html iframe script" },
-      { label: "Navbar", module: "navbar", keywords: "nav menu header" },
-      { label: "Tabs", module: "tabs", keywords: "tabbed panels" },
-      { label: "Map", module: "map", keywords: "location address" },
-      { label: "Custom Element", module: "custom-element", keywords: "tag web component" },
-      { label: "Code Block", module: "code-block", keywords: "pre snippet syntax" },
-      { label: "Facebook", module: "facebook", keywords: "social like share" },
-      { label: "X (Twitter)", module: "x-twitter", keywords: "social tweet follow" },
+      { label: "Search", icon: Search, module: "search", keywords: "find query" },
+      { label: "Background Video", icon: Film, module: "background-video", keywords: "hero video" },
+      { label: "Dropdown", icon: ChevronDown, module: "dropdown", keywords: "menu" },
+      { label: "Code Embed", icon: Code2, module: "embed", keywords: "html iframe script" },
+      { label: "Navbar", icon: Menu, module: "navbar", keywords: "nav menu header" },
+      { label: "Tabs", icon: PanelTop, module: "tabs", keywords: "tabbed panels" },
+      { label: "Map", icon: MapPin, module: "map", keywords: "location address" },
+      { label: "Custom Element", icon: Braces, module: "custom-element", keywords: "tag web component" },
+      { label: "Code Block", icon: Code, module: "code-block", keywords: "pre snippet syntax" },
+      { label: "Facebook", icon: ThumbsUp, module: "facebook", keywords: "social like share" },
+      { label: "X (Twitter)", icon: AtSign, module: "x-twitter", keywords: "social tweet follow" },
     ],
   },
   {
     id: "other",
     label: "Other",
     entries: [
-      { label: "Grid", module: "grid", keywords: "columns rows layout" },
-      { label: "Columns", module: "grid", props: { columns: 2 }, keywords: "two column" },
+      { label: "Grid", icon: LayoutGrid, module: "grid", keywords: "columns rows layout" },
+      { label: "Columns", icon: Columns3, module: "grid", props: { columns: 2 }, keywords: "two column" },
     ],
   },
 ]

@@ -1,8 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import {
+  AtSign,
   Blocks,
   Box,
+  Boxes,
+  Braces,
+  Code,
+  CornerDownRight,
+  Expand,
+  Film,
+  Frame,
+  List,
+  MapPin,
+  Menu,
+  Play,
+  ShieldCheck,
+  Sparkles,
+  ThumbsUp,
+  Upload,
   Check,
   ChevronDown,
   Code2,
@@ -79,6 +95,27 @@ const MODULE_ICONS: Record<string, typeof Box> = {
   embed: Code2,
   loop: Repeat,
   instance: ComponentIcon,
+  // Everything added since the original set — an unknown module falls back to
+  // the generic Box, which reads as "untyped" and is worse than a real glyph.
+  section: PanelTop,
+  container: Frame,
+  list: List,
+  "list-item": CornerDownRight,
+  navbar: Menu,
+  "code-block": Code,
+  youtube: Play,
+  lottie: Sparkles,
+  spline: Box,
+  rive: Boxes,
+  lightbox: Expand,
+  "file-upload": Upload,
+  recaptcha: ShieldCheck,
+  search: Search,
+  "background-video": Film,
+  map: MapPin,
+  "custom-element": Braces,
+  facebook: ThumbsUp,
+  "x-twitter": AtSign,
 }
 const moduleIcon = (m: string) => MODULE_ICONS[m] ?? Box
 
@@ -1133,8 +1170,9 @@ function Palette({ onDragStart }: { onDragStart: (m: ModuleInfo & { label: strin
                         key={`${s.id}:${entry.label}`}
                         onPointerDown={(e) => onDragStart(info, e)}
                         title={entry.label}
-                        className="flex cursor-grab items-center rounded-md border border-border bg-background px-2.5 py-2 text-left text-xs text-foreground transition-colors hover:border-ring active:cursor-grabbing"
+                        className="flex cursor-grab items-center gap-1.5 rounded-md border border-border bg-background px-2 py-2 text-left text-xs text-foreground transition-colors hover:border-ring active:cursor-grabbing"
                       >
+                        <entry.icon className="size-3.5 shrink-0 text-muted-foreground" />
                         <span className="truncate">{entry.label}</span>
                       </button>
                     ))}
