@@ -63,8 +63,12 @@ export function SelectionOverlay({ scrollRef, selectedId, label, badge }: Overla
   if (!box) return null
   return (
     <div className="sel-ring" style={{ transform: `translate(${box.x}px, ${box.y}px)`, width: box.w, height: box.h }}>
-      {label && <span className="sel-label">{label}</span>}
-      {badge && <span className="sel-badge">{badge}</span>}
+      {(label || badge) && (
+        <span className="sel-tag">
+          {label && <span className="sel-label">{label}</span>}
+          {badge}
+        </span>
+      )}
     </div>
   )
 }

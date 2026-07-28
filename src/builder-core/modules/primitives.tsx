@@ -89,7 +89,27 @@ const Grid: ModuleDefinition = {
       ...(rows > 1 ? { gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` } : {}),
       gap: p.props.gap != null ? str(p.props.gap) : "1rem",
     }
-    return createElement("div", { className: p.className, style, ...ed(p) }, p.children)
+    // EDITOR ONLY: an empty grid is an empty box — you can't see the shape you
+    // just picked. Draw the tracks as dashed cell ghosts so the structure is
+    // visible before anything is in it (Webflow does the same). Never emitted on
+    // a published page, and they disappear as soon as the grid has content.
+    const kids = Array.isArray(p.children) ? p.children.filter(Boolean) : p.children
+    const isEmpty = !kids || (Array.isArray(kids) && kids.length === 0)
+    const ghosts =
+      p.isEditor && isEmpty
+        ? Array.from({ length: cols * rows }, (_, i) =>
+            createElement("div", {
+              key: `cell${i}`,
+              "data-bapp-cell": "",
+              style: {
+                border: "1px dashed rgba(10, 132, 255, 0.4)",
+                borderRadius: "4px",
+                minHeight: "56px",
+              },
+            })
+          )
+        : null
+    return createElement("div", { className: p.className, style, ...ed(p) }, ghosts ?? p.children)
   },
 }
 

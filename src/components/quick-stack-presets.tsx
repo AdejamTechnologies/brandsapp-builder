@@ -117,7 +117,9 @@ export function QuickStackPresets({
   return (
     <div
       ref={ref}
-      className="absolute top-9 right-0 z-50 w-56 rounded-xl border border-border bg-background p-3 shadow-lg"
+      // Opens rightward: the chip now rides beside the element label at the ring's
+      // top-LEFT, so anchoring right pushed the panel off the canvas.
+      className="absolute top-7 left-0 z-50 w-56 rounded-xl border border-border bg-background p-3 shadow-lg"
     >
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-semibold">Presets</span>
