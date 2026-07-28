@@ -1,5 +1,6 @@
 import { buildFragment, el, extractFragment, htmlToDoc, type Fragment, type NodeSpec } from "@brandsapp/builder-core"
 import blocksData from "./blocks-data.json"
+import { filterCurated } from "./curated"
 
 const rand = () => crypto.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10)
 
@@ -487,10 +488,14 @@ export const COMPONENTS: Template[] = [
   ),
 ]
 
-/** Imported MIT blocks (HyperUI + Meraki UI), generated from their repos → htmlToDoc. */
-export const EXTERNAL_BLOCKS: Template[] = (blocksData as { category: string; name: string; html: string }[]).map(
-  (b) => fromHtml(b.category, b.name, b.html)
-)
+/**
+ * Imported MIT blocks (HyperUI + Meraki UI), generated from their repos → htmlToDoc.
+ * Narrowed to the product owner's curated allowlist (see `lib/curated.ts` + the
+ * `/curate` screen); falls back to the full 300+ set until curation is exported.
+ */
+export const EXTERNAL_BLOCKS: Template[] = filterCurated(
+  blocksData as { category: string; name: string; html: string }[]
+).map((b) => fromHtml(b.category, b.name, b.html))
 
 /** Everything shown in the Sections tab: hand-authored + imported MIT blocks. */
 export const SECTIONS: Template[] = [...TEMPLATES, ...EXTERNAL_BLOCKS]

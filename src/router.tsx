@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router"
 
 import { TooltipProvider } from "./components/ui/tooltip"
+import { CuratePage } from "./routes/curate"
 import { EditorPage } from "./routes/editor"
 import { HomePage } from "./routes/home"
 import { PreviewPage } from "./routes/preview"
@@ -51,7 +52,13 @@ const previewRoute = createRoute({
   component: PreviewPage,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, editRoute, previewRoute])
+const curateRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/curate",
+  component: CuratePage,
+})
+
+const routeTree = rootRoute.addChildren([indexRoute, editRoute, previewRoute, curateRoute])
 
 export const router = createRouter({ routeTree })
 

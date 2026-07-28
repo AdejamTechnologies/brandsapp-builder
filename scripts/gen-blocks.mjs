@@ -5,6 +5,9 @@
  * survive a static import (form widgets, charts, JS-only interactive), and skips any
  * remaining Alpine (x-data) block. Output is imported into the Sections library via
  * htmlToDoc. Interactive components ship as first-class primitives instead.
+ * Also wires data-bapp-* runtime hooks (see wire-blocks.mjs) into whatever
+ * genuinely-inert accordion/dropdown/tabs markup survives the exclusions
+ * above, so freshly generated blocks come out pre-wired.
  *
  * Run:  node scripts/gen-blocks.mjs      See NOTICE.md for attribution.
  */
@@ -13,6 +16,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { tokenizeClasses } from "./token-map.mjs"
+import { wireHtml } from "./wire-blocks.mjs"
 
 const cache = path.join(os.tmpdir(), "bapp-blocks-cache")
 fs.mkdirSync(cache, { recursive: true })
@@ -44,6 +48,7 @@ const push = (category, sub, name, raw) => {
   let html = bodyInner(raw)
   html = tokenizeClasses(html) // remap hardcoded palette classes → daisyUI semantic tokens
   if (/x-data|@click|x-show/.test(html)) return // remaining Alpine → skip (use primitives)
+  html = wireHtml(html).html // inject data-bapp-* hooks into inert accordion/dropdown/tabs markup
   if (html.length < 40) return
   const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
   if (text.length < 3 && !/<img/i.test(html)) return

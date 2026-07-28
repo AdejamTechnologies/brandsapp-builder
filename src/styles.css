@@ -53,6 +53,9 @@ textarea {
 .pane-preview { background: #fff; }
 .pane-preview iframe { width: 100%; height: 100%; border: 0; }
 
+/* block-curation gallery (/curate) */
+.curate { flex: 1; display: flex; flex-direction: column; min-height: 0; background: #fff; }
+
 /* 3-pane visual editor */
 .editor3 { flex: 1; display: grid; grid-template-columns: 232px 1fr 288px; min-height: 0; }
 .col { min-height: 0; overflow: auto; background: #fff; }

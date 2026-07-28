@@ -15,6 +15,7 @@ import {
   LayoutGrid,
   LayoutTemplate,
   Link2,
+  ListChecks,
   Minus,
   MessageSquare,
   MousePointerClick,
@@ -641,6 +642,10 @@ export function EditorPage() {
           </IconButton>
           <IconButton tip="Export fragment" onClick={doExport}>
             <Download className="size-4" />
+          </IconButton>
+          <div className="mx-1 h-5 w-px bg-border" />
+          <IconButton tip="Curate library blocks (opens in a new tab)" onClick={() => window.open("/curate", "_blank")}>
+            <ListChecks className="size-4" />
           </IconButton>
           </div>
           <div className="flex shrink-0 items-center gap-1 pl-2">

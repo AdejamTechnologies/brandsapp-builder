@@ -1,9 +1,13 @@
 /**
  * Interactive OUTPUT primitives (the Preline model): they render static,
- * SSR-safe HTML with `data-*` hooks and become interactive on the published page —
- * `tabs` via the shared vanilla runtime (BUILDER_RUNTIME), `accordion` via native
- * `<details>` (no JS at all). In the editor (`isEditor`) they render in an expanded,
- * editable state so every panel/section is reachable.
+ * SSR-safe HTML with `data-*` hooks and become interactive on the published page.
+ * `tabs` and `dropdown` are driven by the shared vanilla runtime (BUILDER_RUNTIME);
+ * `accordion` is authored as native `<details>`, so it works with NO JS and the
+ * runtime only upgrades it (animation, chevron, one-open-at-a-time). In the editor
+ * (`isEditor`) they render expanded and editable so every panel is reachable.
+ *
+ * Colours here come from the doc's daisyUI theme vars (`--b1`/`--b3`) with literal
+ * fallbacks — never a hardcoded white/slate, which would ignore the tenant's palette.
  */
 
 import { createElement, type CSSProperties } from "react"
@@ -50,15 +54,29 @@ const TabPanel: ModuleDefinition = {
     ),
 }
 
-// ── Accordion (native <details>, no JS) ───────────────────────────────────────
+// ── Accordion (native <details>; the runtime upgrades it) ─────────────────────
+// Authored as real <details>/<summary>, so it opens and closes with NO JS at all.
+// The runtime then enhances it in place: height animation, a rotating chevron, and
+// — unless `multi` is set — closing its siblings so only one panel stays open.
 const Accordion: ModuleDefinition = {
   name: "accordion",
   category: "interactive",
-  schema: {},
-  defaults: {},
+  schema: { multi: { type: "boolean", label: "allow several open" } },
+  defaults: { multi: false },
   contentModel: { children: ["accordion-item"] },
+  needsRuntime: true,
   defaultClasses: "flex flex-col gap-2",
-  Component: (p: ModuleRenderProps) => createElement("div", { className: p.className, ...ed(p) }, p.children),
+  Component: (p: ModuleRenderProps) =>
+    createElement(
+      "div",
+      {
+        className: p.className,
+        "data-bapp-accordion": "",
+        ...(p.props.multi ? { "data-multi": "" } : {}),
+        ...ed(p),
+      },
+      p.children
+    ),
 }
 
 const AccordionItem: ModuleDefinition = {
@@ -101,7 +119,11 @@ const Dropdown: ModuleDefinition = {
           type: "button",
           style: {
             display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 14px",
-            border: "1px solid #e2e8f0", borderRadius: "8px", background: "#fff", cursor: "pointer", fontWeight: 500,
+            // Themed from the doc's own daisyUI vars (with literal fallbacks) so a
+            // tenant's palette flows through instead of a baked-in white/slate.
+            border: "1px solid hsl(var(--b3, 180 2% 90%))", borderRadius: "8px",
+            background: "hsl(var(--b1, 0 0% 100%))", color: "inherit",
+            cursor: "pointer", fontWeight: 500, font: "inherit",
           },
         },
         `${str(p.props.label, "Menu")} ▾`
@@ -112,7 +134,8 @@ const Dropdown: ModuleDefinition = {
           "data-bapp-dropdown-menu": "",
           style: {
             display: p.isEditor ? "block" : "none", position: "absolute", top: "calc(100% + 6px)", left: 0,
-            minWidth: "180px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "10px",
+            minWidth: "180px", background: "hsl(var(--b1, 0 0% 100%))",
+            border: "1px solid hsl(var(--b3, 180 2% 90%))", borderRadius: "10px",
             boxShadow: "0 10px 30px -10px rgba(0,0,0,.2)", padding: "6px", zIndex: 50,
           },
         },
