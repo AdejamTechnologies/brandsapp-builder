@@ -556,7 +556,7 @@ const ACCORDION: VariantCatalog = {
       label: "Boxed",
       group: "FAQ",
       hint: "Each question in its own bordered card.",
-      classes: "flex flex-col gap-2",
+      classes: "flex flex-col gap-2 p-2",
       children: faqItems("rounded-2xl border border-base-300 bg-base-100 px-5"),
     },
     {
@@ -564,7 +564,7 @@ const ACCORDION: VariantCatalog = {
       label: "Bordered list",
       group: "FAQ",
       hint: "One outline around the whole set.",
-      classes: "flex flex-col divide-y divide-base-300 rounded-2xl border border-base-300 bg-base-100",
+      classes: "flex flex-col divide-y divide-base-300 rounded-2xl border border-base-300 bg-base-100 py-1",
       children: faqItems("px-5"),
     },
     {
@@ -572,7 +572,7 @@ const ACCORDION: VariantCatalog = {
       label: "Hairlines",
       group: "FAQ",
       hint: "Rules between questions, no box.",
-      classes: "flex flex-col divide-y divide-base-300",
+      classes: "flex flex-col divide-y divide-base-300 py-1",
       children: faqItems("py-1"),
     },
     {
@@ -580,7 +580,7 @@ const ACCORDION: VariantCatalog = {
       label: "Filled",
       group: "FAQ",
       hint: "Tinted panels, no borders.",
-      classes: "flex flex-col gap-2",
+      classes: "flex flex-col gap-2 p-2",
       children: faqItems("rounded-xl bg-base-200 px-5"),
     },
     {
@@ -588,7 +588,7 @@ const ACCORDION: VariantCatalog = {
       label: "Numbered",
       group: "FAQ",
       hint: "Questions counted 01, 02, 03.",
-      classes: "flex flex-col divide-y divide-base-300",
+      classes: "flex flex-col divide-y divide-base-300 py-1",
       children: faqItems("py-1", true),
     },
     {
@@ -596,7 +596,7 @@ const ACCORDION: VariantCatalog = {
       label: "Plain",
       group: "FAQ",
       hint: "No chrome at all — for a page that already has plenty.",
-      classes: "flex flex-col gap-4",
+      classes: "flex flex-col gap-4 p-2",
       children: faqItems(""),
     },
     {
@@ -604,7 +604,7 @@ const ACCORDION: VariantCatalog = {
       label: "Several open",
       group: "Behaviour",
       hint: "Readers can keep more than one answer open.",
-      classes: "flex flex-col gap-2",
+      classes: "flex flex-col gap-2 p-2",
       props: { multi: true },
       children: faqItems("rounded-2xl border border-base-300 bg-base-100 px-5"),
     },
@@ -613,7 +613,7 @@ const ACCORDION: VariantCatalog = {
       label: "One at a time",
       group: "Behaviour",
       hint: "Opening a question closes the last — the default.",
-      classes: "flex flex-col gap-2",
+      classes: "flex flex-col gap-2 p-2",
       props: { multi: false },
       children: faqItems("rounded-2xl border border-base-300 bg-base-100 px-5"),
     },

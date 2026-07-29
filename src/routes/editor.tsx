@@ -8,6 +8,7 @@ import {
   Braces,
   Code,
   CornerDownRight,
+  CornerLeftUp,
   Expand,
   Film,
   Frame,
@@ -167,6 +168,7 @@ import { LibraryDialog } from "../components/library-dialog"
 import { ThemeDialog } from "../components/theme-dialog"
 import { copyNode, duplicateNode, insertFragmentAt, pasteFragment } from "../lib/actions"
 import { Canvas } from "../lib/canvas"
+import { describeNode } from "../lib/describe-node"
 import { resolveDrop, type DropIndicator, type DropTarget } from "../lib/canvas-dnd"
 import {
   addClassToNode,
@@ -182,6 +184,7 @@ import {
   insertChildAt,
   moveChild,
   moveNode,
+  parentOf,
   removeNode,
   renameComponent,
   updateProps,
@@ -398,8 +401,33 @@ export function EditorPage() {
 
   const settingsTitle = selNode ? (selNode.label ?? LABEL_OF[selNode.module] ?? selNode.module) : ""
 
+  // Walking up: used by Escape and by the ring's parent button.
+  const selParent = selectedId ? parentOf(doc, selectedId) : undefined
+  // describeNode, not LABEL_OF: it is what the selection ring itself shows, so the
+  // tooltip names the parent the same way ("Accordion Item", not "accordion-item").
+  const selParentName = selParent ? describeNode(selParent).name : ""
+  const selectParent = () => {
+    const cur = selectedId
+    if (!cur) return
+    const up = parentOf(docRef.current, cur)
+    // Nothing above it — clearing the selection is the only move left.
+    setSelectedId(up ? up.id : null)
+  }
+
   const selectionBadge = selectedId ? (
     <span className="relative inline-flex items-center gap-1">
+      {/* The discoverable half of Escape. Absent on the root, which has no parent. */}
+      {selParent && (
+        <button
+          type="button"
+          onClick={selectParent}
+          title={`Select parent · ${selParentName} (Esc)`}
+          aria-label={`Select parent, ${selParentName}`}
+          className="flex cursor-pointer items-center rounded-md bg-primary px-1 py-1 text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+        >
+          <CornerLeftUp className="size-3" />
+        </button>
+      )}
       {selNode?.module === "grid" && (
         <>
           <QuickStackChip cols={selCols} rows={selRows} onOpen={() => setPresetsOpen((v) => !v)} />
@@ -705,12 +733,23 @@ export function EditorPage() {
         del(sel)
         return
       }
-      if (k === "escape") setSelectedId(null)
+      // Escape walks UP the tree rather than clearing the selection. Getting from
+      // a deeply nested text node back to its card meant a trip to the Layers
+      // panel before; deselecting outright is the less useful of the two, so it
+      // only happens once there is no parent left to climb to.
+      if (k === "escape") {
+        // An open popover owns Escape — otherwise one press would both dismiss it
+        // and move the selection, which reads as the editor losing your place.
+        if (presetsOpen || elSettingsOpen || menu) return
+        e.preventDefault()
+        selectParent()
+        return
+      }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, undo, redo])
+  }, [selectedId, undo, redo, presetsOpen, elSettingsOpen, menu])
 
   // Generic press-drag-onto-canvas insert (shared by the Components and Sections
   // tabs). A press without movement falls back to click-insert.

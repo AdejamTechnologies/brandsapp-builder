@@ -81,7 +81,10 @@ const Accordion: ModuleDefinition = {
     { module: "accordion-item", props: { title: "How does billing work?" }, children: [{ module: "text", props: { text: "You're billed monthly and can change plans anytime." } }] },
     { module: "accordion-item", props: { title: "Can I cancel anytime?" }, children: [{ module: "text", props: { text: "Yes — cancel from your dashboard, no phone calls." } }] },
   ],
-  defaultClasses: "flex flex-col gap-2",
+  // A little padding on the container, not just on the items: without it the
+  // first question sits flush against whatever is above the accordion, and the
+  // set reads as loose text rather than one grouped element.
+  defaultClasses: "flex flex-col gap-2 p-2",
   Component: (p: ModuleRenderProps) =>
     createElement(
       "div",
