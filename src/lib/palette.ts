@@ -5,6 +5,7 @@ import {
   Quote, Rows3, Search, Shapes, ShieldCheck, Sparkles, Square, SquareCheck, Tag, ThumbsUp,
   Type, Upload, Video,
   AlertCircle, Badge as BadgeIcon, ChevronsRight, ChevronsUpDown, CircleUser, CreditCard, Ellipsis,
+  PanelBottom,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -138,6 +139,7 @@ export const PALETTE: PaletteSection[] = [
       { label: "Dropdown", icon: ChevronDown, module: "dropdown", keywords: "menu" },
       { label: "Code Embed", icon: Code2, module: "embed", keywords: "html iframe script" },
       { label: "Navbar", icon: Menu, module: "navbar", keywords: "nav menu header" },
+      { label: "Footer", icon: PanelBottom, module: "footer", keywords: "site map legal copyright bottom" },
       { label: "Tabs", icon: PanelTop, module: "tabs", keywords: "tabbed panels" },
       { label: "Accordion", icon: ChevronsUpDown, module: "accordion", keywords: "faq collapse toggle expand questions" },
       { label: "Map", icon: MapPin, module: "map", keywords: "location address" },

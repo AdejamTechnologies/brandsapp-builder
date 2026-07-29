@@ -620,6 +620,401 @@ const ACCORDION: VariantCatalog = {
   ],
 }
 
+// ── footer ───────────────────────────────────────────────────────────────────
+
+/**
+ * Covers the union of the Preline footers the user screenshotted, HyperUI's 12 and
+ * Meraki's 10 (both of which we already hold locally for the block library).
+ *
+ * NO BRAND MARKS. The originals show real App Store / Google Play badges and
+ * Visa / Mastercard logos. Those are trademarks, not layout — reproducing them
+ * would put someone else's mark on every tenant's site, so the store and payment
+ * rows use neutral labelled pills. An author who has the right to a real badge can
+ * drop an Image in.
+ */
+const SHELL = "mx-auto flex w-full max-w-6xl flex-col gap-10"
+const FOOT_LINK = "text-sm text-base-content/60 hover:text-base-content no-underline"
+const COL_TITLE = "text-sm font-semibold text-base-content"
+const LEGAL = "text-sm text-base-content/50"
+const RULE = "border-t border-base-300 pt-6"
+
+const wordmark = (classes = "font-display text-lg font-bold tracking-tight text-base-content"): DefaultChild =>
+  title("Brand", classes)
+
+/** A titled column of links — the unit every multi-column footer is made of. */
+function linkColumn(heading: string, items: string[]): DefaultChild {
+  return stack(
+    [span(heading, COL_TITLE), ...items.map((t) => link(t, FOOT_LINK))],
+    "flex flex-col items-start gap-2.5"
+  )
+}
+
+function socialRow(classes = "flex items-center gap-4"): DefaultChild {
+  return stack(
+    [
+      icon("facebook-circle", "inline-block w-5 h-5 text-base-content/50 hover:text-base-content"),
+      icon("instagram", "inline-block w-5 h-5 text-base-content/50 hover:text-base-content"),
+      icon("twitter-x", "inline-block w-5 h-5 text-base-content/50 hover:text-base-content"),
+      icon("youtube", "inline-block w-5 h-5 text-base-content/50 hover:text-base-content"),
+    ],
+    classes
+  )
+}
+
+const copyright = (): DefaultChild => span("© 2026 Brand. All rights reserved.", LEGAL)
+
+function legalBar(children: DefaultChild[]): DefaultChild {
+  return stack(children, `flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${RULE}`)
+}
+
+const legalLinks = (): DefaultChild =>
+  stack([link("Terms", FOOT_LINK), link("Privacy", FOOT_LINK), link("Cookies", FOOT_LINK)], "flex items-center gap-5")
+
+function newsletterForm(): DefaultChild {
+  return {
+    module: "form",
+    classes: "flex w-full max-w-md gap-2",
+    children: [
+      {
+        module: "input",
+        props: { type: "email", name: "email", label: "", placeholder: "Enter email address", required: true },
+        classes:
+          "h-11 flex-1 rounded-lg border border-base-300 bg-base-100 px-3.5 text-sm text-base-content placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-primary/30",
+      },
+      {
+        module: "submit",
+        props: { label: "Sign up" },
+        classes:
+          "inline-flex h-11 shrink-0 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-content cursor-pointer hover:opacity-90",
+      },
+    ],
+  }
+}
+
+/** Neutral pill in place of a trademarked store badge — see the note above. */
+function storePill(label: string, sub: string, iconId: string): DefaultChild {
+  return stack(
+    [
+      icon(iconId, "inline-block w-5 h-5 shrink-0 text-base-content"),
+      stack([span(sub, "text-[10px] text-base-content/55"), span(label, "text-sm font-medium text-base-content")], "flex flex-col leading-tight"),
+    ],
+    "inline-flex items-center gap-2.5 rounded-xl border border-base-300 bg-base-100 px-3.5 py-2"
+  )
+}
+
+const payPill = (label: string): DefaultChild =>
+  stack([span(label, "text-[11px] font-semibold text-base-content/70")], "inline-flex items-center rounded-md border border-base-300 bg-base-100 px-2.5 py-1.5")
+
+function contactRow(iconId: string, text: string): DefaultChild {
+  return stack(
+    [icon(iconId, "inline-block w-4 h-4 shrink-0 text-base-content/45"), span(text, "text-sm text-base-content/60")],
+    "flex items-center gap-2.5"
+  )
+}
+
+const COLS_4 = "grid grid-cols-2 gap-8 md:grid-cols-4"
+
+const FOOTER: VariantCatalog = {
+  title: "Footer variants",
+  groups: ["Minimal", "Columns", "Newsletter", "Commerce"],
+  variants: [
+    // ── Minimal ──
+    {
+      id: "minimal",
+      label: "Minimal",
+      group: "Minimal",
+      hint: "One line: copyright and a few links.",
+      classes: "w-full border-t border-base-300 bg-base-100 px-6 py-8",
+      children: [
+        stack(
+          [copyright(), legalLinks()],
+          "mx-auto flex w-full max-w-6xl flex-col items-center gap-4 sm:flex-row sm:justify-between"
+        ),
+      ],
+    },
+    {
+      id: "centered",
+      label: "Centred",
+      group: "Minimal",
+      hint: "Wordmark, nav and social stacked down the middle.",
+      classes: "w-full border-t border-base-300 bg-base-100 px-6 py-12",
+      children: [
+        stack(
+          [
+            wordmark(),
+            stack(
+              [link("About", FOOT_LINK), link("Features", FOOT_LINK), link("Pricing", FOOT_LINK), link("Contact", FOOT_LINK)],
+              "flex flex-wrap items-center justify-center gap-6"
+            ),
+            socialRow("flex items-center justify-center gap-4"),
+            copyright(),
+          ],
+          "mx-auto flex w-full max-w-3xl flex-col items-center gap-6 text-center"
+        ),
+      ],
+    },
+    {
+      id: "social",
+      label: "Copyright and social",
+      group: "Minimal",
+      hint: "Copyright one side, social icons the other.",
+      classes: "w-full border-t border-base-300 bg-base-100 px-6 py-8",
+      children: [
+        stack(
+          [copyright(), socialRow()],
+          "mx-auto flex w-full max-w-6xl flex-col items-center gap-4 sm:flex-row sm:justify-between"
+        ),
+      ],
+    },
+
+    // ── Columns ──
+    {
+      id: "columns",
+      label: "Link columns",
+      group: "Columns",
+      hint: "Wordmark and blurb beside three columns.",
+      classes: "w-full border-t border-base-300 bg-base-100 px-6 py-14",
+      children: [
+        stack(
+          [
+            stack(
+              [
+                stack(
+                  [wordmark(), para("Everything a small business needs to sell online, in one place.", "max-w-xs text-sm leading-relaxed text-base-content/60")],
+                  "flex flex-col gap-3"
+                ),
+                linkColumn("Product", ["Features", "Pricing", "Integrations", "Changelog"]),
+                linkColumn("Company", ["About", "Blog", "Careers", "Contact"]),
+                linkColumn("Legal", ["Terms", "Privacy", "Cookies", "Licences"]),
+              ],
+              COLS_4
+            ),
+            legalBar([copyright(), socialRow()]),
+          ],
+          SHELL
+        ),
+      ],
+    },
+    {
+      id: "columns-logo",
+      label: "Logo and columns",
+      group: "Columns",
+      hint: "Wordmark and social on the left of four columns.",
+      classes: "w-full border-t border-base-300 bg-base-100 px-6 py-14",
+      children: [
+        stack(
+          [
+            stack(
+              [
+                stack([wordmark(), socialRow("flex items-center gap-4")], "flex flex-col gap-6"),
+                linkColumn("Company", ["Newsroom", "New features", "Careers", "Investors"]),
+                linkColumn("Resources", ["Gift cards", "Find a store", "Membership"]),
+                linkColumn("Help", ["Help centre", "FAQs", "Order status", "Returns"]),
+              ],
+              COLS_4
+            ),
+            legalBar([legalLinks(), copyright()]),
+          ],
+          SHELL
+        ),
+      ],
+    },
+    {
+      id: "five-columns",
+      label: "Five columns",
+      group: "Columns",
+      hint: "A wide site map, with a language picker in the legal bar.",
+      classes: "w-full border-t border-base-300 bg-base-100 px-6 py-14",
+      children: [
+        stack(
+          [
+            stack(
+              [
+                stack([wordmark(), copyright()], "flex flex-col gap-2"),
+                linkColumn("Product", ["Pricing", "Changelog", "Docs", "Download"]),
+                linkColumn("Company", ["About us", "Blog", "Careers", "Customers"]),
+                linkColumn("Resources", ["Community", "Help & support", "eBook", "Status"]),
+                linkColumn("Developers", ["API", "Status", "GitHub"]),
+              ],
+              "grid grid-cols-2 gap-8 md:grid-cols-3 lg:grid-cols-5"
+            ),
+            legalBar([
+              stack(
+                [
+                  stack(
+                    [icon("global", "inline-block w-4 h-4 text-base-content/50"), span("English (UK)", "text-sm text-base-content/70")],
+                    "inline-flex items-center gap-2 rounded-lg border border-base-300 px-3 py-1.5"
+                  ),
+                  legalLinks(),
+                ],
+                "flex flex-wrap items-center gap-5"
+              ),
+              socialRow(),
+            ]),
+          ],
+          SHELL
+        ),
+      ],
+    },
+    {
+      id: "contact",
+      label: "With contact details",
+      group: "Columns",
+      hint: "Address, phone and email beside the columns.",
+      classes: "w-full border-t border-base-300 bg-base-100 px-6 py-14",
+      children: [
+        stack(
+          [
+            stack(
+              [
+                stack(
+                  [
+                    wordmark(),
+                    contactRow("map-pin", "12 Adeola Odeku St, Victoria Island, Lagos"),
+                    contactRow("phone", "+234 800 000 0000"),
+                    contactRow("mail", "hello@brand.com"),
+                  ],
+                  "flex flex-col gap-3"
+                ),
+                linkColumn("Shop", ["New in", "Collections", "Sale", "Gift cards"]),
+                linkColumn("Support", ["Delivery", "Returns", "Size guide", "Contact"]),
+                linkColumn("Company", ["About", "Stockists", "Careers", "Press"]),
+              ],
+              COLS_4
+            ),
+            legalBar([copyright(), socialRow()]),
+          ],
+          SHELL
+        ),
+      ],
+    },
+
+    // ── Newsletter ──
+    {
+      id: "newsletter",
+      label: "Newsletter and columns",
+      group: "Newsletter",
+      hint: "Subscribe form above the site map.",
+      classes: "w-full border-t border-base-300 bg-base-100 px-6 py-14",
+      children: [
+        stack(
+          [
+            stack(
+              [
+                title("Subscribe and get 10% off", "font-display text-xl font-semibold text-base-content"),
+                newsletterForm(),
+              ],
+              "flex flex-col gap-4"
+            ),
+            stack(
+              [
+                linkColumn("Help", ["Help centre", "FAQs", "Order status", "Returns"]),
+                linkColumn("Resources", ["Gift cards", "Find a store", "Membership"]),
+                linkColumn("Company", ["Newsroom", "Careers", "Investors", "Purpose"]),
+                stack([span("Stay connected", COL_TITLE), socialRow()], "flex flex-col items-start gap-3"),
+              ],
+              COLS_4
+            ),
+            legalBar([copyright(), legalLinks()]),
+          ],
+          SHELL
+        ),
+      ],
+    },
+    {
+      id: "newsletter-cta",
+      label: "Newsletter call to action",
+      group: "Newsletter",
+      hint: "One centred invitation and a form.",
+      classes: "w-full border-t border-base-300 bg-base-200 px-6 py-16",
+      children: [
+        stack(
+          [
+            title("Get the good stuff, monthly", "font-display text-2xl font-semibold text-base-content"),
+            para("One email a month. New arrivals, no filler, unsubscribe whenever.", "max-w-md text-sm leading-relaxed text-base-content/60"),
+            newsletterForm(),
+            copyright(),
+          ],
+          "mx-auto flex w-full max-w-2xl flex-col items-center gap-5 text-center"
+        ),
+      ],
+    },
+
+    // ── Commerce ──
+    {
+      id: "commerce",
+      label: "Commerce",
+      group: "Commerce",
+      hint: "Columns, app links and accepted payments.",
+      classes: "w-full border-t border-base-300 bg-base-100 px-6 py-14",
+      children: [
+        stack(
+          [
+            stack(
+              [
+                linkColumn("Company", ["About", "Affiliates", "Contact us", "Press"]),
+                linkColumn("Customer service", ["Returns policy", "Shipping info", "Report an issue"]),
+                linkColumn("Help", ["Support centre", "Safety", "Purchase protection", "Sitemap"]),
+                stack(
+                  [
+                    span("Get the app", COL_TITLE),
+                    storePill("App Store", "Download on the", "smartphone"),
+                    storePill("Google Play", "Get it on", "smartphone"),
+                  ],
+                  "flex flex-col items-start gap-2.5"
+                ),
+              ],
+              COLS_4
+            ),
+            stack(
+              [
+                span("We accept", COL_TITLE),
+                stack(
+                  [payPill("Visa"), payPill("Mastercard"), payPill("Verve"), payPill("Transfer")],
+                  "flex flex-wrap items-center gap-2"
+                ),
+              ],
+              "flex flex-col gap-3"
+            ),
+            legalBar([copyright(), legalLinks()]),
+          ],
+          SHELL
+        ),
+      ],
+    },
+    {
+      id: "store",
+      label: "Store",
+      group: "Commerce",
+      hint: "Shop columns with payments and social in the bar.",
+      classes: "w-full border-t border-base-300 bg-base-100 px-6 py-14",
+      children: [
+        stack(
+          [
+            stack(
+              [
+                stack(
+                  [wordmark(), para("Free delivery in Lagos on orders over ₦50,000.", "max-w-xs text-sm leading-relaxed text-base-content/60")],
+                  "flex flex-col gap-3"
+                ),
+                linkColumn("Shop", ["New in", "Best sellers", "Collections", "Sale"]),
+                linkColumn("Account", ["Sign in", "Order status", "Wishlist", "Returns"]),
+                linkColumn("About", ["Our story", "Stockists", "Careers", "Contact"]),
+              ],
+              COLS_4
+            ),
+            legalBar([
+              stack([payPill("Visa"), payPill("Mastercard"), payPill("Verve")], "flex items-center gap-2"),
+              socialRow(),
+            ]),
+          ],
+          SHELL
+        ),
+      ],
+    },
+  ],
+}
+
 // ── registry ─────────────────────────────────────────────────────────────────
 
 /**
@@ -643,6 +1038,7 @@ export const COMPONENT_VARIANTS: Record<string, VariantCatalog> = {
   badge: BADGE,
   avatar: AVATAR,
   accordion: ACCORDION,
+  footer: FOOTER,
   // These two render real <ol>/<ul>; see LIST_RESET.
   breadcrumb: withListReset(BREADCRUMB),
   pagination: withListReset(PAGINATION),

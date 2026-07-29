@@ -189,4 +189,46 @@ const Pagination: ModuleDefinition = {
     ),
 }
 
-export const COMPONENT_MODULES: ModuleDefinition[] = [Card, Alert, Badge, Avatar, Breadcrumb, Pagination]
+// ── footer ───────────────────────────────────────────────────────────────────
+
+const Footer: ModuleDefinition = {
+  name: "footer",
+  category: "layout",
+  schema: { ...ADVANCED_SCHEMA },
+  defaults: { ...ADVANCED_DEFAULTS },
+  contentModel: { children: "any" },
+  // A real <footer>, not a div: it is a landmark, and assistive tech offers it as
+  // one. Full-bleed with its own top rule, because a footer marks the end of the
+  // page rather than sitting inside the content column.
+  defaultClasses: "w-full border-t border-base-300 bg-base-100 px-6 py-12",
+  defaultChildren: [
+    {
+      module: "box",
+      classes: "mx-auto flex w-full max-w-6xl flex-col gap-8",
+      children: [
+        {
+          module: "heading",
+          props: { text: "Brand", level: "3" },
+          classes: "font-display text-lg font-bold tracking-tight text-base-content",
+        },
+        {
+          module: "text",
+          props: { tag: "p", text: "© 2026 Brand. All rights reserved." },
+          classes: "text-sm text-base-content/55",
+        },
+      ],
+    },
+  ],
+  Component: (p: ModuleRenderProps) =>
+    createElement("footer", { className: p.className, ...rootAttrs(p) }, p.children),
+}
+
+export const COMPONENT_MODULES: ModuleDefinition[] = [
+  Card,
+  Alert,
+  Badge,
+  Avatar,
+  Breadcrumb,
+  Pagination,
+  Footer,
+]

@@ -41,6 +41,7 @@ const MODULE_LABELS: Record<string, string> = {
   avatar: "Avatar",
   breadcrumb: "Breadcrumb",
   pagination: "Pagination",
+  footer: "Footer",
   form: "Form Block",
   submit: "Form Button",
   "form-label": "Label",
