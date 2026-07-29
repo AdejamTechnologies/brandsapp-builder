@@ -4,7 +4,7 @@ import {
   LayoutGrid, Link, Link2, List, MapPin, Menu, MousePointerClick, PanelTop, Pilcrow, Play,
   Quote, Rows3, Search, Shapes, ShieldCheck, Sparkles, Square, SquareCheck, Tag, ThumbsUp,
   Type, Upload, Video,
-  AlertCircle, Badge as BadgeIcon, ChevronsRight, CircleUser, CreditCard, Ellipsis,
+  AlertCircle, Badge as BadgeIcon, ChevronsRight, ChevronsUpDown, CircleUser, CreditCard, Ellipsis,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -139,6 +139,7 @@ export const PALETTE: PaletteSection[] = [
       { label: "Code Embed", icon: Code2, module: "embed", keywords: "html iframe script" },
       { label: "Navbar", icon: Menu, module: "navbar", keywords: "nav menu header" },
       { label: "Tabs", icon: PanelTop, module: "tabs", keywords: "tabbed panels" },
+      { label: "Accordion", icon: ChevronsUpDown, module: "accordion", keywords: "faq collapse toggle expand questions" },
       { label: "Map", icon: MapPin, module: "map", keywords: "location address" },
       { label: "Custom Element", icon: Braces, module: "custom-element", keywords: "tag web component" },
       { label: "Code Block", icon: Code, module: "code-block", keywords: "pre snippet syntax" },

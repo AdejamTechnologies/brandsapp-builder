@@ -522,6 +522,104 @@ const PAGINATION: VariantCatalog = {
   ],
 }
 
+// ── accordion (FAQ) ──────────────────────────────────────────────────────────
+
+/**
+ * The questions are the same across variants on purpose — what changes is the
+ * treatment, and swapping the copy too would make the picker look like it does
+ * more than it does. Answers are real nodes, so an author edits them in place.
+ */
+const FAQ: Array<[string, string]> = [
+  ["What's included?", "Everything in the plan, with no setup fee."],
+  ["How does billing work?", "You're billed monthly and can change plans anytime."],
+  ["Can I cancel anytime?", "Yes — cancel from your dashboard, no phone calls."],
+  ["Do you offer refunds?", "Within 14 days of a charge, no questions asked."],
+]
+
+const ANSWER = "text-sm leading-relaxed text-base-content/70"
+
+function faqItems(itemClasses: string, numbered = false): DefaultChild[] {
+  return FAQ.map(([q, a], i) => ({
+    module: "accordion-item",
+    props: { title: numbered ? `${String(i + 1).padStart(2, "0")}. ${q}` : q },
+    classes: itemClasses,
+    children: [para(a, ANSWER)],
+  }))
+}
+
+const ACCORDION: VariantCatalog = {
+  title: "Accordion variants",
+  groups: ["FAQ", "Behaviour"],
+  variants: [
+    {
+      id: "boxed",
+      label: "Boxed",
+      group: "FAQ",
+      hint: "Each question in its own bordered card.",
+      classes: "flex flex-col gap-2",
+      children: faqItems("rounded-2xl border border-base-300 bg-base-100 px-5"),
+    },
+    {
+      id: "bordered",
+      label: "Bordered list",
+      group: "FAQ",
+      hint: "One outline around the whole set.",
+      classes: "flex flex-col divide-y divide-base-300 rounded-2xl border border-base-300 bg-base-100",
+      children: faqItems("px-5"),
+    },
+    {
+      id: "separated",
+      label: "Hairlines",
+      group: "FAQ",
+      hint: "Rules between questions, no box.",
+      classes: "flex flex-col divide-y divide-base-300",
+      children: faqItems("py-1"),
+    },
+    {
+      id: "filled",
+      label: "Filled",
+      group: "FAQ",
+      hint: "Tinted panels, no borders.",
+      classes: "flex flex-col gap-2",
+      children: faqItems("rounded-xl bg-base-200 px-5"),
+    },
+    {
+      id: "numbered",
+      label: "Numbered",
+      group: "FAQ",
+      hint: "Questions counted 01, 02, 03.",
+      classes: "flex flex-col divide-y divide-base-300",
+      children: faqItems("py-1", true),
+    },
+    {
+      id: "plain",
+      label: "Plain",
+      group: "FAQ",
+      hint: "No chrome at all — for a page that already has plenty.",
+      classes: "flex flex-col gap-4",
+      children: faqItems(""),
+    },
+    {
+      id: "multi",
+      label: "Several open",
+      group: "Behaviour",
+      hint: "Readers can keep more than one answer open.",
+      classes: "flex flex-col gap-2",
+      props: { multi: true },
+      children: faqItems("rounded-2xl border border-base-300 bg-base-100 px-5"),
+    },
+    {
+      id: "one-at-a-time",
+      label: "One at a time",
+      group: "Behaviour",
+      hint: "Opening a question closes the last — the default.",
+      classes: "flex flex-col gap-2",
+      props: { multi: false },
+      children: faqItems("rounded-2xl border border-base-300 bg-base-100 px-5"),
+    },
+  ],
+}
+
 // ── registry ─────────────────────────────────────────────────────────────────
 
 /**
@@ -544,6 +642,7 @@ export const COMPONENT_VARIANTS: Record<string, VariantCatalog> = {
   alert: ALERT,
   badge: BADGE,
   avatar: AVATAR,
+  accordion: ACCORDION,
   // These two render real <ol>/<ul>; see LIST_RESET.
   breadcrumb: withListReset(BREADCRUMB),
   pagination: withListReset(PAGINATION),
