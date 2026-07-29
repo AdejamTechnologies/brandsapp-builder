@@ -33,9 +33,10 @@ import { cn } from "../lib/utils"
 const DEFAULT_THEME = themeTokens.parse({})
 const THEME_CSS = themeToCss(DEFAULT_THEME, ".bapp-root")
 
-const PREVIEW_W = 1280 // the authoring width blocks were designed at
+const PREVIEW_W = 1024 // authoring width; narrower than desktop so the
+// down-scale into a card is gentler and the preview text stays readable
 const MIN_H = 70 // a one-line announcement bar stays clickable
-const MAX_H = 300 // a long block crops rather than dominating the list
+const MAX_H = 340 // a long block crops rather than dominating the list
 const FALLBACK_H = 170 // before measurement / while off-screen
 
 /** A Fragment is a Doc without a theme, so previewing one is just adding it. */
@@ -46,6 +47,15 @@ function docOf(t: Template): Doc | null {
   } catch {
     return null
   }
+}
+
+/** Nearest ancestor that actually scrolls — the sidebar's visible box. */
+function scrollViewport(from: HTMLElement | null): HTMLElement | null {
+  for (let el = from?.parentElement ?? null; el && el !== document.body; el = el.parentElement) {
+    const oy = getComputedStyle(el).overflowY
+    if ((oy === "auto" || oy === "scroll") && el.clientHeight > 0) return el
+  }
+  return from
 }
 
 function useInView<T extends Element>(rootMargin = "600px") {
@@ -66,14 +76,14 @@ function Thumb({ doc }: { doc: Doc | null }) {
   const { ref, inView } = useInView<HTMLDivElement>()
   const inner = useRef<HTMLDivElement>(null)
   const [h, setH] = useState<number | null>(null)
-  const [w, setW] = useState(560)
+  const [w, setW] = useState(600)
 
   // The card is fluid, so the scale has to follow its measured width rather than
   // a constant — a hardcoded ratio left a gap on one side at other panel widths.
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const ro = new ResizeObserver(() => setW(el.clientWidth || 560))
+    const ro = new ResizeObserver(() => setW(el.clientWidth || 600))
     ro.observe(el)
     return () => ro.disconnect()
   }, [ref])
@@ -138,12 +148,35 @@ export function SectionGallery({
   useEffect(() => {
     if (!open) return
     const measure = () => {
-      const r = rootRef.current?.getBoundingClientRect()
-      if (r) setAnchor({ left: Math.round(r.right), top: Math.round(r.top), height: Math.round(r.height) })
+      // Anchor to the scrolling PANEL, not to this component's own box. The panel
+      // is the scroller and this root grows to its full content height, so its
+      // rect reported top:-631 height:2094 once the list was scrolled — the
+      // flyout then hung off the top of the window and over the toolbar.
+      const el = scrollViewport(rootRef.current)
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      // Vertically the flyout matches the CANVAS, not the sidebar: the sidebar
+      // starts level with the toolbar, so anchoring to it buried Code, Interact
+      // and the breakpoint switcher behind the panel.
+      const canvas = document.querySelector(".canvas-wrap")?.getBoundingClientRect()
+      setAnchor({
+        left: Math.round(r.right),
+        top: Math.round(canvas?.top ?? r.top),
+        height: Math.round(canvas?.height ?? r.height),
+      })
     }
     measure()
+    // Once more after layout settles: the flyout mounts in the same commit that
+    // opens it, so the first paint would otherwise use the initial zero anchor
+    // and sit over the toolbar.
+    const raf = requestAnimationFrame(measure)
     window.addEventListener("resize", measure)
-    return () => window.removeEventListener("resize", measure)
+    window.addEventListener("scroll", measure, true)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener("resize", measure)
+      window.removeEventListener("scroll", measure, true)
+    }
   }, [open])
 
   const query = q.trim().toLowerCase()
@@ -152,14 +185,18 @@ export function SectionGallery({
     [items, query]
   )
 
+  // Keyed on the DISPLAY name: HyperUI and Meraki both ship a "footers"
+  // category, and grouping on the raw string gave two rows both labelled
+  // "Footers" with the blocks split arbitrarily between them.
   const categories = useMemo(() => {
     const m = new Map<string, Template[]>()
     for (const t of matched) {
-      const list = m.get(t.category)
+      const key = prettyCategory(t.category)
+      const list = m.get(key)
       if (list) list.push(t)
-      else m.set(t.category, [t])
+      else m.set(key, [t])
     }
-    return [...m.entries()]
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   }, [matched])
 
   const shown = open ? (categories.find(([c]) => c === open)?.[1] ?? []) : []
@@ -244,7 +281,7 @@ export function SectionGallery({
             <div
               ref={flyout}
               style={{ left: anchor.left, top: anchor.top, height: anchor.height }}
-              className="fixed z-40 flex w-[34rem] flex-col border-l border-border bg-background shadow-xl"
+              className="fixed z-40 flex w-[38rem] flex-col border-l border-border bg-background shadow-xl"
             >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <span className="text-xs font-semibold uppercase tracking-wide text-foreground">

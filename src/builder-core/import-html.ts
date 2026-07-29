@@ -150,11 +150,18 @@ export function htmlToDoc(html: string): Doc {
     const style = el.attrs.style ? parseStyleAttr(el.attrs.style) : undefined
     // Preserve utility classes (Tailwind/Preline) — the renderer turns them into
     // CSS at render time (UnoCSS), so an imported block keeps its styling.
-    const classes = el.attrs.class?.trim() || undefined
+    let classes = el.attrs.class?.trim() || undefined
 
     // Keep the original tag on box elements (ul/li/section/nav/…) so structure —
     // and CSS that targets real tags (e.g. daisyUI menu/breadcrumbs) — is faithful.
     if (module === "box" && el.tag !== "div") props.tag = el.tag
+    // Imported markup was authored against Tailwind's PREFLIGHT, which strips a
+    // list's markers and indent. Our generator runs preflight OFF, so an imported
+    // <ul> arrives with UA bullets and a 40px indent it never had at the source.
+    // Only applied when the author set no list-style of their own.
+    if ((el.tag === "ul" || el.tag === "ol") && !/\blist-/.test(el.attrs.class ?? "")) {
+      classes = `list-none m-0 p-0 ${classes ?? ""}`.trim()
+    }
     if (module === "heading") props.level = el.tag.replace("h", "")
     if (module === "image") {
       props.src = el.attrs.src ?? ""
