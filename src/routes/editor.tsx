@@ -102,6 +102,8 @@ const MODULE_ICONS: Record<string, typeof Box> = {
   list: List,
   "list-item": CornerDownRight,
   navbar: Menu,
+  "nav-menu": List,
+  "nav-toggle": Menu,
   "code-block": Code,
   youtube: Play,
   lottie: Sparkles,
@@ -139,6 +141,7 @@ import {
 import { CommentsDialog } from "../components/comments-dialog"
 import { ContextMenu, type MenuItem } from "../components/context-menu"
 import { QuickStackChip, QuickStackPresets } from "../components/quick-stack-presets"
+import { NavbarChip, NavbarVariants } from "../components/navbar-variants"
 import { ElementSettings, ElementSettingsChip } from "../components/element-settings"
 import { SettingsFields } from "../components/settings-fields"
 import { Inspector } from "../components/inspector"
@@ -150,6 +153,7 @@ import { resolveDrop, type DropIndicator, type DropTarget } from "../lib/canvas-
 import {
   addClassToNode,
   ancestorsOf,
+  applyNavbarVariant,
   convertNode,
   createClass,
   createComponent,
@@ -352,8 +356,8 @@ export function EditorPage() {
   const [presetsOpen, setPresetsOpen] = useState(false)
   const [elSettingsOpen, setElSettingsOpen] = useState(false)
 
-  // Only elements with real presets get a chip on the selection ring; today
-  // that's Quick Stack (our `grid`). Everything else gets a bare ring.
+  // Only elements with real presets get a chip on the selection ring — today
+  // Quick Stack (our `grid`) and Navbar. Everything else gets a bare ring.
   const selNode = selectedId ? doc.nodes[selectedId] : undefined
   const selCols = Math.max(1, Number(selNode?.props?.columns ?? 3) || 3)
   const selRows = Math.max(1, Number(selNode?.props?.rows ?? 1) || 1)
@@ -385,6 +389,19 @@ export function EditorPage() {
               cols={selCols}
               rows={selRows}
               onApply={(next) => apply(updateProps(docRef.current, selectedId, next))}
+              onClose={() => setPresetsOpen(false)}
+            />
+          )}
+        </>
+      )}
+      {selNode?.module === "navbar" && (
+        <>
+          <NavbarChip variant={selNode.props?.variant as string | undefined} onOpen={() => setPresetsOpen((v) => !v)} />
+          {presetsOpen && (
+            <NavbarVariants
+              variant={selNode.props?.variant as string | undefined}
+              hasContent={selNode.children.length > 0}
+              onApply={(v) => apply(applyNavbarVariant(docRef.current, selectedId, v, (n) => registry.get(n)))}
               onClose={() => setPresetsOpen(false)}
             />
           )}

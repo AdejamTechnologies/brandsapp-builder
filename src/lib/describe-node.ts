@@ -30,6 +30,9 @@ const MODULE_LABELS: Record<string, string> = {
   section: "Section",
   container: "Container",
   navbar: "Navbar",
+  // Webflow's names for the two halves of a collapsible nav.
+  "nav-menu": "Nav Menu",
+  "nav-toggle": "Menu Button",
   form: "Form Block",
   submit: "Form Button",
   "form-label": "Label",

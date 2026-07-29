@@ -76,21 +76,53 @@ const Container: ModuleDefinition = {
 
 const NAV_LINK_CLASSES = "text-sm text-base-content/70 hover:text-base-content no-underline"
 
+/**
+ * The desktop row / mobile panel duality in one class string. Below the breakpoint
+ * `hidden` takes it out of flow and the runtime drops it in as an absolutely
+ * positioned sheet; at `md` and up the positioning resets and it is an ordinary
+ * inline row. Both states are class-driven so an author can restyle either.
+ */
+const NAV_MENU_CLASSES =
+  "hidden absolute left-0 right-0 top-full z-40 flex-col gap-1 border-t border-base-300 bg-base-100 p-4 shadow-lg " +
+  "md:static md:z-auto md:flex md:flex-row md:items-center md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none"
+
 const navLink = (text: string): DefaultChild => ({
   module: "link",
   props: { text, href: "#" },
   classes: NAV_LINK_CLASSES,
 })
 
+/**
+ * Where the desktop bar gives way to the mobile panel. Stored as a Tailwind
+ * breakpoint name because that is what the authored classes use (`hidden md:flex`),
+ * and handed to the runtime as the matching pixel value so the two can never
+ * disagree about when the menu should collapse.
+ */
+const COLLAPSE_PX: Record<string, string> = { sm: "640", md: "768", lg: "1024", xl: "1280", never: "0" }
+
 const Navbar: ModuleDefinition = {
   name: "navbar",
   category: "layout",
-  schema: { ...ADVANCED_SCHEMA },
-  defaults: { ...ADVANCED_DEFAULTS },
+  schema: {
+    collapse: {
+      type: "select",
+      label: "collapse below",
+      options: [
+        { label: "Small (640px)", value: "sm" },
+        { label: "Medium (768px)", value: "md" },
+        { label: "Large (1024px)", value: "lg" },
+        { label: "X-Large (1280px)", value: "xl" },
+        { label: "Never", value: "never" },
+      ],
+    },
+    ...ADVANCED_SCHEMA,
+  },
+  defaults: { collapse: "md", ...ADVANCED_DEFAULTS },
   contentModel: { children: "any" },
+  needsRuntime: true,
   defaultClasses: "w-full max-w-6xl mx-auto flex items-center justify-between gap-6 px-6 py-4",
-  // Drops in as a working nav: a wordmark on the left, a row of links on the
-  // right — not an empty bar the author has to populate from scratch.
+  // Drops in as a working nav: a wordmark, a real collapsible menu and a
+  // hamburger — not an empty bar the author has to populate from scratch.
   defaultChildren: [
     {
       module: "heading",
@@ -98,13 +130,92 @@ const Navbar: ModuleDefinition = {
       classes: "font-display text-lg font-bold tracking-tight text-base-content",
     },
     {
-      module: "stack",
-      props: { direction: "row", gap: "1.5rem", align: "center" },
-      classes: "flex items-center gap-6",
+      module: "nav-menu",
+      classes: NAV_MENU_CLASSES,
       children: [navLink("Home"), navLink("About"), navLink("Pricing"), navLink("Contact")],
     },
+    { module: "nav-toggle" },
   ],
-  Component: (p: ModuleRenderProps) => createElement("nav", { className: p.className, ...rootAttrs(p) }, p.children),
+  Component: (p: ModuleRenderProps) =>
+    createElement(
+      "nav",
+      {
+        className: p.className,
+        "data-bapp-navbar": "",
+        "data-collapse": COLLAPSE_PX[str(p.props.collapse, "md")] ?? "768",
+        ...rootAttrs(p),
+      },
+      p.children
+    ),
+}
+
+/**
+ * The collapsible half of a navbar. On desktop it is an ordinary flex row; below
+ * the navbar's breakpoint the authored `hidden` class takes it out of flow and the
+ * runtime drops it in as a panel. Rendering is deliberately class-driven rather
+ * than prop-driven so an author can restyle the panel like any other element.
+ */
+const NavMenu: ModuleDefinition = {
+  name: "nav-menu",
+  category: "layout",
+  schema: {
+    // Editor-only, mirroring `dropdown.menuOpen`: hold the mobile panel open so
+    // its contents can be selected and styled at a narrow canvas width. A
+    // published page always starts closed — the runtime owns that state.
+    menuOpen: {
+      type: "select",
+      label: "mobile panel",
+      segmented: true,
+      options: [
+        { label: "Hide", value: "false" },
+        { label: "Show", value: "true" },
+      ],
+    },
+    ...ADVANCED_SCHEMA,
+  },
+  defaults: { menuOpen: "false", ...ADVANCED_DEFAULTS },
+  contentModel: { children: "any" },
+  allowedParents: ["navbar"],
+  defaultClasses: NAV_MENU_CLASSES,
+  defaultChildren: [navLink("Home"), navLink("About"), navLink("Pricing"), navLink("Contact")],
+  Component: (p: ModuleRenderProps) => {
+    // Only neutralises `hidden`; `display:flex` would fight the mobile column.
+    const pinned = p.isEditor && String(p.props.menuOpen) === "true"
+    return createElement(
+      "div",
+      {
+        className: p.className,
+        "data-bapp-nav-menu": "",
+        ...(pinned ? { style: { display: "block" } as CSSProperties } : {}),
+        ...rootAttrs(p),
+      },
+      p.children
+    )
+  },
+}
+
+/**
+ * The hamburger. Renders as an empty `<button>` on purpose — the runtime injects
+ * the three bars and drives the bars-to-X morph from `aria-expanded`, so the
+ * glyph and the state can't drift apart. With JS off it is simply an inert
+ * button, which is why the menu links are also present in the DOM.
+ */
+const NavToggle: ModuleDefinition = {
+  name: "nav-toggle",
+  category: "layout",
+  schema: { ...ADVANCED_SCHEMA },
+  defaults: { ...ADVANCED_DEFAULTS },
+  contentModel: { children: "none" },
+  allowedParents: ["navbar"],
+  defaultClasses: "md:hidden text-base-content",
+  Component: (p: ModuleRenderProps) =>
+    createElement("button", {
+      className: `bapp-navtoggle ${p.className ?? ""}`.trim(),
+      type: "button",
+      "data-bapp-nav-toggle": "",
+      "aria-label": "Toggle navigation menu",
+      ...rootAttrs(p),
+    }),
 }
 
 // ── lists ────────────────────────────────────────────────────────────────────
@@ -192,4 +303,13 @@ const CodeBlock: ModuleDefinition = {
     ),
 }
 
-export const STRUCTURE_MODULES: ModuleDefinition[] = [Section, Container, Navbar, List, ListItem, CodeBlock]
+export const STRUCTURE_MODULES: ModuleDefinition[] = [
+  Section,
+  Container,
+  Navbar,
+  NavMenu,
+  NavToggle,
+  List,
+  ListItem,
+  CodeBlock,
+]

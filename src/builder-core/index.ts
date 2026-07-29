@@ -23,6 +23,7 @@ export * from "./runtime"
 export * from "./unocss"
 export * from "./import-html"
 export * from "./authoring"
+export * from "./navbar-variants"
 export {
   ALL_BUTTON_TOKENS,
   ANIMATION_LOADER,

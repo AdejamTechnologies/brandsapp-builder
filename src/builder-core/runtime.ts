@@ -25,6 +25,7 @@
  *       or explicit [data-bapp-accordion-item] > [-trigger] + [-panel] for imported
  *       markup that isn't <details> (both forms supported)
  *   [data-bapp-dropdown]  > [-trigger] + [-menu]
+ *   [data-bapp-navbar]    > [-nav-toggle] + [-nav-menu]         — mobile collapse
  *   .bapp-reveal                                                — scroll reveal
  */
 export const BUILDER_RUNTIME = `(function(){
@@ -50,7 +51,13 @@ export const BUILDER_RUNTIME = `(function(){
       +'.bapp-acc-trigger{display:flex;align-items:center;gap:.5em;width:100%;text-align:left;font:inherit;font-weight:600;background:transparent;border:0;cursor:pointer;padding:12px 0;color:inherit}'
       +'.bapp-bgv-btn{position:absolute;right:12px;bottom:12px;z-index:2;width:36px;height:36px;border:0;border-radius:999px;cursor:pointer;font-size:13px;line-height:1;background:hsl(var(--b1, 0 0% 100%)/.85);color:'+ink+';box-shadow:0 2px 10px rgba(0,0,0,.18)}'
       +'.bapp-bgv-btn:focus-visible{outline:2px solid '+accent+';outline-offset:2px}'
-      +'@media (prefers-reduced-motion: reduce){.bapp-acc-panel,.bapp-chev{transition:none!important}}';
+      +'.bapp-navtoggle{display:inline-flex;flex-direction:column;justify-content:center;gap:5px;width:40px;height:40px;padding:0 9px;border:0;background:transparent;cursor:pointer;color:inherit}'
+      +'.bapp-navtoggle span{display:block;width:100%;height:2px;border-radius:2px;background:currentColor;transition:transform .2s ease,opacity .2s ease}'
+      +'.bapp-navtoggle[aria-expanded="true"] span:nth-child(1){transform:translateY(7px) rotate(45deg)}'
+      +'.bapp-navtoggle[aria-expanded="true"] span:nth-child(2){opacity:0}'
+      +'.bapp-navtoggle[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}'
+      +'.bapp-navtoggle:focus-visible{outline:2px solid '+accent+';outline-offset:2px;border-radius:6px}'
+      +'@media (prefers-reduced-motion: reduce){.bapp-acc-panel,.bapp-chev,.bapp-navtoggle span{transition:none!important}}';
     var s=DOC.createElement('style'); s.id='bapp-runtime-css'; s.textContent=css;
     (DOC.head||DOC.documentElement).appendChild(s);
   }
@@ -304,6 +311,53 @@ export const BUILDER_RUNTIME = `(function(){
     root.appendChild(btn);
   }
 
+  /* ── Navbar collapse ──────────────────────────────────────────────────────
+     The mobile menu. The menu is authored with utility classes (hidden md:flex),
+     so OPEN has to be an inline display that outranks them — and the runtime must
+     CLEAR that inline value once the viewport passes the breakpoint. Skipping the
+     clear is the classic bug: a menu opened on a phone keeps display:block, which
+     beats md:flex, and the desktop bar renders as a vertical stack.             */
+  function initNavbar(root){
+    var menu=root.querySelector('[data-bapp-nav-menu]');
+    var toggle=root.querySelector('[data-bapp-nav-toggle]');
+    if(!menu||!toggle)return;
+    /* A navbar nested in another must not steal its parent's controls. */
+    if(menu.closest('[data-bapp-navbar]')!==root||toggle.closest('[data-bapp-navbar]')!==root)return;
+    var bp=parseInt(root.getAttribute('data-collapse')||'768',10)||768;
+    if(!menu.id)menu.id=nextId();
+    toggle.setAttribute('aria-controls',menu.id);
+    toggle.setAttribute('aria-expanded','false');
+    toggle.classList.add('bapp-navtoggle');
+    if(!toggle.getAttribute('aria-label'))toggle.setAttribute('aria-label','Toggle navigation menu');
+    /* Give an empty toggle its three bars; authored markup is left alone. */
+    if(!toggle.children.length){ for(var i=0;i<3;i++)toggle.appendChild(DOC.createElement('span')) }
+
+    var open=false;
+    function desktop(){ return window.innerWidth>=bp }
+    function setOpen(v){
+      if(v===open)return;
+      open=v;
+      toggle.setAttribute('aria-expanded',v?'true':'false');
+      if(v){ menu.style.display='block'; animateOpen(menu) }
+      else animateClose(menu,function(){ menu.style.display='' });
+    }
+    toggle.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); setOpen(!open) });
+    /* Following a link should dismiss the panel — an in-page anchor otherwise
+       scrolls behind a menu that is still covering the page. */
+    menu.addEventListener('click',function(e){
+      var a=e.target&&e.target.closest&&e.target.closest('a[href]');
+      if(a&&!desktop())setOpen(false);
+    });
+    DOC.addEventListener('click',function(e){ if(open&&!desktop()&&!root.contains(e.target))setOpen(false) });
+    DOC.addEventListener('keydown',function(e){ if(e.key==='Escape'&&open){ setOpen(false); toggle.focus() } });
+    window.addEventListener('resize',function(){
+      if(!desktop())return;
+      open=false;
+      toggle.setAttribute('aria-expanded','false');
+      menu.style.display=''; menu.style.height=''; menu.style.transition='';
+    });
+  }
+
   /* ── Scroll reveal ────────────────────────────────────────────────────── */
   function initReveal(d){
     var els=[].slice.call(d.querySelectorAll('.bapp-reveal'));
@@ -323,6 +377,7 @@ export const BUILDER_RUNTIME = `(function(){
     d.querySelectorAll('[data-bapp-dropdown]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initDropdown(el) });
     d.querySelectorAll('[data-bapp-form]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initForm(el) });
     d.querySelectorAll('[data-bapp-bgvideo]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initBgVideo(el) });
+    d.querySelectorAll('[data-bapp-navbar]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initNavbar(el) });
     initReveal(d);
   }
   if(DOC.readyState!=='loading')init();

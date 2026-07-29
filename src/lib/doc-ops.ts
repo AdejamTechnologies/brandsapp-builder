@@ -59,13 +59,27 @@ export function insertChild(
  * `defaultClasses`, with the declaration's values layered on top — exactly what
  * inserting each one by hand would produce. A no-op for modules without any.
  */
-export function seedDefaultChildren(
+export type ModuleLookup = (
+  name: string
+) => { defaults?: Record<string, unknown>; defaultClasses?: string; defaultChildren?: DefaultChild[] } | undefined
+
+export function seedDefaultChildren(doc: Doc, parentId: string, module: string, lookup: ModuleLookup): Doc {
+  return seedChildren(doc, parentId, lookup(module)?.defaultChildren, lookup)
+}
+
+/**
+ * Insert an explicit subtree under `parentId`. Split out of `seedDefaultChildren`
+ * so a tree that ISN'T a module's own `defaultChildren` — a navbar variant, say —
+ * can be planted through exactly the same path, and so a declaration's own
+ * `children` are honoured instead of the child module's defaults being re-seeded
+ * underneath them.
+ */
+export function seedChildren(
   doc: Doc,
   parentId: string,
-  module: string,
-  lookup: (name: string) => { defaults?: Record<string, unknown>; defaultClasses?: string; defaultChildren?: DefaultChild[] } | undefined
+  kids: DefaultChild[] | undefined,
+  lookup: ModuleLookup
 ): Doc {
-  const kids = lookup(module)?.defaultChildren
   if (!kids?.length) return doc
   let next = doc
   for (const kid of kids) {
@@ -78,9 +92,49 @@ export function seedDefaultChildren(
       kid.classes ?? def?.defaultClasses
     )
     next = withKid
-    if (id) next = seedDefaultChildren(next, id, kid.module, lookup)
+    if (!id) continue
+    // An explicit `children` list REPLACES the module's own starter subtree —
+    // otherwise a variant that spells out three links would get those three plus
+    // the module's four defaults.
+    next = kid.children
+      ? seedChildren(next, id, kid.children, lookup)
+      : seedDefaultChildren(next, id, kid.module, lookup)
   }
   return next
+}
+
+/**
+ * Swap a navbar's arrangement. The old subtree is discarded and the variant's is
+ * planted in its place, so the result is ordinary editable nodes — nothing about
+ * a variant survives as a special case in the renderer.
+ *
+ * The chosen id is recorded on the node purely so the picker can show which one
+ * is active. It is deliberately NOT in the navbar's schema: an Inspector select
+ * that set the prop without rebuilding the children would be a control that
+ * claims to change the layout and doesn't.
+ */
+export function applyNavbarVariant(
+  doc: Doc,
+  navbarId: string,
+  variant: { id: string; classes: string; children: DefaultChild[] },
+  lookup: ModuleLookup
+): Doc {
+  const nav = doc.nodes[navbarId]
+  if (!nav) return doc
+  let next = doc
+  for (const child of [...nav.children]) next = removeNode(next, child)
+  next = {
+    ...next,
+    nodes: {
+      ...next.nodes,
+      [navbarId]: {
+        ...next.nodes[navbarId],
+        classes: variant.classes,
+        props: { ...next.nodes[navbarId].props, variant: variant.id },
+      },
+    },
+  }
+  return seedChildren(next, navbarId, variant.children, lookup)
 }
 
 /**
