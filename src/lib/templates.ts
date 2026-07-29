@@ -24,12 +24,37 @@ function tpl(category: string, name: string, root: NodeSpec): Template {
  * section root. This is the same path the Import HTML button uses, so any external
  * Tailwind/Preline block can be added the same way.
  */
+/**
+ * Strip the source library's own branding out of a vendored block.
+ *
+ * The imported markup advertises whoever wrote it — body copy reading "Meraki UI
+ * is a new standard of design system", a wordmark, and three assets HOTLINKED
+ * from merakiui.com. None of that should reach a tenant's page: it puts someone
+ * else's name on their site, and the hotlink means their footer breaks the day
+ * that host changes a path.
+ *
+ * Deliberately applied HERE rather than in `htmlToDoc`, which is also the Import
+ * HTML button's path — an author pasting their own markup that happens to mention
+ * a brand must get their words back untouched.
+ *
+ * The wordmark loses its leading letter to the SVG the importer drops, so the
+ * stray "erakiui" is matched too; without it the panel showed a naked "erakiui".
+ */
+const BRAND_TEXT = /\b(meraki\s*ui|merakiui|erakiui|hyper\s*ui|hyperui|preline(?:\s*labs)?|daisy\s*ui|daisyui|flowbite)\b/gi
+const BRAND_ASSET = /https?:\/\/(?:www\.)?(?:merakiui\.com|hyperui\.dev|preline\.co|daisyui\.com)\/[^"')\s]*/gi
+/** A neutral stand-in from the curated Unsplash set (see lib/pages/stock-images). */
+const NEUTRAL_ASSET = "https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&q=80&auto=format&fit=crop"
+
+export function scrubBrands(html: string): string {
+  return html.replace(BRAND_ASSET, NEUTRAL_ASSET).replace(BRAND_TEXT, "BrandsApp")
+}
+
 function fromHtml(category: string, name: string, html: string): Template {
   return {
     category,
     name,
     make: () => {
-      const doc = htmlToDoc(html)
+      const doc = htmlToDoc(scrubBrands(html))
       const root = doc.nodes[doc.rootId]
       // single top-level element → that IS the section; multiple → keep the wrapper.
       const sectionId = root && root.children.length === 1 ? root.children[0] : doc.rootId
@@ -428,24 +453,26 @@ export const TEMPLATES: Template[] = [
     </div>`
   ),
 
-  // ── daisyUI component classes (via @unocss/preset-daisy) ───────────────────
+  // ── theme component classes (via @unocss/preset-daisy) ─────────────────────
+  // Category name is OURS, not the upstream library's: it is shown verbatim in
+  // the Sections sidebar, where another product's name has no business.
   fromHtml(
-    "daisyUI",
+    "Themed",
     "Hero",
     `<div class="hero bg-base-200 py-24"><div class="hero-content text-center"><div class="max-w-md"><h1 class="text-5xl font-bold">Hello there</h1><p class="py-6">A daisyUI hero — component classes generated at render time, fully editable.</p><a href="#" class="btn btn-primary">Get started</a></div></div></div>`
   ),
   fromHtml(
-    "daisyUI",
+    "Themed",
     "Stats",
     `<div class="px-6 py-16 flex justify-center"><div class="stats shadow"><div class="stat"><div class="stat-title">Downloads</div><div class="stat-value">31K</div><div class="stat-desc">Jan 1st - Feb 1st</div></div><div class="stat"><div class="stat-title">New users</div><div class="stat-value">4,200</div><div class="stat-desc">↗ 400 (22%)</div></div><div class="stat"><div class="stat-title">New orders</div><div class="stat-value">1,200</div><div class="stat-desc">↘ 90 (14%)</div></div></div></div>`
   ),
   fromHtml(
-    "daisyUI",
+    "Themed",
     "Buttons & badges",
     `<div class="px-6 py-12 flex flex-wrap gap-3 items-center justify-center"><a href="#" class="btn">Default</a><a href="#" class="btn btn-primary">Primary</a><a href="#" class="btn btn-secondary">Secondary</a><a href="#" class="btn btn-accent">Accent</a><a href="#" class="btn btn-outline">Outline</a><span class="badge">Badge</span><span class="badge badge-primary">Primary</span><span class="badge badge-outline">Outline</span></div>`
   ),
   fromHtml(
-    "daisyUI",
+    "Themed",
     "Card",
     `<div class="px-6 py-16 flex justify-center"><div class="card w-96 bg-base-100 shadow-xl"><div class="card-body"><h2 class="card-title">Card title</h2><p>Supporting text for this daisyUI card component.</p><div class="card-actions justify-end"><a href="#" class="btn btn-primary">Buy now</a></div></div></div></div>`
   ),
