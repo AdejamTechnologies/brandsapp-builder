@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEven
 import { ANIMATION_KEYFRAMES, generateUtilityCss, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
 import { resolveDrop, type DropIndicator, type DropTarget } from "./canvas-dnd"
 import { describeNode } from "./describe-node"
+import { flattenMediaForWidth } from "./media-flatten"
 import { registry } from "./registry"
 import { SelectionOverlay } from "./selection-overlay"
 
@@ -116,6 +117,11 @@ export function Canvas({
       cancelled = true
     }
   }, [classKey])
+
+  // A device preview is a fixed WIDTH on a wrapper, not a real viewport change,
+  // so the utility CSS's own media queries have to be resolved against that
+  // width or `md:` rules apply inside a phone frame. See media-flatten.ts.
+  const previewCss = useMemo(() => flattenMediaForWidth(utilCss, width), [utilCss, width])
 
   const nodeIdAt = (target: EventTarget | null): string | null => {
     const el = (target as HTMLElement | null)?.closest?.("[data-node-id]") as HTMLElement | null
@@ -247,7 +253,7 @@ export function Canvas({
         {/* Scope utility CSS to the canvas so its .bg-primary/.text-primary (daisyUI
             vars, defined only on .bapp-root) can't bleed into and break the editor
             chrome, whose own Tailwind uses the same class names. */}
-        <style>{utilCss ? `@scope (.bapp-root) { ${utilCss} }` : ""}</style>
+        <style>{previewCss ? `@scope (.bapp-root) { ${previewCss} }` : ""}</style>
         <style>{ANIMATION_KEYFRAMES}</style>
         <div className="canvas-page" style={width ? { width, margin: "0 auto" } : undefined}>
           {result.node}

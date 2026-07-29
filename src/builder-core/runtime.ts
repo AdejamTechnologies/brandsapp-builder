@@ -51,7 +51,14 @@ export const BUILDER_RUNTIME = `(function(){
       +'.bapp-acc-trigger{display:flex;align-items:center;gap:.5em;width:100%;text-align:left;font:inherit;font-weight:600;background:transparent;border:0;cursor:pointer;padding:12px 0;color:inherit}'
       +'.bapp-bgv-btn{position:absolute;right:12px;bottom:12px;z-index:2;width:36px;height:36px;border:0;border-radius:999px;cursor:pointer;font-size:13px;line-height:1;background:hsl(var(--b1, 0 0% 100%)/.85);color:'+ink+';box-shadow:0 2px 10px rgba(0,0,0,.18)}'
       +'.bapp-bgv-btn:focus-visible{outline:2px solid '+accent+';outline-offset:2px}'
-      +'.bapp-navtoggle{display:inline-flex;flex-direction:column;justify-content:center;gap:5px;width:40px;height:40px;padding:0 9px;border:0;background:transparent;cursor:pointer;color:inherit}'
+      /* NO display declaration here, on purpose (and NO backticks in this file --
+         they terminate the template literal). This stylesheet is appended to the
+         head at runtime, so it lands AFTER the utility CSS: a display rule would
+         outrank the toggle's own md:hidden and leave a hamburger sitting on the
+         desktop bar. Layout and visibility belong to the authored utility classes,
+         which the editor canvas also generates; this only covers imported markup
+         that arrived without them. */
+      +'.bapp-navtoggle{flex-direction:column;justify-content:center;gap:5px;width:40px;height:40px;padding:0 9px;border:0;background:transparent;cursor:pointer;color:inherit}'
       +'.bapp-navtoggle span{display:block;width:100%;height:2px;border-radius:2px;background:currentColor;transition:transform .2s ease,opacity .2s ease}'
       +'.bapp-navtoggle[aria-expanded="true"] span:nth-child(1){transform:translateY(7px) rotate(45deg)}'
       +'.bapp-navtoggle[aria-expanded="true"] span:nth-child(2){opacity:0}'

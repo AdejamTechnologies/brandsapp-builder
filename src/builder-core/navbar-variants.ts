@@ -73,9 +73,16 @@ const menu = (links: DefaultChild[], classes = MENU): DefaultChild => ({
   children: links,
 })
 
-const toggle = (classes = "md:hidden text-base-content"): DefaultChild => ({
+/**
+ * The hamburger's layout lives in classes (the canvas has no runtime to inject
+ * it), so a variant that wants a different colour or position must keep the base
+ * rather than replace it — hence `extra` rather than a full class override.
+ */
+const TOGGLE_BASE = "md:hidden inline-flex flex-col justify-center gap-[5px] w-10 h-10 px-[9px] cursor-pointer"
+
+const toggle = (extra = "text-base-content"): DefaultChild => ({
   module: "nav-toggle",
-  classes,
+  classes: `${TOGGLE_BASE} ${extra}`,
 })
 
 const cta = (label: string, variant = "default", classes?: string): DefaultChild => ({
@@ -174,7 +181,7 @@ export const NAVBAR_VARIANTS: NavbarVariant[] = [
     children: [
       brand(),
       menu([link("Home"), link("Features"), link("Pricing"), link("Docs")]),
-      toggle("md:hidden ml-auto text-base-content"),
+      toggle("ml-auto text-base-content"),
     ],
   },
   {
@@ -203,7 +210,7 @@ export const NAVBAR_VARIANTS: NavbarVariant[] = [
       menu([link("Shop"), link("Stories")], `${MENU} md:justify-self-start`),
       brand("Brand", "font-display text-lg font-bold tracking-tight text-base-content text-center"),
       row([cta("Contact", "outline")], "flex items-center justify-end gap-2"),
-      toggle("md:hidden absolute left-4 text-base-content"),
+      toggle("absolute left-4 text-base-content"),
     ],
   },
   {
@@ -306,7 +313,7 @@ export const NAVBAR_VARIANTS: NavbarVariant[] = [
             [cta("Get started", "default", "inline-flex h-9 items-center rounded-md bg-base-100 px-4 text-sm font-medium text-base-content no-underline hover:opacity-90")],
             "hidden md:flex items-center gap-2"
           ),
-          toggle("md:hidden text-neutral-content"),
+          toggle("text-neutral-content"),
         ],
       },
     ],
@@ -332,7 +339,7 @@ export const NAVBAR_VARIANTS: NavbarVariant[] = [
             ],
             `${MENU} md:bg-transparent bg-primary border-primary-content/15`
           ),
-          toggle("md:hidden text-primary-content"),
+          toggle("text-primary-content"),
         ],
       },
     ],

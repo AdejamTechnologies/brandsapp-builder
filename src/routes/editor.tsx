@@ -886,8 +886,13 @@ export function EditorPage() {
                     render={
                       <button
                         onClick={() => setActiveBp(b.id)}
+                        // The tooltip is not an accessible name: it never reaches a
+                        // screen reader on an icon-only button, and it leaves the
+                        // control unaddressable to tests.
+                        aria-label={b.label}
+                        aria-pressed={activeBp === b.id}
                         className={cn(
-                          "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground",
+                          "inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground",
                           activeBp === b.id && "bg-background text-foreground shadow-sm"
                         )}
                       />

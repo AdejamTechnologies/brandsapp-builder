@@ -194,11 +194,19 @@ const NavMenu: ModuleDefinition = {
   },
 }
 
+/** The three bars, drawn in the markup rather than injected by the runtime. */
+const TOGGLE_BAR = "block h-[2px] w-full rounded-[2px] bg-current"
+
 /**
- * The hamburger. Renders as an empty `<button>` on purpose — the runtime injects
- * the three bars and drives the bars-to-X morph from `aria-expanded`, so the
- * glyph and the state can't drift apart. With JS off it is simply an inert
- * button, which is why the menu links are also present in the DOM.
+ * The hamburger.
+ *
+ * It draws its own bars and owns its own layout through utility classes, so it
+ * looks right on the editor canvas — which never runs the page runtime. Only the
+ * bars-to-X morph is left to the runtime stylesheet, because that is driven by
+ * `aria-expanded`, a state the canvas has no way to enter anyway.
+ *
+ * With JS off it is an inert button, which is why the menu's links are in the
+ * DOM regardless.
  */
 const NavToggle: ModuleDefinition = {
   name: "nav-toggle",
@@ -207,15 +215,22 @@ const NavToggle: ModuleDefinition = {
   defaults: { ...ADVANCED_DEFAULTS },
   contentModel: { children: "none" },
   allowedParents: ["navbar"],
-  defaultClasses: "md:hidden text-base-content",
+  defaultClasses:
+    "md:hidden inline-flex flex-col justify-center gap-[5px] w-10 h-10 px-[9px] cursor-pointer text-base-content",
   Component: (p: ModuleRenderProps) =>
-    createElement("button", {
-      className: `bapp-navtoggle ${p.className ?? ""}`.trim(),
-      type: "button",
-      "data-bapp-nav-toggle": "",
-      "aria-label": "Toggle navigation menu",
-      ...rootAttrs(p),
-    }),
+    createElement(
+      "button",
+      {
+        className: `bapp-navtoggle ${p.className ?? ""}`.trim(),
+        type: "button",
+        "data-bapp-nav-toggle": "",
+        "aria-label": "Toggle navigation menu",
+        ...rootAttrs(p),
+      },
+      createElement("span", { key: "a", className: TOGGLE_BAR }),
+      createElement("span", { key: "b", className: TOGGLE_BAR }),
+      createElement("span", { key: "c", className: TOGGLE_BAR })
+    ),
 }
 
 // ── lists ────────────────────────────────────────────────────────────────────
