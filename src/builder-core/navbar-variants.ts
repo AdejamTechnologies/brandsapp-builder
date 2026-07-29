@@ -24,6 +24,7 @@
  * `primary`) so a tenant's palette flows through untouched.
  */
 
+import { iconSvg } from "./icons"
 import type { DefaultChild } from "./registry"
 
 export interface NavbarVariant {
@@ -104,20 +105,21 @@ const icon = (svg: string, classes = "inline-block w-5 h-5 text-base-content/70"
   classes,
 })
 
-// Small stroked glyphs, inlined so a navbar never depends on an icon font.
-const S = (d: string) =>
-  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%">${d}</svg>`
+// Glyphs come from the shipped Remix Icon set (see icons.ts) rather than being
+// hand-drawn here, so a navbar matches every other icon in the product. `iconSvg`
+// returns undefined for an unknown id, which would render an empty span — the
+// fallback keeps a variant visible if the catalog is ever regenerated smaller.
+const G = (id: string) => iconSvg(id) ?? ""
 
-const ICON_SEARCH = S('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>')
-const ICON_CART = S('<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12h11.2L21 7H6"/>')
-const ICON_USER = S('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>')
-const ICON_HEART = S('<path d="M12 20s-7-4.6-7-9.4A4.1 4.1 0 0 1 12 8a4.1 4.1 0 0 1 7 2.6C19 15.4 12 20 12 20z"/>')
-const ICON_PHONE = S('<path d="M5 3h4l2 5-2.5 1.5a12 12 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/>')
-const ICON_MAIL = S('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>')
-// Social marks are simple enough to draw as paths; no brand asset is reproduced.
-const ICON_GLOBE = S('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/>')
-const ICON_SEND = S('<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>')
-const ICON_CAMERA = S('<rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/>')
+const ICON_SEARCH = G("search")
+const ICON_CART = G("shopping-cart2")
+const ICON_USER = G("user3")
+const ICON_HEART = G("heart")
+const ICON_PHONE = G("phone")
+const ICON_MAIL = G("mail")
+const ICON_FACEBOOK = G("facebook-circle")
+const ICON_INSTAGRAM = G("instagram")
+const ICON_X = G("twitter-x")
 
 const searchField = (classes = "hidden md:block"): DefaultChild => ({
   module: "box",
@@ -505,9 +507,9 @@ export const NAVBAR_VARIANTS: NavbarVariant[] = [
       menu([link("Home"), link("Work"), link("Journal"), link("Contact")]),
       row(
         [
-          icon(ICON_GLOBE, "inline-block w-5 h-5 text-base-content/60 hover:text-base-content"),
-          icon(ICON_CAMERA, "inline-block w-5 h-5 text-base-content/60 hover:text-base-content"),
-          icon(ICON_SEND, "inline-block w-5 h-5 text-base-content/60 hover:text-base-content"),
+          icon(ICON_FACEBOOK, "inline-block w-5 h-5 text-base-content/60 hover:text-base-content"),
+          icon(ICON_INSTAGRAM, "inline-block w-5 h-5 text-base-content/60 hover:text-base-content"),
+          icon(ICON_X, "inline-block w-5 h-5 text-base-content/60 hover:text-base-content"),
         ],
         "hidden md:flex items-center gap-3 border-l border-base-300 pl-4"
       ),

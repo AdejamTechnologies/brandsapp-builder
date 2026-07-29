@@ -13,6 +13,7 @@
 import { createElement, type CSSProperties } from "react"
 
 import { ADVANCED_DEFAULTS, ADVANCED_SCHEMA, rootAttrs, truthyProp } from "../advanced"
+import { iconSvg } from "../icons"
 import { LINK_DEFAULTS, LINK_SCHEMA, linkAttrs, resolveHref } from "../link"
 import type { ModuleDefinition, ModuleRenderProps } from "../registry"
 
@@ -348,7 +349,11 @@ const Image: ModuleDefinition = {
 
 // A neutral placeholder glyph so a dropped icon is visible and selectable before
 // you paste your own SVG (an empty <span> measures 0x0 and cannot be clicked).
+// A real glyph from the shipped set rather than a hand-drawn placeholder, so a
+// dropped Icon already looks like the product. Falls back to the old clock only
+// if the catalog is ever regenerated without this id.
 const PLACEHOLDER_ICON =
+  iconSvg("star") ??
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 2.5"/></svg>'
 
 const Icon: ModuleDefinition = {

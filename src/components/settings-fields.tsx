@@ -14,6 +14,7 @@ import {
 } from "@brandsapp/builder-core"
 import { setBinding, updateProps } from "../lib/doc-ops"
 import { moduleInfo } from "../lib/registry"
+import { IconDialog } from "./icon-dialog"
 import { MediaDialog } from "./media-dialog"
 import { RichTextDialog } from "./richtext-dialog"
 import { Select } from "./ui/select"
@@ -538,6 +539,7 @@ function SectionPicker({
  */
 export function SettingsFields({ doc, node, onChange, ctx }: SettingsFieldsProps): React.ReactNode {
   const [mediaKey, setMediaKey] = useState<string | null>(null)
+  const [iconKey, setIconKey] = useState<string | null>(null)
   const [richKey, setRichKey] = useState<string | null>(null)
   const [bindProp, setBindProp] = useState<string | null>(null)
   const [bindSource, setBindSource] = useState<PropBinding["source"]>("item")
@@ -753,6 +755,29 @@ export function SettingsFields({ doc, node, onChange, ctx }: SettingsFieldsProps
           </div>
         )
       }
+      if (control.type === "svg") {
+        const current = value == null ? "" : String(value)
+        return (
+          <div key={key}>
+            <div className="field">
+              <span>{label}</span>
+              <div className="media-field">
+                {/* A preview, not the markup: the value is a whole SVG element and
+                    no useful part of it fits in a text input. */}
+                <span
+                  aria-hidden
+                  className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border p-1.5 text-foreground"
+                  dangerouslySetInnerHTML={{ __html: current }}
+                />
+                <button className="mini" onClick={() => setIconKey(key)}>
+                  Choose
+                </button>
+              </div>
+            </div>
+            {bindingUI(key)}
+          </div>
+        )
+      }
       if (control.type === "richtext") {
         return (
           <div key={key}>
@@ -830,6 +855,13 @@ export function SettingsFields({ doc, node, onChange, ctx }: SettingsFieldsProps
         {node.module === "select-field" && selectFieldChoicesUI(info.schema, node, setProp)}
         {node.module === "form" && <FormFieldsList doc={doc} node={node} />}
       </div>
+      {iconKey && (
+        <IconDialog
+          value={String(node.props[iconKey] ?? "")}
+          onPick={(svg) => setProp(iconKey, svg)}
+          onClose={() => setIconKey(null)}
+        />
+      )}
       {mediaKey && (
         <MediaDialog
           value={String(node.props[mediaKey] ?? "")}
