@@ -1,9 +1,15 @@
 import { buildDoc, el } from "@brandsapp/builder-core"
 
 /**
- * An empty workspace — one padded root box and nothing else. This is the canvas
- * for trying components out one at a time (drag from Elements, inspect, delete,
+ * An empty workspace — one root box and nothing else. This is the canvas for
+ * trying components out one at a time (drag from Elements, inspect, delete,
  * repeat) without a demo page's markup getting in the way.
+ *
+ * The root carries NO padding, margin or gap, exactly like the `page-root` a real
+ * page is assembled around. It is a body, not a frame: sections are full-bleed and
+ * own their own rhythm, so inset here would be a lie the canvas tells about what
+ * publishes — a navbar would sit 40px off every edge and stacked sections would
+ * float apart. Same class list as the demo docs' roots, so all three agree.
  *
  * It still carries a real theme: the interactive primitives draw themselves from
  * the doc's daisyUI tokens (--b1/--b3/--bc/--p), so a doc with an empty theme
@@ -15,7 +21,7 @@ import { buildDoc, el } from "@brandsapp/builder-core"
  */
 export const BLANK_DOC = buildDoc(
   el("box", {
-    classes: "font-body text-base-content bg-base-100 antialiased min-h-screen p-10 flex flex-col gap-6",
+    classes: "font-body text-base-content bg-base-100 antialiased min-h-screen",
   }),
   {
     theme: {
