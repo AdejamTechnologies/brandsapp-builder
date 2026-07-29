@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react"
 
-import { ANIMATION_KEYFRAMES, generateUtilityCss, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
+import {
+  ANIMATION_KEYFRAMES,
+  BUILDER_RUNTIME,
+  generateUtilityCss,
+  renderDocToReact,
+  themeFontHref,
+  type Doc,
+} from "@brandsapp/builder-core"
 import { resolveDrop, type DropIndicator, type DropTarget } from "./canvas-dnd"
 import { describeNode } from "./describe-node"
 import { flattenMediaForWidth } from "./media-flatten"
@@ -53,6 +60,13 @@ interface CanvasProps {
   width?: number
   /** Breakpoint id whose overrides to flatten into the preview; null = base. */
   previewBp?: string | null
+  /**
+   * Run the real page runtime on the canvas and let events through, so dropdowns,
+   * tabs, accordions and the mobile nav actually work. Authoring is suspended
+   * while it is on — the two genuinely conflict, since selecting an element and
+   * activating it are the same click.
+   */
+  interactive?: boolean
 }
 
 /**
@@ -74,6 +88,7 @@ export function Canvas({
   dropIndicator,
   width,
   previewBp,
+  interactive = false,
 }: CanvasProps) {
   // nodeId currently in contentEditable — clicks are ignored while editing.
   const editingRef = useRef<string | null>(null)
@@ -87,7 +102,10 @@ export function Canvas({
       return {
         ...renderDocToReact(doc, {
           registry,
-          isEditor: true,
+          // Interact mode renders exactly what publishes — editor-only affordances
+          // (a pinned-open dropdown, a nav panel held visible) would otherwise lie
+          // about the behaviour the visitor gets.
+          isEditor: !interactive,
           previewBreakpoint: previewBp ?? undefined,
           loopSources: EDITOR_LOOP_SOURCES,
         }),
@@ -102,7 +120,36 @@ export function Canvas({
         error: e instanceof Error ? e.message : String(e),
       }
     }
-  }, [doc, previewBp])
+  }, [doc, previewBp, interactive])
+
+  /**
+   * Interact mode: run the same BUILDER_RUNTIME a published page gets, scoped to
+   * the canvas.
+   *
+   * The runtime MUTATES the DOM React owns — it appends a tab bar, chevrons, the
+   * hamburger's bars. React would later reconcile over those and either drop them
+   * or throw, so the canvas is remounted under a key on every toggle, giving each
+   * mode a DOM built from scratch. That is also why authoring is suspended here
+   * rather than merged: there is no safe way to edit a tree a foreign script is
+   * rewriting underneath you.
+   */
+  const pageRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!interactive || !pageRef.current) return
+    const w = window as unknown as { __bappRuntime?: (scope: HTMLElement) => void }
+    if (!w.__bappRuntime) {
+      const s = document.createElement("script")
+      s.id = "bapp-runtime-editor"
+      s.textContent = BUILDER_RUNTIME
+      document.head.appendChild(s)
+    }
+    // A frame later: the remount has to have committed before the runtime can find
+    // anything to enhance.
+    const id = requestAnimationFrame(() => {
+      if (pageRef.current) w.__bappRuntime?.(pageRef.current)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [interactive, doc])
 
   // Utility classes → atomic CSS (UnoCSS). Async; regenerate only when the class set
   // actually changes, and inject alongside the engine's own CSS.
@@ -130,13 +177,15 @@ export function Canvas({
 
   const onClick = (e: MouseEvent) => {
     // Stop authored anchors/buttons from navigating/submitting inside the editor.
+    // This still applies while interacting — a link that actually navigated would
+    // take the whole editor with it — but selection does not.
     e.preventDefault()
-    if (suppressClick.current || editingRef.current) return
+    if (interactive || suppressClick.current || editingRef.current) return
     onSelect(nodeIdAt(e.target))
   }
 
   const onContext = (e: MouseEvent) => {
-    if (!onContextMenu) return
+    if (interactive || !onContextMenu) return
     e.preventDefault()
     const id = nodeIdAt(e.target)
     // Select first: the menu's actions all read the current selection, and
@@ -147,7 +196,7 @@ export function Canvas({
 
   // Press a node and move to re-parent it; a press without movement is a click.
   const onPointerDown = (e: PointerEvent) => {
-    if (e.button !== 0 || editingRef.current) return
+    if (interactive || e.button !== 0 || editingRef.current) return
     const el = (e.target as HTMLElement).closest("[data-node-id]") as HTMLElement | null
     const id = el?.dataset.nodeId
     if (!id || id === doc.rootId) return
@@ -184,6 +233,7 @@ export function Canvas({
   }
 
   const onDoubleClick = (e: MouseEvent) => {
+    if (interactive) return
     const el = (e.target as HTMLElement).closest("[data-node-id]") as HTMLElement | null
     const id = el?.dataset.nodeId
     if (!el || !id) return
@@ -255,11 +305,20 @@ export function Canvas({
             chrome, whose own Tailwind uses the same class names. */}
         <style>{previewCss ? `@scope (.bapp-root) { ${previewCss} }` : ""}</style>
         <style>{ANIMATION_KEYFRAMES}</style>
-        <div className="canvas-page" style={width ? { width, margin: "0 auto" } : undefined}>
+        {/* The key is what makes the two modes safe: the runtime rewrites this
+            subtree, so each toggle gets a DOM built from scratch rather than React
+            reconciling over a tree a foreign script has edited. */}
+        <div
+          key={interactive ? "interactive" : "editing"}
+          ref={pageRef}
+          className="canvas-page"
+          style={width ? { width, margin: "0 auto" } : undefined}
+        >
           {result.node}
         </div>
       </div>
-      <SelectionOverlay
+      {/* No selection ring while interacting — there is no selection. */}
+      {!interactive && <SelectionOverlay
         scrollRef={scrollRef}
         selectedId={selectedId}
         label={(() => {
@@ -277,7 +336,7 @@ export function Canvas({
           )
         })()}
         badge={selectionBadge}
-      />
+      />}
       {indicator && (
         <div
           className="drop-indicator"

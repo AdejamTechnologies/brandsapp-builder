@@ -35,6 +35,7 @@ import {
   ListChecks,
   Minus,
   MessageSquare,
+  MousePointer2,
   MousePointerClick,
   PanelTop,
   Repeat,
@@ -232,6 +233,7 @@ export function EditorPage() {
   const [selectedId, setSelectedId] = useState<string | null>(initialDoc.rootId)
   const [showCode, setShowCode] = useState(false)
   const [activeBp, setActiveBp] = useState<string | null>(null)
+  const [interactive, setInteractive] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
   // When set, the canvas + navigator show a linked component's master subtree for
@@ -893,6 +895,24 @@ export function EditorPage() {
             <Code2 className="size-4" />
             {showCode ? "Canvas" : "Code"}
           </Button>
+          {/* Interact runs the real page runtime on the canvas. Authoring is off
+              while it is on, because selecting an element and activating it are
+              the same click — so it is a mode, not a setting. */}
+          <Button
+            variant={interactive ? "soft" : "ghost"}
+            size="sm"
+            aria-label="Interact"
+            aria-pressed={interactive}
+            onClick={() => {
+              setInteractive((v) => !v)
+              // Nothing is selected in interact mode; leaving a stale ring behind
+              // would suggest otherwise.
+              if (!interactive) setSelectedId(null)
+            }}
+          >
+            <MousePointer2 className="size-4" />
+            {interactive ? "Interacting" : "Interact"}
+          </Button>
           <div className="ml-1 inline-flex items-center gap-0.5 rounded-[var(--radius)] bg-muted p-0.5">
             {BREAKPOINTS.map((b) => {
               const Icon = b.id === null ? Monitor : b.id === "tablet" ? Tablet : Smartphone
@@ -1020,6 +1040,7 @@ export function EditorPage() {
             dropIndicator={dropIndicator}
             width={BREAKPOINTS.find((b) => b.id === activeBp)?.width}
             previewBp={activeBp}
+            interactive={interactive}
           />
         )}
       </main>
