@@ -2,8 +2,8 @@ import {
   AlignLeft, AtSign, Box, Boxes, Braces, ChevronDown, CircleDot, ClipboardList, Code, Code2,
   Columns3, CornerDownRight, Expand, Film, FormInput, Frame, Heading, Image as ImageIcon,
   LayoutGrid, Link, Link2, List, MapPin, Menu, MousePointerClick, PanelTop, Pilcrow, Play,
-  Quote, Rows3, Search, ShieldCheck, Sparkles, Square, SquareCheck, Tag, ThumbsUp, Type,
-  Upload, Video,
+  Quote, Rows3, Search, Shapes, ShieldCheck, Sparkles, Square, SquareCheck, Tag, ThumbsUp,
+  Type, Upload, Video,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -100,6 +100,10 @@ export const PALETTE: PaletteSection[] = [
     label: "Media",
     entries: [
       { label: "Image", icon: ImageIcon, module: "image", keywords: "picture photo img" },
+      // Not one of Webflow's elements, added deliberately: we ship a curated icon
+      // library, and without an entry here the picker is only reachable on icon
+      // nodes that a variant already placed.
+      { label: "Icon", icon: Shapes, module: "icon", keywords: "svg glyph symbol pictogram" },
       { label: "Video", icon: Video, module: "video", keywords: "mp4 player embed vimeo" },
       { label: "YouTube", icon: Play, module: "youtube", keywords: "video embed" },
       { label: "Lottie Animation", icon: Sparkles, module: "lottie", keywords: "animation json motion" },
