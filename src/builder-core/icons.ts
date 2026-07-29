@@ -8,7 +8,7 @@
  * curated set as page content is permitted; selling them standalone or building a
  * competing icon library is not).
  *
- * 117 icons across 10 categories.
+ * 121 icons across 10 categories.
  */
 
 export interface IconDef {
@@ -386,6 +386,34 @@ export const ICONS: IconDef[] = [
     "category": "Communication",
     "keywords": "question faq",
     "svg": "<svg viewBox=\"0 0 24 24\" fill=\"currentColor\" width=\"100%\" height=\"100%\" aria-hidden=\"true\"><path d=\"M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM11 15H13V17H11V15ZM13 13.3551V14H11V12.5C11 11.9477 11.4477 11.5 12 11.5C12.8284 11.5 13.5 10.8284 13.5 10C13.5 9.17157 12.8284 8.5 12 8.5C11.2723 8.5 10.6656 9.01823 10.5288 9.70577L8.56731 9.31346C8.88637 7.70919 10.302 6.5 12 6.5C13.933 6.5 15.5 8.067 15.5 10C15.5 11.5855 14.4457 12.9248 13 13.3551Z\"></path></svg>"
+  },
+  {
+    "id": "information",
+    "label": "Info",
+    "category": "Communication",
+    "keywords": "notice information",
+    "svg": "<svg viewBox=\"0 0 24 24\" fill=\"currentColor\" width=\"100%\" height=\"100%\" aria-hidden=\"true\"><path d=\"M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM11 7H13V9H11V7ZM11 11H13V17H11V11Z\"></path></svg>"
+  },
+  {
+    "id": "checkbox-circle",
+    "label": "Success",
+    "category": "Communication",
+    "keywords": "done confirmed ok",
+    "svg": "<svg viewBox=\"0 0 24 24\" fill=\"currentColor\" width=\"100%\" height=\"100%\" aria-hidden=\"true\"><path d=\"M4 12C4 7.58172 7.58172 4 12 4C16.4183 4 20 7.58172 20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12ZM12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2ZM17.4571 9.45711L16.0429 8.04289L11 13.0858L8.20711 10.2929L6.79289 11.7071L11 15.9142L17.4571 9.45711Z\"></path></svg>"
+  },
+  {
+    "id": "error-warning",
+    "label": "Warning",
+    "category": "Communication",
+    "keywords": "caution attention",
+    "svg": "<svg viewBox=\"0 0 24 24\" fill=\"currentColor\" width=\"100%\" height=\"100%\" aria-hidden=\"true\"><path d=\"M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM11 15H13V17H11V15ZM11 7H13V13H11V7Z\"></path></svg>"
+  },
+  {
+    "id": "close-circle",
+    "label": "Error",
+    "category": "Communication",
+    "keywords": "failed problem",
+    "svg": "<svg viewBox=\"0 0 24 24\" fill=\"currentColor\" width=\"100%\" height=\"100%\" aria-hidden=\"true\"><path d=\"M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM12 10.5858L14.8284 7.75736L16.2426 9.17157L13.4142 12L16.2426 14.8284L14.8284 16.2426L12 13.4142L9.17157 16.2426L7.75736 14.8284L10.5858 12L7.75736 9.17157L9.17157 7.75736L12 10.5858Z\"></path></svg>"
   },
   {
     "id": "notification3",

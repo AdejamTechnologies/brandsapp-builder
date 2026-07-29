@@ -4,6 +4,7 @@ import {
   LayoutGrid, Link, Link2, List, MapPin, Menu, MousePointerClick, PanelTop, Pilcrow, Play,
   Quote, Rows3, Search, Shapes, ShieldCheck, Sparkles, Square, SquareCheck, Tag, ThumbsUp,
   Type, Upload, Video,
+  AlertCircle, Badge as BadgeIcon, ChevronsRight, CircleUser, CreditCard, Ellipsis,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -151,6 +152,15 @@ export const PALETTE: PaletteSection[] = [
     entries: [
       { label: "Grid", icon: LayoutGrid, module: "grid", keywords: "columns rows layout" },
       { label: "Columns", icon: Columns3, module: "grid", props: { columns: 2 }, keywords: "two column" },
+      // Composed components — the common ground of shadcn/Preline/Meraki/HyperUI/
+      // daisyUI. Each carries a variant catalog (see component-variants.ts), so the
+      // drop-in state is a starting point rather than the only thing on offer.
+      { label: "Card", icon: CreditCard, module: "card", keywords: "panel tile box surface" },
+      { label: "Alert", icon: AlertCircle, module: "alert", keywords: "notice banner callout message" },
+      { label: "Badge", icon: BadgeIcon, module: "badge", keywords: "chip tag pill label status" },
+      { label: "Avatar", icon: CircleUser, module: "avatar", keywords: "profile photo user face" },
+      { label: "Breadcrumb", icon: ChevronsRight, module: "breadcrumb", keywords: "trail path navigation" },
+      { label: "Pagination", icon: Ellipsis, module: "pagination", keywords: "pages pager next previous" },
     ],
   },
 ]

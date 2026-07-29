@@ -2,6 +2,7 @@ import { createElement } from "react"
 
 import { ModuleRegistry, type ModuleDefinition, type ModuleRenderProps } from "../registry"
 import { FORM_MODULES } from "./forms"
+import { COMPONENT_MODULES } from "./components"
 import { INTERACTIVE_MODULES } from "./interactive"
 import { PRIMITIVES } from "./primitives"
 import { ANIMATION_MODULES } from "./animation"
@@ -72,6 +73,7 @@ export function createDefaultRegistry(): ModuleRegistry {
     ...CAPTCHA_MODULES,
     ...LIGHTBOX_MODULES,
     ...INTERACTIVE_MODULES,
+    ...COMPONENT_MODULES,
     ...FORM_MODULES,
     Loop,
     Instance,

@@ -35,6 +35,11 @@ import {
   ListChecks,
   Minus,
   MessageSquare,
+  AlertCircle,
+  Badge as BadgeIcon,
+  ChevronsRight,
+  CircleUser,
+  Ellipsis,
   MousePointer2,
   MousePointerClick,
   PanelTop,
@@ -107,6 +112,12 @@ const MODULE_ICONS: Record<string, typeof Box> = {
   "nav-toggle": Menu,
   "dropdown-trigger": MousePointerClick,
   "dropdown-menu": List,
+  card: LayoutTemplate,
+  alert: AlertCircle,
+  badge: BadgeIcon,
+  avatar: CircleUser,
+  breadcrumb: ChevronsRight,
+  pagination: Ellipsis,
   "code-block": Code,
   youtube: Play,
   lottie: Sparkles,
@@ -134,6 +145,7 @@ import { cn } from "../lib/utils"
 import { SECTIONS, type Template } from "../lib/templates"
 
 import {
+  componentVariants,
   extractFragment,
   htmlToDoc,
   parseDoc,
@@ -146,6 +158,7 @@ import { ContextMenu, type MenuItem } from "../components/context-menu"
 import { QuickStackChip, QuickStackPresets } from "../components/quick-stack-presets"
 import { NavbarChip, NavbarVariants } from "../components/navbar-variants"
 import { DropdownChip, DropdownVariants } from "../components/dropdown-variants"
+import { ElementVariants, ElementVariantsChip } from "../components/element-variants"
 import { ElementSettings, ElementSettingsChip } from "../components/element-settings"
 import { SettingsFields } from "../components/settings-fields"
 import { Inspector } from "../components/inspector"
@@ -404,6 +417,25 @@ export function EditorPage() {
           <NavbarChip variant={selNode.props?.variant as string | undefined} onOpen={() => setPresetsOpen((v) => !v)} />
           {presetsOpen && (
             <NavbarVariants
+              variant={selNode.props?.variant as string | undefined}
+              hasContent={selNode.children.length > 0}
+              onApply={(v) => apply(applyVariant(docRef.current, selectedId, v, (n) => registry.get(n)))}
+              onClose={() => setPresetsOpen(false)}
+            />
+          )}
+        </>
+      )}
+      {/* Everything with a catalog in the registry — no per-element wiring. */}
+      {selNode && componentVariants(selNode.module) && (
+        <>
+          <ElementVariantsChip
+            module={selNode.module}
+            variant={selNode.props?.variant as string | undefined}
+            onOpen={() => setPresetsOpen((v) => !v)}
+          />
+          {presetsOpen && (
+            <ElementVariants
+              module={selNode.module}
               variant={selNode.props?.variant as string | undefined}
               hasContent={selNode.children.length > 0}
               onApply={(v) => apply(applyVariant(docRef.current, selectedId, v, (n) => registry.get(n)))}

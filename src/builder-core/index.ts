@@ -25,6 +25,7 @@ export * from "./import-html"
 export * from "./authoring"
 export * from "./navbar-variants"
 export * from "./dropdown-variants"
+export * from "./component-variants"
 export * from "./icons"
 export {
   ALL_BUTTON_TOKENS,
