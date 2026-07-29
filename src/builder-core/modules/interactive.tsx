@@ -12,8 +12,12 @@
 
 import { createElement, type CSSProperties } from "react"
 
-import { rootAttrs } from "../advanced"
+import { ADVANCED_DEFAULTS, ADVANCED_SCHEMA, rootAttrs } from "../advanced"
 import type { ModuleDefinition, ModuleRenderProps } from "../registry"
+
+/** The shared look of a menu row, reused by the module defaults and the variants. */
+export const MENU_ITEM =
+  "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-base-content no-underline hover:bg-base-200"
 
 const str = (v: unknown, d = "") => (v == null ? d : String(v))
 
@@ -116,7 +120,23 @@ const Dropdown: ModuleDefinition = {
   name: "dropdown",
   category: "interactive",
   schema: {
-    label: { type: "plain" },
+    /**
+     * SIMPLE renders a built-in trigger button and wraps the children in a menu —
+     * what every existing dropdown in every stored doc relies on, so it stays the
+     * default and those docs need no migration. CUSTOM renders the children
+     * untouched, so a variant can supply its own `dropdown-trigger` (an avatar, a
+     * bare icon) and `dropdown-menu`, which a prop-driven trigger cannot express.
+     */
+    mode: {
+      type: "select",
+      label: "structure",
+      segmented: true,
+      options: [
+        { label: "Simple", value: "simple" },
+        { label: "Custom", value: "custom" },
+      ],
+    },
+    label: { type: "plain", showIf: { mode: ["simple"] } },
     // Editor-only: hold the menu open so its items can be selected and styled.
     // Published pages always start closed.
     menuOpen: {
@@ -131,7 +151,7 @@ const Dropdown: ModuleDefinition = {
     openOnHover: { type: "boolean", label: "open menu on hover" },
     closeDelay: { type: "number", label: "close delay (ms)" },
   },
-  defaults: { label: "Menu", menuOpen: "false", openOnHover: false, closeDelay: 0 },
+  defaults: { mode: "simple", label: "Menu", menuOpen: "false", openOnHover: false, closeDelay: 0 },
   contentModel: { children: "any" },
   needsRuntime: true,
   // Without items the menu opens onto nothing, so seed a few links.
@@ -141,16 +161,21 @@ const Dropdown: ModuleDefinition = {
     { module: "link", props: { text: "Third item", href: "#" }, classes: "block px-3 py-2 rounded-md text-sm text-base-content no-underline hover:bg-base-200" },
   ],
   defaultClasses: "relative inline-block",
-  Component: (p: ModuleRenderProps) =>
-    createElement(
+  Component: (p: ModuleRenderProps) => {
+    const root = {
+      className: p.className,
+      "data-bapp-dropdown": "",
+      ...(p.props.openOnHover ? { "data-hover": "" } : {}),
+      ...(Number(p.props.closeDelay) > 0 ? { "data-close-delay": String(Number(p.props.closeDelay)) } : {}),
+      ...rootAttrs(p),
+    }
+    // Custom: the children ARE the trigger and menu. The runtime finds them by
+    // `:scope >`, so they have to stay direct children — which is why the
+    // dropdown-trigger/-menu modules declare `allowedParents: ["dropdown"]`.
+    if (str(p.props.mode, "simple") === "custom") return createElement("div", root, p.children)
+    return createElement(
       "div",
-      {
-        className: p.className,
-        "data-bapp-dropdown": "",
-        ...(p.props.openOnHover ? { "data-hover": "" } : {}),
-        ...(Number(p.props.closeDelay) > 0 ? { "data-close-delay": String(Number(p.props.closeDelay)) } : {}),
-        ...rootAttrs(p),
-      },
+      root,
       createElement(
         "button",
         {
@@ -182,7 +207,81 @@ const Dropdown: ModuleDefinition = {
         },
         p.children
       )
+    )
+  },
+}
+
+/**
+ * The clickable half of a custom dropdown. A `<button>` whose CONTENT is the
+ * author's — an avatar, a bare icon, text plus a chevron — which is exactly what
+ * the simple mode's `label` prop cannot express.
+ */
+const DropdownTrigger: ModuleDefinition = {
+  name: "dropdown-trigger",
+  category: "interactive",
+  schema: { ...ADVANCED_SCHEMA },
+  defaults: { ...ADVANCED_DEFAULTS },
+  contentModel: { children: "any" },
+  allowedParents: ["dropdown"],
+  defaultClasses:
+    "inline-flex items-center gap-2 rounded-lg border border-base-300 bg-base-100 px-3.5 py-2 text-sm font-medium text-base-content cursor-pointer",
+  defaultChildren: [{ module: "text", props: { tag: "span", text: "Menu" }, classes: "text-sm" }],
+  Component: (p: ModuleRenderProps) =>
+    createElement(
+      "button",
+      { className: p.className, type: "button", "data-bapp-dropdown-trigger": "", ...rootAttrs(p) },
+      p.children
     ),
 }
 
-export const INTERACTIVE_MODULES: ModuleDefinition[] = [Tabs, TabPanel, Accordion, AccordionItem, Dropdown]
+/**
+ * The panel. Starts hidden — the runtime owns the open state — with the same
+ * editor-only pin as `nav-menu`, because a canvas that never runs the runtime
+ * otherwise gives the author no way to see or style the open menu.
+ */
+const DropdownMenu: ModuleDefinition = {
+  name: "dropdown-menu",
+  category: "interactive",
+  schema: {
+    menuOpen: {
+      type: "select",
+      label: "menu",
+      segmented: true,
+      options: [
+        { label: "Hide", value: "false" },
+        { label: "Show", value: "true" },
+      ],
+    },
+    ...ADVANCED_SCHEMA,
+  },
+  defaults: { menuOpen: "false", ...ADVANCED_DEFAULTS },
+  contentModel: { children: "any" },
+  allowedParents: ["dropdown"],
+  defaultClasses:
+    "absolute top-[calc(100%+6px)] left-0 z-50 min-w-56 rounded-xl border border-base-300 bg-base-100 p-1.5 shadow-lg",
+  defaultChildren: [
+    { module: "link", props: { text: "First item", href: "#" }, classes: MENU_ITEM },
+    { module: "link", props: { text: "Second item", href: "#" }, classes: MENU_ITEM },
+  ],
+  Component: (p: ModuleRenderProps) =>
+    createElement(
+      "div",
+      {
+        className: p.className,
+        "data-bapp-dropdown-menu": "",
+        style: { display: p.isEditor && String(p.props.menuOpen) === "true" ? "block" : "none" },
+        ...rootAttrs(p),
+      },
+      p.children
+    ),
+}
+
+export const INTERACTIVE_MODULES: ModuleDefinition[] = [
+  Tabs,
+  TabPanel,
+  Accordion,
+  AccordionItem,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+]

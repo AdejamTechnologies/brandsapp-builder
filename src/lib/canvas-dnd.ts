@@ -23,6 +23,28 @@ function elFor(scrollEl: HTMLElement, nodeId: string): HTMLElement | null {
   return scrollEl.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(nodeId)}"]`)
 }
 
+/**
+ * Both halves of the nesting contract: the parent's own `contentModel`/the child's
+ * `allowedParents` (which the registry can answer alone), plus `allowedAncestors`,
+ * which needs the tree — a `nav-menu` only has to be somewhere inside a navbar, and
+ * real bars wrap their contents in a full-bleed box or an inner max-width row.
+ */
+export function canDropInto(doc: Doc, parentId: string, child: string): boolean {
+  const parent = doc.nodes[parentId]
+  if (!parent || !registry.get(parent.module)) return false
+  if (!registry.allowsChild(parent.module, child)) return false
+
+  const needs = registry.requiredAncestors(child)
+  if (!needs?.length) return true
+  for (let n = parent; n; ) {
+    if (needs.includes(n.module)) return true
+    const up = parentOf(doc, n.id)
+    if (!up) return false
+    n = up
+  }
+  return false
+}
+
 /** Does this element lay its children out horizontally (row flex, or multi-col grid)? */
 function isRow(el: HTMLElement): boolean {
   const cs = getComputedStyle(el)
@@ -66,7 +88,7 @@ export function resolveDrop(
   if (!hoveredId || !hovered) return null
 
   const rect = el.getBoundingClientRect()
-  const allowInside = !!registry.get(hovered.module) && registry.allowsChild(hovered.module, dragModule)
+  const allowInside = canDropInto(doc, hoveredId, dragModule)
   const parent = parentOf(doc, hoveredId)
   const parentEl = parent ? elFor(scrollEl, parent.id) : null
   const siblingRow = parentEl ? isRow(parentEl) : false
@@ -89,7 +111,7 @@ export function resolveDrop(
   }
 
   // sibling before/after
-  if (!parent || !registry.get(parent.module) || !registry.allowsChild(parent.module, dragModule)) return null
+  if (!parent || !canDropInto(doc, parent.id, dragModule)) return null
   const refIndex = parent.children.indexOf(hoveredId)
   const index = zone === "before" ? refIndex : refIndex + 1
   const line = siblingRow
@@ -137,7 +159,7 @@ function insideTarget(
 
 function appendToRoot(scrollEl: HTMLElement, doc: Doc, dragModule: string, wb: DOMRect): DropTarget | null {
   const root = doc.nodes[doc.rootId]
-  if (!root || !registry.allowsChild(root.module, dragModule)) return null
+  if (!root || !canDropInto(doc, root.id, dragModule)) return null
   const rootEl = elFor(scrollEl, doc.rootId)
   const rr = rootEl?.getBoundingClientRect() ?? new DOMRect(wb.x, wb.y, wb.width, wb.height)
   const { index, line } = insideTarget(scrollEl, root.children, rr, Infinity, Infinity, false)

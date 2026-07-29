@@ -7,6 +7,7 @@ import {
 } from "@brandsapp/builder-core"
 
 import { parentOf } from "./doc-ops"
+import { canDropInto } from "./canvas-dnd"
 import { registry } from "./registry"
 
 const rand = () => "p" + (crypto.randomUUID?.().slice(0, 6) ?? Math.random().toString(36).slice(2, 8))
@@ -62,15 +63,15 @@ export function pasteFragment(doc: Doc, frag: Fragment, targetId: string | null)
   const rootModule = frag.nodes[frag.rootId]?.module ?? ""
   const target = targetId ? doc.nodes[targetId] : undefined
   if (target && targetId) {
-    if (registry.get(target.module) && registry.allowsChild(target.module, rootModule)) {
+    if (canDropInto(doc, targetId, rootModule)) {
       return insertFragmentAt(doc, frag, targetId)
     }
     const parent = parentOf(doc, targetId)
-    if (parent && registry.allowsChild(parent.module, rootModule)) {
+    if (parent && canDropInto(doc, parent.id, rootModule)) {
       return insertFragmentAt(doc, frag, parent.id, parent.children.indexOf(targetId) + 1)
     }
   }
-  if (registry.allowsChild(doc.nodes[doc.rootId].module, rootModule)) {
+  if (canDropInto(doc, doc.rootId, rootModule)) {
     return insertFragmentAt(doc, frag, doc.rootId)
   }
   return { doc, id: "" }

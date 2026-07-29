@@ -175,7 +175,7 @@ const NavMenu: ModuleDefinition = {
   },
   defaults: { menuOpen: "false", ...ADVANCED_DEFAULTS },
   contentModel: { children: "any" },
-  allowedParents: ["navbar"],
+  allowedAncestors: ["navbar"],
   defaultClasses: NAV_MENU_CLASSES,
   defaultChildren: [navLink("Home"), navLink("About"), navLink("Pricing"), navLink("Contact")],
   Component: (p: ModuleRenderProps) => {
@@ -214,7 +214,7 @@ const NavToggle: ModuleDefinition = {
   schema: { ...ADVANCED_SCHEMA },
   defaults: { ...ADVANCED_DEFAULTS },
   contentModel: { children: "none" },
-  allowedParents: ["navbar"],
+  allowedAncestors: ["navbar"],
   defaultClasses:
     "md:hidden inline-flex flex-col justify-center gap-[5px] w-10 h-10 px-[9px] cursor-pointer text-base-content",
   Component: (p: ModuleRenderProps) =>

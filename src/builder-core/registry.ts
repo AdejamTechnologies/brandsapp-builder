@@ -77,6 +77,13 @@ export interface ModuleDefinition {
   /** "none" = leaf, "any" = any child, or an allow-list of module names. */
   contentModel: { children: "none" | "any" | string[] }
   /**
+   * This module may only be placed somewhere INSIDE one of these — at any depth.
+   * Use when the containing element finds its parts by descendant query, so a
+   * wrapper between them is legitimate (`nav-menu` inside a navbar's inner row).
+   * For "must be a direct child", use `allowedParents`.
+   */
+  allowedAncestors?: string[]
+  /**
    * This module may ONLY be placed inside these parents. The child half of the
    * nesting contract — a `list-item` outside a `list` is invalid HTML, and the
    * parent's own allow-list can't prevent a Div from accepting one.
@@ -163,5 +170,20 @@ export class ModuleRegistry {
 
     if (model.children === "any") return true
     return model.children.includes(child)
+  }
+
+  /**
+   * The modules `child` must sit SOMEWHERE inside, if any. Separate from
+   * `allowedParents` because the two rules are genuinely different: a `list-item`
+   * has to be a DIRECT child of a list (an <li> one div down is invalid HTML),
+   * whereas a `nav-menu` only has to be somewhere within a navbar — real bars wrap
+   * their contents in a full-bleed box or an inner max-width row, and the runtime
+   * finds it by descendant query.
+   *
+   * Callers with the document walk the chain themselves; the registry only knows
+   * the rule, not the tree.
+   */
+  requiredAncestors(child: string): string[] | undefined {
+    return this.map.get(child)?.allowedAncestors
   }
 }

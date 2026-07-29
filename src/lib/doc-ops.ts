@@ -104,37 +104,42 @@ export function seedChildren(
 }
 
 /**
- * Swap a navbar's arrangement. The old subtree is discarded and the variant's is
- * planted in its place, so the result is ordinary editable nodes — nothing about
- * a variant survives as a special case in the renderer.
+ * Swap an element's arrangement for one of its variants. The old subtree is
+ * discarded and the variant's planted in its place, so the result is ordinary
+ * editable nodes — nothing about a variant survives as a special case in the
+ * renderer. Shared by the navbar and dropdown catalogs; nothing here was ever
+ * navbar-specific.
+ *
+ * A variant's `props` are merged into the node, which is how a dropdown variant
+ * switches the element to its custom structure.
  *
  * The chosen id is recorded on the node purely so the picker can show which one
- * is active. It is deliberately NOT in the navbar's schema: an Inspector select
+ * is active. It is deliberately NOT in any module's schema: an Inspector select
  * that set the prop without rebuilding the children would be a control that
  * claims to change the layout and doesn't.
  */
-export function applyNavbarVariant(
+export function applyVariant(
   doc: Doc,
-  navbarId: string,
-  variant: { id: string; classes: string; children: DefaultChild[] },
+  nodeId: string,
+  variant: { id: string; classes: string; children: DefaultChild[]; props?: Record<string, unknown> },
   lookup: ModuleLookup
 ): Doc {
-  const nav = doc.nodes[navbarId]
-  if (!nav) return doc
+  const node = doc.nodes[nodeId]
+  if (!node) return doc
   let next = doc
-  for (const child of [...nav.children]) next = removeNode(next, child)
+  for (const child of [...node.children]) next = removeNode(next, child)
   next = {
     ...next,
     nodes: {
       ...next.nodes,
-      [navbarId]: {
-        ...next.nodes[navbarId],
+      [nodeId]: {
+        ...next.nodes[nodeId],
         classes: variant.classes,
-        props: { ...next.nodes[navbarId].props, variant: variant.id },
+        props: { ...next.nodes[nodeId].props, ...(variant.props ?? {}), variant: variant.id },
       },
     },
   }
-  return seedChildren(next, navbarId, variant.children, lookup)
+  return seedChildren(next, nodeId, variant.children, lookup)
 }
 
 /**

@@ -104,6 +104,8 @@ const MODULE_ICONS: Record<string, typeof Box> = {
   navbar: Menu,
   "nav-menu": List,
   "nav-toggle": Menu,
+  "dropdown-trigger": MousePointerClick,
+  "dropdown-menu": List,
   "code-block": Code,
   youtube: Play,
   lottie: Sparkles,
@@ -142,6 +144,7 @@ import { CommentsDialog } from "../components/comments-dialog"
 import { ContextMenu, type MenuItem } from "../components/context-menu"
 import { QuickStackChip, QuickStackPresets } from "../components/quick-stack-presets"
 import { NavbarChip, NavbarVariants } from "../components/navbar-variants"
+import { DropdownChip, DropdownVariants } from "../components/dropdown-variants"
 import { ElementSettings, ElementSettingsChip } from "../components/element-settings"
 import { SettingsFields } from "../components/settings-fields"
 import { Inspector } from "../components/inspector"
@@ -153,7 +156,7 @@ import { resolveDrop, type DropIndicator, type DropTarget } from "../lib/canvas-
 import {
   addClassToNode,
   ancestorsOf,
-  applyNavbarVariant,
+  applyVariant,
   convertNode,
   createClass,
   createComponent,
@@ -401,7 +404,20 @@ export function EditorPage() {
             <NavbarVariants
               variant={selNode.props?.variant as string | undefined}
               hasContent={selNode.children.length > 0}
-              onApply={(v) => apply(applyNavbarVariant(docRef.current, selectedId, v, (n) => registry.get(n)))}
+              onApply={(v) => apply(applyVariant(docRef.current, selectedId, v, (n) => registry.get(n)))}
+              onClose={() => setPresetsOpen(false)}
+            />
+          )}
+        </>
+      )}
+      {selNode?.module === "dropdown" && (
+        <>
+          <DropdownChip variant={selNode.props?.variant as string | undefined} onOpen={() => setPresetsOpen((v) => !v)} />
+          {presetsOpen && (
+            <DropdownVariants
+              variant={selNode.props?.variant as string | undefined}
+              hasContent={selNode.children.length > 0}
+              onApply={(v) => apply(applyVariant(docRef.current, selectedId, v, (n) => registry.get(n)))}
               onClose={() => setPresetsOpen(false)}
             />
           )}
