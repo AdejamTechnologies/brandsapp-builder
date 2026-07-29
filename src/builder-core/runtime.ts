@@ -64,6 +64,7 @@ export const BUILDER_RUNTIME = `(function(){
       +'.bapp-navtoggle[aria-expanded="true"] span:nth-child(2){opacity:0}'
       +'.bapp-navtoggle[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}'
       +'.bapp-navtoggle:focus-visible{outline:2px solid '+accent+';outline-offset:2px;border-radius:6px}'
+      /* (No backticks anywhere in this file -- they end the template literal.) */
       +'@media (prefers-reduced-motion: reduce){.bapp-acc-panel,.bapp-chev,.bapp-navtoggle span{transition:none!important}}';
     var s=DOC.createElement('style'); s.id='bapp-runtime-css'; s.textContent=css;
     (DOC.head||DOC.documentElement).appendChild(s);
@@ -345,7 +346,13 @@ export const BUILDER_RUNTIME = `(function(){
       if(v===open)return;
       open=v;
       toggle.setAttribute('aria-expanded',v?'true':'false');
-      if(v){ menu.style.display='block'; animateOpen(menu) }
+      /* The panel declares the display its own classes expect (flex, for the
+         authored flex-col sheet). Hardcoding display:block here ran the links
+         together on one line; a CLASS cannot be used either, because in the editor
+         the utility CSS is a style tag in the BODY and would outrank this
+         stylesheet in the head -- the opposite of a published page. An inline
+         style is the only thing that wins in both. */
+      if(v){ menu.style.display=menu.getAttribute('data-open-display')||'flex'; animateOpen(menu) }
       else animateClose(menu,function(){ menu.style.display='' });
     }
     toggle.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); setOpen(!open) });

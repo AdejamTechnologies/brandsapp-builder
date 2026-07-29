@@ -48,12 +48,12 @@ const BAR = "w-full max-w-6xl mx-auto flex items-center justify-between gap-6 px
 
 /** Desktop row / mobile sheet, matching the `nav-menu` module's own defaults. */
 const MENU =
-  "hidden absolute left-0 right-0 top-full z-40 flex-col gap-1 border-t border-base-300 bg-base-100 p-4 shadow-lg " +
+  "hidden absolute left-0 right-0 top-full z-40 flex-col items-stretch gap-1 border-t border-base-300 bg-base-100 p-4 shadow-lg " +
   "md:static md:z-auto md:flex md:flex-row md:items-center md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none"
 
 /** Same, for bars that paint their own dark ground. */
 const MENU_DARK =
-  "hidden absolute left-0 right-0 top-full z-40 flex-col gap-1 border-t border-neutral-content/10 bg-neutral p-4 shadow-lg " +
+  "hidden absolute left-0 right-0 top-full z-40 flex-col items-stretch gap-1 border-t border-neutral-content/10 bg-neutral p-4 shadow-lg " +
   "md:static md:z-auto md:flex md:flex-row md:items-center md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none"
 
 const link = (text: string, classes = LINK): DefaultChild => ({
@@ -160,7 +160,7 @@ const megaColumn = (title: string, items: string[]): DefaultChild => ({
 
 // ── the catalog ──────────────────────────────────────────────────────────────
 
-export const NAVBAR_VARIANTS: NavbarVariant[] = [
+const CATALOG: NavbarVariant[] = [
   // ── Layout ────────────────────────────────────────────────────────────────
   {
     id: "simple",
@@ -517,6 +517,17 @@ export const NAVBAR_VARIANTS: NavbarVariant[] = [
     ],
   },
 ]
+
+/**
+ * Applied centrally rather than repeated on every entry, and enforced by
+ * tests/variant-trees.ts: the mobile panel is positioned against the `<nav>`, so
+ * a variant whose root isn't `relative` opens its sheet against some outer
+ * ancestor — wrong width, wrong place, and indistinguishable from a dead toggle.
+ */
+export const NAVBAR_VARIANTS: NavbarVariant[] = CATALOG.map((v) => ({
+  ...v,
+  classes: /(^|\s)relative(\s|$)/.test(v.classes) ? v.classes : `relative ${v.classes}`,
+}))
 
 export const NAVBAR_VARIANT_GROUPS = ["Layout", "Style", "Features"] as const
 

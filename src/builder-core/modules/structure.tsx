@@ -83,7 +83,7 @@ const NAV_LINK_CLASSES = "text-sm text-base-content/70 hover:text-base-content n
  * inline row. Both states are class-driven so an author can restyle either.
  */
 const NAV_MENU_CLASSES =
-  "hidden absolute left-0 right-0 top-full z-40 flex-col gap-1 border-t border-base-300 bg-base-100 p-4 shadow-lg " +
+  "hidden absolute left-0 right-0 top-full z-40 flex-col items-stretch gap-1 border-t border-base-300 bg-base-100 p-4 shadow-lg " +
   "md:static md:z-auto md:flex md:flex-row md:items-center md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none"
 
 const navLink = (text: string): DefaultChild => ({
@@ -120,7 +120,11 @@ const Navbar: ModuleDefinition = {
   defaults: { collapse: "md", ...ADVANCED_DEFAULTS },
   contentModel: { children: "any" },
   needsRuntime: true,
-  defaultClasses: "w-full max-w-6xl mx-auto flex items-center justify-between gap-6 px-6 py-4",
+  // `relative` is load-bearing, not decoration: the mobile panel is positioned
+  // `absolute left-0 right-0 top-full`, so without a positioned nav it resolves
+  // against whatever ancestor happens to be positioned — the panel then opens at
+  // the wrong width, off to one side, and reads as "the toggle does nothing".
+  defaultClasses: "relative w-full max-w-6xl mx-auto flex items-center justify-between gap-6 px-6 py-4",
   // Drops in as a working nav: a wordmark, a real collapsible menu and a
   // hamburger — not an empty bar the author has to populate from scratch.
   defaultChildren: [
@@ -186,7 +190,11 @@ const NavMenu: ModuleDefinition = {
       {
         className: p.className,
         "data-bapp-nav-menu": "",
-        ...(pinned ? { style: { display: "block" } as CSSProperties } : {}),
+        // What the runtime should set when it opens the sheet. The panel is a flex
+        // column, so `block` would run its links together on one line; keeping it
+        // an attribute means an author restyling the panel as a grid can say so.
+        "data-open-display": "flex",
+        ...(pinned ? { style: { display: "flex" } as CSSProperties } : {}),
         ...rootAttrs(p),
       },
       p.children
