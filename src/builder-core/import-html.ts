@@ -27,6 +27,51 @@ interface El {
   children: Array<El | string>
 }
 
+/**
+ * Text arrives as raw source, so an entity would otherwise survive into a `text`
+ * prop and the renderer — which escapes props, correctly — would print the entity
+ * itself: real pages shipped reading "&copy; 2022". Only the handful HTML requires
+ * plus numeric refs; anything else is left alone rather than guessed at.
+ */
+const NAMED: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+  copy: "©",
+  reg: "®",
+  trade: "™",
+  hellip: "…",
+  mdash: "—",
+  ndash: "–",
+  middot: "·",
+  bull: "•",
+  laquo: "«",
+  raquo: "»",
+  rsquo: "’",
+  lsquo: "‘",
+  ldquo: "“",
+  rdquo: "”",
+  times: "×",
+  deg: "°",
+  euro: "€",
+  pound: "£",
+  yen: "¥",
+}
+
+export function decodeEntities(s: string): string {
+  if (!s.includes("&")) return s
+  return s.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g, (whole, body: string) => {
+    if (body[0] === "#") {
+      const code = body[1] === "x" || body[1] === "X" ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10)
+      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole
+    }
+    return NAMED[body.toLowerCase()] ?? whole
+  })
+}
+
 function parseAttrs(str: string): Record<string, string> {
   const out: Record<string, string> = {}
   const re = /([a-zA-Z_:][-a-zA-Z0-9_:]*)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s>]+))?/g
@@ -117,10 +162,12 @@ export function htmlToDoc(html: string): Doc {
     }
     if (module === "link" || module === "button") props.href = el.attrs.href ?? ""
 
-    const text = el.children
-      .filter((c): c is string => typeof c === "string")
-      .join(" ")
-      .trim()
+    const text = decodeEntities(
+      el.children
+        .filter((c): c is string => typeof c === "string")
+        .join(" ")
+        .trim()
+    )
     if (TEXTY.has(module) && text) {
       if (module === "button") props.label = text
       else props.text = text

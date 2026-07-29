@@ -163,6 +163,7 @@ import { QuickStackChip, QuickStackPresets } from "../components/quick-stack-pre
 import { NavbarChip, NavbarVariants } from "../components/navbar-variants"
 import { DropdownChip, DropdownVariants } from "../components/dropdown-variants"
 import { ElementVariants, ElementVariantsChip } from "../components/element-variants"
+import { SectionGallery } from "../components/section-gallery"
 import { ElementSettings, ElementSettingsChip } from "../components/element-settings"
 import { SettingsFields } from "../components/settings-fields"
 import { Inspector } from "../components/inspector"
@@ -923,7 +924,7 @@ export function EditorPage() {
             <Palette onDragStart={startModuleDrag} />
           </TabsPanel>
           <TabsPanel value="sections">
-            <SectionPalette items={SECTIONS} onDragStart={startSectionDrag} searchable />
+            <SectionGallery items={SECTIONS} onDragStart={startSectionDrag} />
           </TabsPanel>
           <TabsPanel value="components">
             <ComponentsPanel
