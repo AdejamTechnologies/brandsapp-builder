@@ -1,19 +1,17 @@
-import { buildDoc, el, type NodeSpec } from "@brandsapp/builder-core"
+import { buildDoc, el, iconSvg, type NodeSpec } from "@brandsapp/builder-core"
 
 /**
- * The canvas's starting page: a working storefront.
+ * The canvas's starting page: a full department-store storefront.
  *
- * ORIGINAL WORK. Its rhythm is informed by how good commerce pages are paced —
- * a double-height hero, rails broken up by a no-image editorial band, exactly one
- * coloured surface, colour carried by photography rather than the palette — but
- * none of the markup, copy or measurements are taken from any other site. The
- * container, radii and type ramp are ours, because matching someone else's would
- * fight every component in the library.
+ * The GENRE is deliberate. A shop like this is dense and utilitarian, not
+ * editorial: a utility strip above the header, search as a first-class control
+ * rather than a link, a full-bleed tinted hero carrying product art, one
+ * saturated brand colour, and a grid that shows price, discount and rating on
+ * every card. An airy boutique layout is a different product and reads as one.
  *
- * Built ENTIRELY from registered modules and theme tokens, so it is not a fixed
- * design: change the doc theme and the whole page re-skins. That is the point of
- * having it as the default — it is a substrate to build against, not a preset to
- * pick from.
+ * Original content throughout — copy, imagery, palette and measurements are ours.
+ * Assembled ENTIRELY from registered modules and theme tokens, so changing the
+ * doc theme re-skins the whole page. It is a substrate to build against.
  */
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -25,64 +23,108 @@ const a = (text: string, classes: string): NodeSpec => el("link", { props: { tex
 const btn = (label: string, classes: string): NodeSpec =>
   el("button", { props: { label, linkType: "url", href: "#" }, classes })
 const img = (src: string, classes: string, alt = ""): NodeSpec => el("image", { props: { src, alt }, classes })
+const ico = (id: string, classes: string): NodeSpec => el("icon", { props: { svg: iconSvg(id) ?? "" }, classes })
 
-/** Curated Unsplash ids — the same retail set the page generator uses. */
 const shot = (id: string, w = 800, hh = 800) =>
   `https://images.unsplash.com/photo-${id}?w=${w}&h=${hh}&fit=crop&q=80&auto=format`
 const wide = (id: string) => `https://images.unsplash.com/photo-${id}?w=1600&q=80&auto=format&fit=crop`
 
-const STOREFRONT = wide("1441986300917-64674bd600d8")
-const RACK = shot("1472851294608-062f824d29cc", 1000, 1200)
+const HERO = wide("1483985988355-763728e1935b")
 const BAGS = shot("1441984904996-e0b6ba687e04")
-const BOUTIQUE = shot("1483985988355-763728e1935b")
 const SHOES = shot("1445205170230-053b83016050")
+const RACK = shot("1472851294608-062f824d29cc")
+const SHOP = shot("1441986300917-64674bd600d8")
 
-const SHELL = "w-full max-w-6xl mx-auto px-6"
-const EYEBROW = "text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45"
-const H2 = "font-display text-3xl md:text-4xl font-semibold tracking-tight text-base-content"
-const LEAD = "max-w-xl text-base leading-relaxed text-base-content/60"
-const PRIMARY_BTN =
-  "inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-content no-underline hover:opacity-90"
-const GHOST_BTN =
-  "inline-flex h-11 items-center rounded-full border border-base-300 px-6 text-sm font-medium text-base-content no-underline hover:bg-base-200"
+const SHELL = "mx-auto w-full max-w-7xl px-6"
+const H2 = "font-display text-2xl md:text-3xl font-bold tracking-tight text-base-content"
+const PILL = "inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-semibold text-primary-content no-underline hover:opacity-90"
+const UTIL_LINK = "text-xs text-primary-content/80 hover:text-primary-content no-underline"
+const NAV_LINK = "text-sm font-semibold text-base-content hover:text-primary no-underline"
 
-/** Section head: eyebrow, title, and an optional link pushed to the right. */
-const sectionHead = (eyebrow: string, titleText: string, linkText?: string): NodeSpec =>
+/** Section head with a "see all" pushed right — the shop's repeating unit. */
+const head = (titleText: string, linkText = "See all"): NodeSpec =>
   box(
-    "flex flex-wrap items-end justify-between gap-4",
-    box("flex flex-col gap-2", p(eyebrow, EYEBROW, "span"), h(titleText, "2", H2)),
-    ...(linkText ? [a(linkText, "text-sm font-medium text-base-content/70 no-underline hover:text-base-content")] : [])
+    "flex items-end justify-between gap-4",
+    h(titleText, "2", H2),
+    a(linkText, "text-sm font-semibold text-primary no-underline hover:underline")
   )
 
-const productCard = (src: string, name: string, price: string, note?: string): NodeSpec =>
+const stars = (n: string): NodeSpec =>
   box(
-    "group flex flex-col gap-3",
+    "flex items-center gap-1",
+    ico("star", "inline-block w-3.5 h-3.5 text-warning"),
+    p(n, "text-xs text-base-content/50", "span")
+  )
+
+/** Product card: image, discount flag, name, price with the old one struck. */
+const product = (src: string, name: string, price: string, was: string, rating: string, flag?: string): NodeSpec =>
+  box(
+    "flex flex-col gap-3 rounded-2xl border border-base-300 bg-base-100 p-3",
     box(
-      "relative overflow-hidden rounded-2xl bg-base-200",
+      "relative overflow-hidden rounded-xl bg-base-200",
       img(src, "aspect-square w-full object-cover"),
-      ...(note
-        ? [p(note, "absolute left-3 top-3 rounded-full bg-base-100 px-2.5 py-1 text-[11px] font-semibold text-base-content", "span")]
-        : [])
+      ...(flag
+        ? [p(flag, "absolute left-2 top-2 rounded-full bg-error px-2 py-0.5 text-[11px] font-bold text-error-content", "span")]
+        : []),
+      box(
+        "absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-base-100 shadow-sm",
+        ico("heart", "inline-block w-4 h-4 text-base-content/60")
+      )
     ),
     box(
-      "flex items-baseline justify-between gap-3",
-      p(name, "text-sm font-medium text-base-content", "span"),
-      p(price, "text-sm text-base-content/60", "span")
+      "flex flex-col gap-1.5 px-1 pb-1",
+      p(name, "text-sm font-medium leading-snug text-base-content", "span"),
+      stars(rating),
+      box(
+        "flex items-baseline gap-2",
+        p(price, "text-base font-bold text-base-content", "span"),
+        p(was, "text-xs text-base-content/40 line-through", "span")
+      )
     )
   )
 
-const categoryTile = (src: string, label: string): NodeSpec =>
+const category = (src: string, label: string, count: string): NodeSpec =>
   box(
-    "flex flex-col items-center gap-3",
-    box("overflow-hidden rounded-full bg-base-200", img(src, "size-24 object-cover md:size-28")),
-    p(label, "text-sm font-medium text-base-content", "span")
+    "flex flex-col items-center gap-2.5 rounded-2xl border border-base-300 bg-base-100 p-4",
+    box("overflow-hidden rounded-full bg-base-200", img(src, "size-16 object-cover")),
+    p(label, "text-sm font-semibold text-base-content", "span"),
+    p(count, "text-xs text-base-content/50", "span")
   )
 
-const faq = (q: string, ans: string): NodeSpec =>
-  el(
-    "accordion-item",
-    { props: { title: q }, classes: "rounded-2xl border border-base-300 bg-base-100 px-5" },
-    p(ans, "text-sm leading-relaxed text-base-content/70")
+const promoCard = (src: string, kicker: string, titleText: string, cta: string, tone: string): NodeSpec =>
+  box(
+    `relative overflow-hidden rounded-3xl ${tone} p-8`,
+    box(
+      "relative z-10 flex max-w-[60%] flex-col items-start gap-3",
+      p(kicker, "text-xs font-bold uppercase tracking-widest text-base-content/50", "span"),
+      h(titleText, "3", "font-display text-xl font-bold leading-tight text-base-content md:text-2xl"),
+      a(cta, "text-sm font-semibold text-primary no-underline hover:underline")
+    ),
+    img(src, "pointer-events-none absolute -right-6 bottom-0 h-40 w-40 rounded-2xl object-cover md:h-48 md:w-48")
+  )
+
+const trust = (id: string, titleText: string, sub: string): NodeSpec =>
+  box(
+    "flex items-center gap-3",
+    box("flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10", ico(id, "inline-block w-5 h-5 text-primary")),
+    box(
+      "flex flex-col",
+      p(titleText, "text-sm font-semibold text-base-content", "span"),
+      p(sub, "text-xs text-base-content/55", "span")
+    )
+  )
+
+const footCol = (titleText: string, links: string[]): NodeSpec =>
+  box(
+    "flex flex-col items-start gap-2.5",
+    p(titleText, "text-sm font-bold text-base-content", "span"),
+    ...links.map((l) => a(l, "text-sm text-base-content/60 hover:text-base-content no-underline"))
+  )
+
+const payPill = (label: string): NodeSpec =>
+  box(
+    "inline-flex items-center rounded-md border border-base-300 bg-base-100 px-2.5 py-1.5",
+    p(label, "text-[11px] font-bold text-base-content/70", "span")
   )
 
 // ── the page ─────────────────────────────────────────────────────────────────
@@ -91,169 +133,200 @@ export const STOREFRONT_DOC = buildDoc(
   box(
     "font-body text-base-content bg-base-100 antialiased min-h-screen",
 
-    // 1 ── header
+    // 1 ── utility strip: the thing that says "shop", not "portfolio"
+    box(
+      "w-full bg-primary px-6 py-2",
+      box(
+        `${SHELL} flex flex-wrap items-center justify-between gap-3 px-0`,
+        box(
+          "flex items-center gap-2",
+          ico("phone", "inline-block w-3.5 h-3.5 text-primary-content/70"),
+          p("+234 800 000 0000", "text-xs text-primary-content/80", "span")
+        ),
+        box(
+          "flex items-center gap-3",
+          p("Free delivery on orders over ₦50,000", "text-xs font-medium text-primary-content", "span"),
+          p("|", "text-xs text-primary-content/30", "span"),
+          a("Shop now", "text-xs font-semibold text-primary-content no-underline underline-offset-2 hover:underline")
+        ),
+        box("flex items-center gap-5", a("English", UTIL_LINK), a("Lagos, NG", UTIL_LINK))
+      )
+    ),
+
+    // 2 ── header: search is a control, not a link
     el(
       "navbar",
-      { classes: "relative w-full border-b border-base-300 bg-base-100" },
+      { classes: "relative w-full border-b border-base-300 bg-base-100 px-6 py-4" },
       box(
-        `${SHELL} flex items-center justify-between gap-6 py-4`,
-        h("Marée", "3", "font-display text-xl font-bold tracking-tight text-base-content"),
+        `${SHELL} flex items-center justify-between gap-6 px-0`,
+        box(
+          "flex items-center gap-2",
+          box("flex size-9 items-center justify-center rounded-xl bg-primary", ico("shopping-bag3", "inline-block w-5 h-5 text-primary-content")),
+          h("Kandi", "3", "font-display text-2xl font-extrabold tracking-tight text-base-content")
+        ),
         el(
           "nav-menu",
           {
             classes:
               "hidden absolute left-0 right-0 top-full z-40 flex-col items-stretch gap-1 border-t border-base-300 bg-base-100 p-4 shadow-lg " +
-              "md:static md:z-auto md:flex md:flex-row md:items-center md:gap-8 md:border-0 md:bg-transparent md:p-0 md:shadow-none",
+              "lg:static lg:z-auto lg:flex lg:flex-row lg:items-center lg:gap-7 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none",
           },
-          a("New in", "text-sm text-base-content/70 hover:text-base-content no-underline"),
-          a("Women", "text-sm text-base-content/70 hover:text-base-content no-underline"),
-          a("Men", "text-sm text-base-content/70 hover:text-base-content no-underline"),
-          a("Objects", "text-sm text-base-content/70 hover:text-base-content no-underline")
+          a("Categories", NAV_LINK),
+          a("Deals", NAV_LINK),
+          a("What's new", NAV_LINK),
+          a("Delivery", NAV_LINK)
         ),
         box(
-          "flex items-center gap-4",
-          a("Search", "hidden text-sm text-base-content/70 no-underline hover:text-base-content sm:block"),
-          a("Account", "hidden text-sm text-base-content/70 no-underline hover:text-base-content sm:block"),
+          "hidden flex-1 max-w-md md:block",
           box(
             "relative",
-            a("Bag", "text-sm font-medium text-base-content no-underline"),
-            p(
-              "2",
-              "absolute -right-3 -top-2 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-content",
-              "span"
+            el("input", {
+              props: { type: "search", name: "q", label: "", placeholder: "Search for a product" },
+              classes:
+                "h-11 w-full rounded-full border border-base-300 bg-base-200 pl-5 pr-12 text-sm text-base-content placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-primary/25",
+            }),
+            box(
+              "absolute right-1.5 top-1.5 flex size-8 items-center justify-center rounded-full bg-primary",
+              ico("search", "inline-block w-4 h-4 text-primary-content")
             )
           )
         ),
+        box(
+          "flex items-center gap-5",
+          box("hidden items-center gap-2 sm:flex", ico("user3", "inline-block w-5 h-5 text-base-content/70"), a("Account", "text-sm font-medium text-base-content no-underline")),
+          box(
+            "relative flex items-center gap-2",
+            ico("shopping-cart2", "inline-block w-5 h-5 text-base-content/70"),
+            a("Cart", "text-sm font-medium text-base-content no-underline"),
+            p("2", "absolute -left-2 -top-2 flex size-4 items-center justify-center rounded-full bg-error text-[10px] font-bold text-error-content", "span")
+          )
+        ),
         el("nav-toggle", {
-          classes: "md:hidden inline-flex flex-col justify-center gap-[5px] w-10 h-10 px-[9px] cursor-pointer text-base-content",
+          classes: "lg:hidden inline-flex flex-col justify-center gap-[5px] w-10 h-10 px-[9px] cursor-pointer text-base-content",
         })
       )
     ),
 
-    // 2 ── hero: the one band with double padding
+    // 3 ── hero: full-bleed tinted band, art to the edge
     el(
       "section",
-      { classes: "w-full px-6 py-20 md:py-28" },
+      { classes: "w-full bg-base-200" },
       box(
-        "mx-auto grid w-full max-w-6xl items-center gap-10 md:grid-cols-2 md:gap-16",
+        "mx-auto grid w-full max-w-7xl items-center gap-8 px-6 py-14 md:grid-cols-2 md:gap-6 md:py-0",
         box(
-          "flex flex-col items-start gap-6",
-          p("Autumn collection", EYEBROW, "span"),
-          h("Pieces made to be kept", "1", "font-display text-4xl font-semibold leading-[1.05] tracking-tight text-base-content md:text-6xl"),
-          p(
-            "Small runs, natural fibres, and finishing done by hand in Lagos. Nothing here is designed to be replaced next season.",
-            LEAD
+          "flex flex-col items-start gap-6 md:py-20",
+          box(
+            "inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5",
+            p("Season sale", "text-xs font-bold uppercase tracking-widest text-primary", "span"),
+            p("up to 50% off", "text-xs font-semibold text-primary/70", "span")
           ),
-          box("flex flex-wrap items-center gap-3", btn("Shop the collection", PRIMARY_BTN), btn("Our materials", GHOST_BTN))
+          h(
+            "Everything for the home, in one shop",
+            "1",
+            "font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-base-content md:text-6xl"
+          ),
+          p(
+            "Groceries, electronics, fashion and homeware — delivered across Nigeria in two to four days.",
+            "max-w-md text-base leading-relaxed text-base-content/60"
+          ),
+          box("flex flex-wrap items-center gap-4", btn("Start shopping", PILL), a("Track an order", "text-sm font-semibold text-base-content no-underline underline underline-offset-4")),
+          box(
+            "mt-2 flex flex-wrap items-center gap-6",
+            trust("truck", "Free delivery", "Over ₦50,000"),
+            trust("refund2", "14-day returns", "No questions"),
+            trust("secure-payment", "Secure payment", "Card or transfer")
+          )
         ),
-        box("overflow-hidden rounded-3xl bg-base-200", img(RACK, "h-full w-full object-cover"))
+        box("relative h-64 w-full overflow-hidden md:h-[30rem]", img(HERO, "h-full w-full object-cover md:rounded-bl-[3rem]"))
       )
     ),
 
-    // 3 ── categories
+    // 4 ── categories
     el(
       "section",
-      { classes: "w-full px-6 py-14" },
+      { classes: "w-full px-6 py-12" },
       box(
-        `${SHELL} flex flex-col gap-8`,
-        sectionHead("Browse", "Shop by category", "All categories"),
+        `${SHELL} flex flex-col gap-6 px-0`,
+        head("Shop by category", "All categories"),
         box(
-          "grid grid-cols-2 gap-6 sm:grid-cols-4",
-          categoryTile(BAGS, "Bags"),
-          categoryTile(SHOES, "Footwear"),
-          categoryTile(BOUTIQUE, "Ready to wear"),
-          categoryTile(STOREFRONT, "Objects")
+          "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6",
+          category(BAGS, "Bags", "128 items"),
+          category(SHOES, "Footwear", "96 items"),
+          category(RACK, "Fashion", "240 items"),
+          category(SHOP, "Grocery", "310 items"),
+          category(BAGS, "Home", "88 items"),
+          category(SHOES, "Beauty", "54 items")
         )
       )
     ),
 
-    // 4 ── first product rail
+    // 5 ── deals grid
     el(
       "section",
-      { classes: "w-full px-6 py-14" },
+      { classes: "w-full px-6 py-12" },
       box(
-        `${SHELL} flex flex-col gap-8`,
-        sectionHead("Just landed", "New this week", "View all"),
+        `${SHELL} flex flex-col gap-6 px-0`,
+        head("Deals of the week"),
         box(
-          "grid grid-cols-2 gap-6 md:grid-cols-4",
-          productCard(BAGS, "Woven tote", "₦48,000", "New"),
-          productCard(SHOES, "Leather sandal", "₦36,500"),
-          productCard(BOUTIQUE, "Linen shirt", "₦29,000"),
-          productCard(RACK, "Wool overshirt", "₦72,000", "Low stock")
+          "grid grid-cols-2 gap-4 md:grid-cols-4",
+          product(BAGS, "Woven market tote", "₦18,900", "₦26,000", "4.8", "-27%"),
+          product(SHOES, "Everyday leather sandal", "₦24,500", "₦32,000", "4.6", "-23%"),
+          product(RACK, "Cotton overshirt", "₦15,200", "₦19,000", "4.4", "-20%"),
+          product(SHOP, "Ceramic serving bowl", "₦9,800", "₦13,500", "4.9", "-27%")
         )
       )
     ),
 
-    // 5 ── editorial break: no images, so the eye rests before the grid
+    // 6 ── two promo banners
     el(
       "section",
-      { classes: "w-full px-6 py-20" },
+      { classes: "w-full px-6 py-4" },
       box(
-        "mx-auto flex w-full max-w-3xl flex-col items-center gap-6 text-center",
-        p("Why we make less", EYEBROW, "span"),
-        h(
-          "We would rather sell out than discount",
-          "2",
-          "font-display text-3xl font-semibold leading-tight tracking-tight text-base-content md:text-5xl"
-        ),
-        p(
-          "Every run is costed so it works at full price. That keeps the makers paid properly and means what you buy holds its value.",
-          "text-base leading-relaxed text-base-content/60"
-        ),
-        btn("Read our standards", GHOST_BTN)
+        `${SHELL} grid gap-5 md:grid-cols-2 px-0`,
+        promoCard(SHOES, "Weekend only", "Second pair half price", "Shop footwear", "bg-primary/10"),
+        promoCard(BAGS, "New arrivals", "Fresh bags, restocked weekly", "Shop bags", "bg-warning/15")
       )
     ),
 
-    // 6 ── the main grid
+    // 7 ── best sellers
     el(
       "section",
-      { classes: "w-full px-6 py-14" },
+      { classes: "w-full px-6 py-12" },
       box(
-        `${SHELL} flex flex-col gap-8`,
-        sectionHead("The collection", "Everything in stock"),
+        `${SHELL} flex flex-col gap-6 px-0`,
+        head("Best sellers"),
         box(
-          "grid grid-cols-2 gap-6 md:grid-cols-4",
-          productCard(BOUTIQUE, "Cotton trouser", "₦34,000"),
-          productCard(BAGS, "Market bag", "₦22,500"),
-          productCard(RACK, "Quilted jacket", "₦96,000", "New"),
-          productCard(SHOES, "Suede loafer", "₦58,000"),
-          productCard(STOREFRONT, "Ceramic vase", "₦18,000"),
-          productCard(BOUTIQUE, "Silk scarf", "₦26,000"),
-          productCard(SHOES, "Canvas sneaker", "₦41,000"),
-          productCard(BAGS, "Card holder", "₦14,500", "Low stock")
+          "grid grid-cols-2 gap-4 md:grid-cols-4",
+          product(SHOP, "Stovetop coffee pot", "₦21,000", "₦25,000", "4.7"),
+          product(RACK, "Linen day dress", "₦34,000", "₦41,000", "4.5", "Low stock"),
+          product(BAGS, "Leather card holder", "₦11,400", "₦14,000", "4.8"),
+          product(SHOES, "Canvas trainer", "₦28,600", "₦35,000", "4.3", "-18%")
         )
       )
     ),
 
-    // 7 ── the page's only coloured surface
+    // 8 ── the one saturated band
     el(
       "section",
-      { classes: "w-full px-6 py-14" },
+      { classes: "w-full px-6 py-12" },
       box(
-        "mx-auto flex w-full max-w-6xl flex-col items-start gap-6 rounded-3xl bg-primary/10 p-10 md:flex-row md:items-center md:justify-between md:p-14",
+        `${SHELL} flex flex-col items-start gap-6 rounded-3xl bg-primary p-10 md:flex-row md:items-center md:justify-between md:p-14 px-0`,
         box(
-          "flex flex-col gap-3",
-          h("Free delivery in Lagos over ₦50,000", "2", "font-display text-2xl font-semibold tracking-tight text-base-content md:text-3xl"),
-          p("Nationwide in two to four working days. Returns are free for fourteen days.", "max-w-md text-sm leading-relaxed text-base-content/60")
+          "flex flex-col gap-3 px-10 md:px-0",
+          h("Get ₦2,000 off your first order", "2", "font-display text-2xl font-extrabold tracking-tight text-primary-content md:text-3xl"),
+          p("Join the list for early access to sales and new stock.", "max-w-md text-sm leading-relaxed text-primary-content/75")
         ),
-        btn("Start shopping", PRIMARY_BTN)
-      )
-    ),
-
-    // 8 ── FAQ
-    el(
-      "section",
-      { classes: "w-full px-6 py-14" },
-      box(
-        "mx-auto flex w-full max-w-3xl flex-col gap-8",
-        sectionHead("Help", "Before you order"),
         el(
-          "accordion",
-          { classes: "flex flex-col gap-2 p-2" },
-          faq("How long does delivery take?", "Two to four working days nationwide, next day within Lagos on orders placed before noon."),
-          faq("Can I return something?", "Yes — fourteen days, unworn, with the tags on. Returns within Lagos are collected free."),
-          faq("Do you restock sold-out pieces?", "Rarely. Runs are small on purpose, so if something sells out it usually stays that way."),
-          faq("How do I find my size?", "Every product page carries the garment's own measurements rather than a generic chart.")
+          "form",
+          { classes: "flex w-full max-w-md gap-2 px-10 md:px-0" },
+          el("input", {
+            props: { type: "email", name: "email", label: "", placeholder: "Enter your email", required: true },
+            classes: "h-12 flex-1 rounded-full border-0 bg-base-100 px-5 text-sm text-base-content placeholder:text-base-content/40 focus:outline-none",
+          }),
+          el("submit", {
+            props: { label: "Join" },
+            classes: "inline-flex h-12 shrink-0 cursor-pointer items-center rounded-full bg-base-content px-7 text-sm font-semibold text-base-100 hover:opacity-90",
+          })
         )
       )
     ),
@@ -263,27 +336,32 @@ export const STOREFRONT_DOC = buildDoc(
       "footer",
       { classes: "w-full border-t border-base-300 bg-base-100 px-6 py-14" },
       box(
-        "mx-auto flex w-full max-w-6xl flex-col gap-10",
+        `${SHELL} flex flex-col gap-10 px-0`,
         box(
-          "grid grid-cols-2 gap-8 md:grid-cols-4",
+          "grid grid-cols-2 gap-8 md:grid-cols-5",
           box(
-            "flex flex-col gap-3",
-            h("Marée", "3", "font-display text-lg font-bold tracking-tight text-base-content"),
-            p("Made in small runs in Lagos, sold direct.", "max-w-xs text-sm leading-relaxed text-base-content/60")
+            "col-span-2 flex flex-col gap-3",
+            box(
+              "flex items-center gap-2",
+              box("flex size-8 items-center justify-center rounded-lg bg-primary", ico("shopping-bag3", "inline-block w-4 h-4 text-primary-content")),
+              h("Kandi", "3", "font-display text-xl font-extrabold tracking-tight text-base-content")
+            ),
+            p("A department store for everyday things, delivered across Nigeria.", "max-w-xs text-sm leading-relaxed text-base-content/60"),
+            box(
+              "flex items-center gap-4",
+              ico("facebook-circle", "inline-block w-5 h-5 text-base-content/45 hover:text-base-content"),
+              ico("instagram", "inline-block w-5 h-5 text-base-content/45 hover:text-base-content"),
+              ico("twitter-x", "inline-block w-5 h-5 text-base-content/45 hover:text-base-content")
+            )
           ),
-          footerCol("Shop", ["New in", "Ready to wear", "Footwear", "Objects"]),
-          footerCol("Help", ["Delivery", "Returns", "Size guide", "Contact"]),
-          footerCol("Studio", ["Our standards", "Makers", "Stockists", "Journal"])
+          footCol("Shop", ["Categories", "Deals", "New arrivals", "Gift cards"]),
+          footCol("Help", ["Delivery", "Returns", "Track order", "Contact us"]),
+          footCol("Company", ["About", "Careers", "Stockists", "Press"])
         ),
         box(
           "flex flex-col gap-4 border-t border-base-300 pt-6 sm:flex-row sm:items-center sm:justify-between",
-          p("© 2026 Marée. All rights reserved.", "text-sm text-base-content/50", "span"),
-          box(
-            "flex items-center gap-5",
-            a("Terms", "text-sm text-base-content/60 hover:text-base-content no-underline"),
-            a("Privacy", "text-sm text-base-content/60 hover:text-base-content no-underline"),
-            a("Instagram", "text-sm text-base-content/60 hover:text-base-content no-underline")
-          )
+          p("© 2026 Kandi Stores. All rights reserved.", "text-sm text-base-content/50", "span"),
+          box("flex flex-wrap items-center gap-2", payPill("Visa"), payPill("Mastercard"), payPill("Verve"), payPill("Transfer"))
         )
       )
     )
@@ -291,15 +369,15 @@ export const STOREFRONT_DOC = buildDoc(
   {
     theme: {
       colors: {
-        primary: "#8a5a3c",
-        secondary: "#3f4a3c",
-        neutral: "#231f1e",
+        primary: "#15452c",
+        secondary: "#f4a72c",
+        neutral: "#14211a",
         "base-100": "#ffffff",
-        "base-200": "#f5f2ee",
-        "base-300": "#e6e0d8",
-        "base-content": "#231f1e",
+        "base-200": "#eef2ee",
+        "base-300": "#dfe5e0",
+        "base-content": "#14211a",
       },
-      fonts: { display: "Fraunces", body: "Inter" },
+      fonts: { display: "Poppins", body: "Inter" },
       radius: {},
       breakpoints: [
         { id: "tablet", label: "Tablet", maxWidth: 1023 },
@@ -308,11 +386,3 @@ export const STOREFRONT_DOC = buildDoc(
     },
   }
 )
-
-function footerCol(title: string, links: string[]): NodeSpec {
-  return box(
-    "flex flex-col items-start gap-2.5",
-    p(title, "text-sm font-semibold text-base-content", "span"),
-    ...links.map((l) => a(l, "text-sm text-base-content/60 hover:text-base-content no-underline"))
-  )
-}
