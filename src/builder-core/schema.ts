@@ -36,6 +36,27 @@ export const node = z.object({
       trigger: z.enum(["load", "scroll"]).optional(),
       duration: z.number().optional(),
       delay: z.number().optional(),
+      /**
+       * Scroll-LINKED motion, as distinct from the entrance animation above: an
+       * entrance plays once, this tracks the element's progress through the
+       * viewport continuously. It is what separates a page that fades in from one
+       * that feels composed. Declared per node, so any element can have it without
+       * bespoke code (see anim.ts).
+       */
+      scroll: z
+        .object({
+          /** Vertical travel in px across the pass. Negative rises, positive sinks. */
+          parallax: z.number().min(-400).max(400).optional(),
+          /** Scale delta: 0.15 grows from 1 to 1.15 across the pass. */
+          zoom: z.number().min(-0.5).max(0.5).optional(),
+          /** Degrees of rotation across the pass. */
+          rotate: z.number().min(-45).max(45).optional(),
+          /** Tie opacity to progress (fades in over the first half). */
+          fade: z.boolean().optional(),
+          /** Milliseconds between each CHILD's entrance — a container property. */
+          stagger: z.number().min(0).max(400).optional(),
+        })
+        .optional(),
     })
     .optional(), // entrance animation (see anim.ts)
   responsive: z

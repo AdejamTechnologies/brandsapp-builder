@@ -7,11 +7,20 @@
 
 import { classForNode } from "./style"
 
+export interface NodeScrollMotion {
+  parallax?: number
+  zoom?: number
+  rotate?: number
+  fade?: boolean
+  stagger?: number
+}
+
 export interface NodeAnim {
   effect: string
   trigger?: "load" | "scroll"
   duration?: number
   delay?: number
+  scroll?: NodeScrollMotion
 }
 
 export const ANIM_EFFECTS = ["fade", "fade-up", "fade-down", "fade-left", "fade-right", "zoom"] as const
@@ -35,5 +44,46 @@ export function animCss(id: string, anim: NodeAnim): string {
   const delay = clamp(anim.delay ?? 0, 0, 8000)
   const a = `bapp-${eff} ${dur}ms cubic-bezier(.16,1,.3,1) ${delay}ms both`
   const sel = `.${classForNode(id)}`
-  return anim.trigger === "scroll" ? `${sel}{opacity:0}${sel}.bapp-in{animation:${a}}` : `${sel}{animation:${a}}`
+  const entrance =
+    anim.trigger === "scroll" ? `${sel}{opacity:0}${sel}.bapp-in{animation:${a}}` : `${sel}{animation:${a}}`
+  return entrance + scrollCss(id, anim.scroll)
 }
+
+/**
+ * Scroll-linked motion, expressed in CSS against a progress variable the runtime
+ * writes (`--bapp-p`, 0→1 across the element's pass through the viewport).
+ *
+ * The runtime deliberately sets ONLY that number — every transform is computed by
+ * the compositor from this rule. Driving `transform` from JS per frame is what
+ * makes scroll effects janky; writing one custom property and letting CSS do the
+ * arithmetic keeps it off the main thread.
+ *
+ * Travel is multiplied by `--bapp-motion` (the theme's motion scale, default 1),
+ * so a calm theme damps every scroll effect on the page at once and a motion of 0
+ * removes them entirely.
+ */
+export function scrollCss(id: string, s?: NodeScrollMotion): string {
+  if (!s) return ""
+  const parts: string[] = []
+  const m = "var(--bapp-motion,1)"
+  const p = "var(--bapp-p,0)"
+
+  if (s.parallax) parts.push(`translate3d(0,calc(${p} * ${clampF(s.parallax, -400, 400)}px * ${m}),0)`)
+  if (s.zoom) parts.push(`scale(calc(1 + ${p} * ${clampF(s.zoom, -0.5, 0.5)} * ${m}))`)
+  if (s.rotate) parts.push(`rotate(calc(${p} * ${clampF(s.rotate, -45, 45)}deg * ${m}))`)
+
+  const sel = `.${classForNode(id)}`
+  const decls: string[] = []
+  // The step travels as a custom property rather than an attribute: per-node CSS
+  // is a path the renderer already has, and adding an attribute would mean
+  // threading one through every module's root.
+  if (s.stagger) decls.push(`--bapp-stagger:${clampF(s.stagger, 0, 400)}`)
+  if (parts.length) decls.push(`transform:${parts.join(" ")}`, "will-change:transform")
+  // Fades over the first half of the pass, then holds — a linear fade never
+  // reaches full opacity while the element is still on screen.
+  if (s.fade) decls.push(`opacity:clamp(0,calc(${p} * 2),1)`)
+  if (!decls.length) return ""
+  return `${sel}{${decls.join(";")}}`
+}
+
+const clampF = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(n * 1000) / 1000))

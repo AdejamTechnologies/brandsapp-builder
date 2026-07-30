@@ -87,7 +87,9 @@ class RenderCtx {
   useNodeAnim(node: Node): void {
     if (!node.anim) return
     this.usesAnim = true
-    if (node.anim.trigger === "scroll") this.usesRuntime = true
+    // Both scroll REVEAL and scroll-LINKED motion need the runtime — the first to
+    // add `.bapp-in`, the second to write the progress variable each frame.
+    if (node.anim.trigger === "scroll" || node.anim.scroll) this.usesRuntime = true
     this.cssParts.push(animCss(node.id, node.anim))
   }
   private seenStyle = new Set<string>()
@@ -148,6 +150,13 @@ function classNamesFor(node: Node, ctx: RenderCtx): string {
   if (node.anim && !ctx.isEditor) {
     classes.push("bapp-anim", classForNode(node.id))
     if (node.anim.trigger === "scroll") classes.push("bapp-reveal")
+    // Scroll-linked motion needs the runtime to drive its progress variable; the
+    // stagger form drives its CHILDREN, so the two hooks are separate.
+    if (node.anim.scroll) {
+      const s = node.anim.scroll
+      if (s.parallax || s.zoom || s.rotate || s.fade) classes.push("bapp-scroll")
+      if (s.stagger) classes.push("bapp-stagger")
+    }
     ctx.useNodeAnim(node)
   }
   return classes.join(" ")

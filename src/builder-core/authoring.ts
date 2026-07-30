@@ -4,6 +4,7 @@
  * compiles a spec tree + named styles into a Fragment, the marketplace unit.
  */
 
+import type { NodeAnim } from "./anim"
 import {
   CORE_DOC_VERSION,
   type Doc,
@@ -59,7 +60,8 @@ export interface NodeSpec {
   props?: Record<string, unknown>
   style?: Record<string, string>
   classes?: string
-  anim?: { effect: string; trigger?: "load" | "scroll"; duration?: number; delay?: number }
+  /** Mirrors the schema's node animation, scroll-linked motion included. */
+  anim?: NodeAnim
   styleIds?: string[]
   bindings?: Record<string, PropBinding>
   children?: NodeSpec[]

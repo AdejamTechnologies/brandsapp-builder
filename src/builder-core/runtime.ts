@@ -372,6 +372,52 @@ export const BUILDER_RUNTIME = `(function(){
     });
   }
 
+  /* ── Scroll-linked motion ──────────────────────────────────────────────────
+     Writes ONE custom property per element -- bapp-p, 0 to 1 across its pass
+     through the viewport -- and lets CSS compute every transform from it (see
+     anim.ts scrollCss). Setting transform from JS per frame is what makes these
+     effects janky; one number, read by the compositor, is not.
+     Reads are batched before any write, so measuring an element cannot be forced
+     to flush a style change made to the previous one.                          */
+  function initScrollMotion(d){
+    var els=[].slice.call(d.querySelectorAll('.bapp-scroll'));
+    if(!els.length)return;
+    if(reduced()){ els.forEach(function(e){ e.style.setProperty('--bapp-p','0') }); return }
+    var ticking=false;
+    function frame(){
+      ticking=false;
+      var vh=window.innerHeight||1, measured=[];
+      for(var i=0;i<els.length;i++){
+        var r=els[i].getBoundingClientRect();
+        /* 0 as the element's top reaches the fold, 1 once it has fully left. */
+        var span=vh+r.height;
+        var p=span>0?(vh-r.top)/span:0;
+        measured.push(p<0?0:p>1?1:p);
+      }
+      for(var j=0;j<els.length;j++) els[j].style.setProperty('--bapp-p',String(Math.round(measured[j]*1000)/1000));
+    }
+    function onScroll(){ if(ticking)return; ticking=true; requestAnimationFrame(frame) }
+    window.addEventListener('scroll',onScroll,{passive:true});
+    window.addEventListener('resize',onScroll);
+    frame();
+  }
+
+  /* ── Stagger ───────────────────────────────────────────────────────────────
+     A container property: each child's entrance is delayed by its index, so a
+     grid arrives as a sequence rather than all at once. Applied to the CHILD's
+     animation-delay, which composes with whatever entrance it already had.     */
+  function initStagger(d){
+    [].slice.call(d.querySelectorAll('.bapp-stagger')).forEach(function(root){
+      if(root.__bappStagger)return; root.__bappStagger=1;
+      var step=parseFloat(getComputedStyle(root).getPropertyValue('--bapp-stagger'))||80;
+      if(reduced())return;
+      [].slice.call(root.children).forEach(function(child,i){
+        child.style.animationDelay=(i*step)+'ms';
+        child.style.transitionDelay=(i*step)+'ms';
+      });
+    });
+  }
+
   /* ── Scroll reveal ────────────────────────────────────────────────────── */
   function initReveal(d){
     var els=[].slice.call(d.querySelectorAll('.bapp-reveal'));
@@ -393,6 +439,8 @@ export const BUILDER_RUNTIME = `(function(){
     d.querySelectorAll('[data-bapp-bgvideo]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initBgVideo(el) });
     d.querySelectorAll('[data-bapp-navbar]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initNavbar(el) });
     initReveal(d);
+    initScrollMotion(d);
+    initStagger(d);
   }
   if(DOC.readyState!=='loading')init();
   else DOC.addEventListener('DOMContentLoaded',function(){ init() });

@@ -208,6 +208,10 @@ export function scaleToCss(theme: ThemeTokens, rootSelector: string): string {
   }
 
   if (s.motion !== 1) {
+    // One variable damps every scroll-linked effect on the page at once — the
+    // travel in anim.ts multiplies by it — so "calm" is a theme decision rather
+    // than something an author re-tunes on each node.
+    out.push(`${rootSelector}{--bapp-motion:${r(s.motion)}}`)
     const d = s.motion === 0 ? "0.01ms" : `calc(var(--bapp-anim-duration, 600ms) * ${r(s.motion)})`
     out.push(`${rootSelector} [class*="n-"]{animation-duration:${d}}`)
     if (s.motion === 0) out.push(`${rootSelector} *{animation:none!important;transition:none!important}`)
