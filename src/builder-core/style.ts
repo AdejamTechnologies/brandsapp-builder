@@ -148,7 +148,72 @@ export function themeToCss(theme: ThemeTokens, rootSelector: string): string {
   vars.push(`--font-display:${sanitiseCssValue(stacks.display)}`)
   vars.push(`--font-body:${sanitiseCssValue(stacks.body)}`)
   vars.push(`font-family:${sanitiseCssValue(stacks.body)}`)
-  return vars.length ? `${rootSelector}{${vars.join(";")}}` : ""
+  const base = vars.length ? `${rootSelector}{${vars.join(";")}}` : ""
+  return base + scaleToCss(theme, rootSelector)
+}
+
+/** Utility families the scales re-interpret, with the step values they ship with. */
+const PAD_STEPS = [8, 10, 12, 14, 16, 20, 24, 28, 32]
+const GAP_STEPS = [4, 5, 6, 8, 10, 12, 16]
+const RADII: Array<[string, number]> = [
+  ["sm", 0.125], ["", 0.25], ["md", 0.375], ["lg", 0.5],
+  ["xl", 0.75], ["2xl", 1], ["3xl", 1.5],
+]
+const DISPLAY_TEXT: Array<[string, number]> = [
+  ["2xl", 1.5], ["3xl", 1.875], ["4xl", 2.25], ["5xl", 3], ["6xl", 3.75], ["7xl", 4.5],
+]
+
+/**
+ * Re-interprets the utilities a page already uses, scoped to the document root.
+ *
+ * A theme that only swaps colour cannot change a LOOK — density, corner language
+ * and type contrast do most of that work. Rather than requiring every template to
+ * be rewritten against bespoke classes, this restates the handful of families that
+ * carry a design (section padding, gaps, corners, display type) in terms of the
+ * scale tokens. An untouched page therefore re-proportions itself when the theme
+ * changes, which is what makes a template a function of its tokens.
+ *
+ * Emitted ONLY for scales that differ from 1, so a default theme costs nothing and
+ * the authored classes keep their exact meaning.
+ */
+export function scaleToCss(theme: ThemeTokens, rootSelector: string): string {
+  const s = theme.scale
+  if (!s) return ""
+  const out: string[] = []
+  const r = (n: number) => Math.round(n * 1000) / 1000
+
+  if (s.density !== 1) {
+    for (const step of PAD_STEPS) {
+      const v = `${r((step / 4) * s.density)}rem`
+      out.push(`${rootSelector} .py-${step}{padding-top:${v};padding-bottom:${v}}`)
+      out.push(`${rootSelector} .p-${step}{padding:${v}}`)
+    }
+    for (const step of GAP_STEPS) out.push(`${rootSelector} .gap-${step}{gap:${r((step / 4) * s.density)}rem}`)
+  }
+
+  if (s.radius !== 1) {
+    for (const [name, rem] of RADII) {
+      const cls = name ? `.rounded-${name}` : ".rounded"
+      out.push(`${rootSelector} ${cls}{border-radius:${r(rem * s.radius)}rem}`)
+    }
+    // A square language means square, not "nearly round".
+    if (s.radius === 0) out.push(`${rootSelector} .rounded-full{border-radius:0}`)
+  }
+
+  if (s.typeScale !== 1) {
+    // Display sizes only: scaling body copy hurts legibility and is not a look.
+    for (const [name, rem] of DISPLAY_TEXT) {
+      out.push(`${rootSelector} .text-${name}{font-size:${r(rem * s.typeScale)}rem;line-height:1.05}`)
+    }
+  }
+
+  if (s.motion !== 1) {
+    const d = s.motion === 0 ? "0.01ms" : `calc(var(--bapp-anim-duration, 600ms) * ${r(s.motion)})`
+    out.push(`${rootSelector} [class*="n-"]{animation-duration:${d}}`)
+    if (s.motion === 0) out.push(`${rootSelector} *{animation:none!important;transition:none!important}`)
+  }
+
+  return out.join("")
 }
 
 export const classForStyle = (id: string) => `s-${id}`

@@ -73,11 +73,36 @@ export const breakpoint = z.object({
 })
 export type Breakpoint = z.infer<typeof breakpoint>
 
+/**
+ * The knobs that make one document render as several genuinely different designs.
+ *
+ * Colour and type alone do not carry a look — density, corner language, type
+ * contrast and motion do at least as much work. These are MULTIPLIERS over the
+ * scales the utility classes already use (1 = untouched), so an existing page
+ * responds to them without a single class being rewritten. That is the whole
+ * point: a template becomes a function of its tokens rather than a fixed artefact.
+ */
+export const themeScale = z.object({
+  /** Section padding and gaps. <1 tightens toward dense commerce, >1 opens out. */
+  density: z.number().min(0.4).max(2).default(1),
+  /** Corner language: 0 = square/brutalist, 1 = as authored, >1 = soft. */
+  radius: z.number().min(0).max(3).default(1),
+  /** Type contrast — scales the display end of the ramp, not body copy. */
+  typeScale: z.number().min(0.6).max(2).default(1),
+  /** Animation intensity. 0 disables motion entirely (and honours reduced-motion). */
+  motion: z.number().min(0).max(2).default(1),
+})
+export type ThemeScale = z.infer<typeof themeScale>
+
 export const themeTokens = z.object({
   colors: z.record(z.string(), z.string()).default({}),
   fonts: z.object({ display: z.string().optional(), body: z.string().optional() }).default({}),
   radius: z.record(z.string(), z.string()).default({}),
   breakpoints: z.array(breakpoint).default([]),
+  // OPTIONAL, not defaulted: an absent scale means "leave the authored classes
+  // exactly as they are", which is both the correct behaviour and what keeps
+  // every existing theme literal in the codebase valid without edits.
+  scale: themeScale.optional(),
 })
 export type ThemeTokens = z.infer<typeof themeTokens>
 
