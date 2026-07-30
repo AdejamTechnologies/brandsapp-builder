@@ -18,7 +18,9 @@ page.on("pageerror", (e) => errors.push(String(e)))
 const results = []
 const check = (name, pass, detail = "") => results.push([name, pass, detail])
 
-await page.goto("http://localhost:5173/edit/blank", { waitUntil: "networkidle" })
+// `scratch`, not `blank`: /edit/blank now opens the storefront default, and
+// these suites need an empty canvas to count what they drop.
+await page.goto("http://localhost:5173/edit/scratch", { waitUntil: "networkidle" })
 await page.waitForTimeout(7000)
 
 // helpers

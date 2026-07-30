@@ -200,6 +200,7 @@ import { entryMatches, paletteSections } from "../lib/palette"
 import { SAMPLE_DOC } from "../lib/sample"
 import { ADEJAM_DOC } from "../lib/adejam-sample"
 import { BLANK_DOC } from "../lib/blank"
+import { STOREFRONT_DOC } from "../lib/storefront"
 
 /** Webflow's Convert-to / Wrap-in targets, mapped to our modules. */
 const CONVERT_TARGETS = ["box", "grid", "link", "stack", "section", "custom-element"]
@@ -244,8 +245,20 @@ export function EditorPage() {
   // gives /edit/blank as a scratch canvas for trying components, and stops a real
   // tenant page from briefly showing someone else's demo markup while its own
   // definition is still being fetched below.
+  // `blank` is the scratch canvas and now opens on the storefront — a real page
+  // to build against rather than an empty box. Everything ELSE still starts
+  // empty: a tenant page must not flash someone else's markup while its own
+  // definition is still being fetched below.
   const [initialDoc] = useState(() =>
-    parseDoc(pageId === "adejam" ? ADEJAM_DOC : pageId === "sample" ? SAMPLE_DOC : BLANK_DOC)
+    parseDoc(
+      pageId === "adejam"
+        ? ADEJAM_DOC
+        : pageId === "sample"
+          ? SAMPLE_DOC
+          : pageId === "blank"
+            ? STOREFRONT_DOC
+            : BLANK_DOC
+    )
   )
   const sendRef = useRef<(s: string) => void>(() => {})
   const commit = useCallback((d: Doc) => sendRef.current(JSON.stringify(d)), [])
