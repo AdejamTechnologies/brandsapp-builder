@@ -55,6 +55,12 @@ export const node = z.object({
           fade: z.boolean().optional(),
           /** Milliseconds between each CHILD's entrance — a container property. */
           stagger: z.number().min(0).max(400).optional(),
+          /**
+           * Hold this section still for N extra viewport heights while its
+           * contents advance. The runtime publishes inner progress as `--bapp-q`,
+           * so children can be driven across the held span.
+           */
+          pin: z.number().min(0).max(4).optional(),
         })
         .optional(),
     })

@@ -5,6 +5,7 @@
  * with IntersectionObserver. Honors `prefers-reduced-motion`. SSR/marketplace-safe.
  */
 
+import { ATMOSPHERE_KEYFRAMES } from "./modules/atmosphere"
 import { classForNode } from "./style"
 
 export interface NodeScrollMotion {
@@ -13,6 +14,7 @@ export interface NodeScrollMotion {
   rotate?: number
   fade?: boolean
   stagger?: number
+  pin?: number
 }
 
 export interface NodeAnim {
@@ -33,7 +35,8 @@ export const ANIMATION_KEYFRAMES =
   "@keyframes bapp-fade-left{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}" +
   "@keyframes bapp-fade-right{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}" +
   "@keyframes bapp-zoom{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}" +
-  "@media (prefers-reduced-motion:reduce){.bapp-anim{animation:none!important;opacity:1!important;transform:none!important}}"
+  "@media (prefers-reduced-motion:reduce){.bapp-anim{animation:none!important;opacity:1!important;transform:none!important}}" +
+  ATMOSPHERE_KEYFRAMES
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(n)))
 
@@ -78,6 +81,9 @@ export function scrollCss(id: string, s?: NodeScrollMotion): string {
   // is a path the renderer already has, and adding an attribute would mean
   // threading one through every module's root.
   if (s.stagger) decls.push(`--bapp-stagger:${clampF(s.stagger, 0, 400)}`)
+  // How many extra viewport heights the section holds for; the runtime reads it
+  // to size the spacer that actually consumes the scroll.
+  if (s.pin) decls.push(`--bapp-hold:${clampF(s.pin, 0, 4)}`)
   if (parts.length) decls.push(`transform:${parts.join(" ")}`, "will-change:transform")
   // Fades over the first half of the pass, then holds — a linear fade never
   // reaches full opacity while the element is still on screen.

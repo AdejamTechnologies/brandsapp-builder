@@ -4,7 +4,8 @@ import {
   LayoutGrid, Link, Link2, List, MapPin, Menu, MousePointerClick, PanelTop, Pilcrow, Play,
   Quote, Rows3, Search, Shapes, ShieldCheck, Sparkles, Square, SquareCheck, Tag, ThumbsUp,
   Type, Upload, Video,
-  AlertCircle, Badge as BadgeIcon, ChevronsRight, ChevronsUpDown, CircleUser, CreditCard, Ellipsis,
+  AlertCircle, Aperture, Badge as BadgeIcon, ChevronsRight, ChevronsUpDown, CircleUser, CreditCard,
+  Ellipsis, Grip, Sun, Waves,
   PanelBottom,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -112,6 +113,11 @@ export const PALETTE: PaletteSection[] = [
       { label: "Spline Scene", icon: Box, module: "spline", keywords: "3d scene splinecode" },
       { label: "Rive", icon: Boxes, module: "rive", keywords: "animation riv interactive state machine" },
       { label: "Lightbox", icon: Expand, module: "lightbox", keywords: "gallery modal zoom image popup" },
+      // Art direction — decorative layers that read their colour from the theme.
+      { label: "Aurora", icon: Waves, module: "aurora", keywords: "background gradient mesh shader animated atmosphere" },
+      { label: "Light", icon: Sun, module: "light", keywords: "glow radial gradient atmosphere" },
+      { label: "Grain", icon: Grip, module: "grain", keywords: "noise texture film atmosphere" },
+      { label: "Vignette", icon: Aperture, module: "vignette", keywords: "edge darken fade atmosphere" },
     ],
   },
   {

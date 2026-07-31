@@ -28,6 +28,14 @@ const Row = ({ label, children }: { label: string; children: ReactNode }) => (
   </div>
 )
 
+/** The four scale tokens, with the range each is useful across. */
+const SCALE_ROWS: Array<{ key: "density" | "radius" | "typeScale" | "motion"; label: string; hint: string; min: number; max: number }> = [
+  { key: "density", label: "density", hint: "Section padding and gaps. Below 1 tightens, above 1 opens out.", min: 0.4, max: 2 },
+  { key: "radius", label: "corners", hint: "0 is square/brutalist, 1 as authored, above 1 softer.", min: 0, max: 3 },
+  { key: "typeScale", label: "type contrast", hint: "Scales headings only, never body copy.", min: 0.6, max: 2 },
+  { key: "motion", label: "motion", hint: "Damps every animation and scroll effect. 0 disables motion.", min: 0, max: 2 },
+]
+
 /** Edit the doc theme — colors, fonts, radii. Changes apply live to the canvas. */
 export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
   const [newColorKey, setNewColorKey] = useState("")
@@ -119,6 +127,39 @@ export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
       <Row label="body">
         <Select value={theme.fonts?.body ?? ""} onValueChange={(v) => setFont("body", v)} options={FONT_SELECT} />
       </Row>
+
+      {/* The knobs that change a LOOK rather than a colour. They re-interpret the
+          utilities the page already uses, so an existing design re-proportions
+          without anything being rewritten — see themeToCss. */}
+      <GroupTitle>Proportions</GroupTitle>
+      <p className="mb-2 -mt-1 text-[11px] leading-relaxed text-muted-foreground">
+        Applies to the whole page. Body copy never scales — only headings.
+      </p>
+      {SCALE_ROWS.map((r) => {
+        const v = (theme.scale?.[r.key] as number | undefined) ?? 1
+        return (
+          <Row key={r.key} label={r.label}>
+            <div className="flex w-full items-center gap-2">
+              <input
+                type="range"
+                min={r.min}
+                max={r.max}
+                step={0.05}
+                value={v}
+                title={r.hint}
+                onChange={(e) =>
+                  onChange(
+                    { scale: { density: 1, radius: 1, typeScale: 1, motion: 1, ...theme.scale, [r.key]: Number(e.target.value) } },
+                    `theme:scale:${r.key}`
+                  )
+                }
+                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-muted accent-primary"
+              />
+              <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{v.toFixed(2)}</span>
+            </div>
+          </Row>
+        )
+      })}
 
       <GroupTitle>Radius</GroupTitle>
       {Object.entries(radius).map(([k, v]) => (

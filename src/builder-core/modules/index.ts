@@ -2,6 +2,8 @@ import { createElement } from "react"
 
 import { ModuleRegistry, type ModuleDefinition, type ModuleRenderProps } from "../registry"
 import { FORM_MODULES } from "./forms"
+import { ATMOSPHERE_MODULES } from "./atmosphere"
+export { SHADER_LOADER, ATMOSPHERE_KEYFRAMES } from "./atmosphere"
 import { COMPONENT_MODULES } from "./components"
 import { INTERACTIVE_MODULES } from "./interactive"
 import { PRIMITIVES } from "./primitives"
@@ -74,6 +76,7 @@ export function createDefaultRegistry(): ModuleRegistry {
     ...LIGHTBOX_MODULES,
     ...INTERACTIVE_MODULES,
     ...COMPONENT_MODULES,
+    ...ATMOSPHERE_MODULES,
     ...FORM_MODULES,
     Loop,
     Instance,

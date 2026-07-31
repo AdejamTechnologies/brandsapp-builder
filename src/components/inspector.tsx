@@ -3,6 +3,7 @@ import { ChevronDown, Frame, LayoutGrid, Maximize2, Move, PaintBucket, Sparkles,
 
 import { type Doc, type Node } from "@brandsapp/builder-core"
 import { addClassToNode, createClass, removeClassFromNode, updateClassStyle, updateResponsiveStyle } from "../lib/doc-ops"
+import { MotionFields } from "./motion-fields"
 import { SettingsFields } from "./settings-fields"
 import { Button } from "./ui/button"
 import { Select } from "./ui/select"
@@ -381,6 +382,9 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
 
         <TabsPanel value="settings">
           <SettingsFields doc={doc} node={node} onChange={onChange} />
+          {/* Scroll-linked motion lives here rather than under Styles: it is a
+              behaviour of the element, not a rule in the cascade. */}
+          <MotionFields node={node} onChange={patch} />
         </TabsPanel>
 
         <TabsPanel value="style">

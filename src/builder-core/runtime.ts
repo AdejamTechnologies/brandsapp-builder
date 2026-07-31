@@ -402,6 +402,52 @@ export const BUILDER_RUNTIME = `(function(){
     frame();
   }
 
+  /* ── Pin and scrub ─────────────────────────────────────────────────────────
+     A section that holds still while its contents advance. The element sticks
+     for a multiple of the viewport height, and its INNER progress is published
+     as bapp-q (0 to 1 across the held span) so children can be driven by it the
+     same way parallax is driven by bapp-p.
+     Sticky is done in CSS, not by toggling position from JS: swapping to fixed
+     mid-scroll reflows the page under the reader and is the classic cause of
+     pinned sections jumping.                                                   */
+  function initPin(d){
+    var pins=[].slice.call(d.querySelectorAll('.bapp-pin'));
+    if(!pins.length)return;
+    pins.forEach(function(el){
+      if(el.__bappPin)return; el.__bappPin=1;
+      var hold=parseFloat(getComputedStyle(el).getPropertyValue('--bapp-hold'))||1;
+      /* The spacer is what actually consumes scroll; the sticky child rides it. */
+      var spacer=DOC.createElement('div');
+      spacer.setAttribute('data-bapp-pin-spacer','');
+      spacer.style.height='calc('+(100*(hold+1))+'vh)';
+      spacer.style.position='relative';
+      var parent=el.parentNode; if(!parent)return;
+      parent.insertBefore(spacer,el);
+      spacer.appendChild(el);
+      el.style.position='sticky';
+      el.style.top='0';
+      if(!el.style.height)el.style.height='100vh';
+      el.style.overflow='hidden';
+    });
+    var ticking=false;
+    function frame(){
+      ticking=false;
+      var vh=window.innerHeight||1, out=[];
+      for(var i=0;i<pins.length;i++){
+        var sp=pins[i].parentNode;
+        var r=sp.getBoundingClientRect();
+        var span=r.height-vh;
+        var q=span>0?(-r.top)/span:0;
+        out.push(q<0?0:q>1?1:q);
+      }
+      for(var j=0;j<pins.length;j++) pins[j].style.setProperty('--bapp-q',String(Math.round(out[j]*1000)/1000));
+    }
+    function onScroll(){ if(ticking)return; ticking=true; requestAnimationFrame(frame) }
+    window.addEventListener('scroll',onScroll,{passive:true});
+    window.addEventListener('resize',onScroll);
+    frame();
+  }
+
   /* ── Stagger ───────────────────────────────────────────────────────────────
      A container property: each child's entrance is delayed by its index, so a
      grid arrives as a sequence rather than all at once. Applied to the CHILD's
@@ -440,6 +486,7 @@ export const BUILDER_RUNTIME = `(function(){
     d.querySelectorAll('[data-bapp-navbar]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initNavbar(el) });
     initReveal(d);
     initScrollMotion(d);
+    initPin(d);
     initStagger(d);
   }
   if(DOC.readyState!=='loading')init();

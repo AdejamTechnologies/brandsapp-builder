@@ -156,6 +156,7 @@ function classNamesFor(node: Node, ctx: RenderCtx): string {
       const s = node.anim.scroll
       if (s.parallax || s.zoom || s.rotate || s.fade) classes.push("bapp-scroll")
       if (s.stagger) classes.push("bapp-stagger")
+      if (s.pin) classes.push("bapp-pin")
     }
     ctx.useNodeAnim(node)
   }
