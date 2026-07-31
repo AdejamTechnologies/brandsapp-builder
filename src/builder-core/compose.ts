@@ -325,6 +325,12 @@ export function composePage(input: ComposeInput): ComposedPage {
   // Display type is set once, here, so every band shares one voice. Tight tracking
   // and sub-1 leading are what separate a display size from merely-large body copy.
   const display = "font-display font-semibold tracking-[-0.02em] leading-[1.05]"
+  // A brand name is one unbreakable word, and a step-based size has no idea how
+  // wide it is: "Technologies" at text-6xl is 380px, which a 390px phone clips
+  // to "Technologie". So the hero is fluid — and still multiplied by the theme's
+  // type scale, which an arbitrary value would otherwise opt out of.
+  const heroType = "text-[calc(clamp(2.5rem,11vw,7.5rem)*var(--bapp-type,1))] break-words"
+  const heroTypeSm = "text-[calc(clamp(2.25rem,8.5vw,6rem)*var(--bapp-type,1))] break-words"
   const title = (t: string) => h(t, "2", `${display} text-4xl md:text-5xl ${ink}`)
   const action = c.action ?? "Get started"
 
@@ -378,7 +384,7 @@ export function composePage(input: ComposeInput): ComposedPage {
             "box",
             { classes: "flex flex-col items-start gap-6", anim: { effect: "fade-up", trigger: "load", duration: 900 } },
             eyebrowOnMedia(c.tagline ?? "Introducing"),
-            h(c.brand, "1", `${display} max-w-4xl text-6xl md:text-8xl text-base-content`),
+            h(c.brand, "1", `${display} ${heroType} max-w-4xl text-base-content`),
             p(c.intro ?? "", "max-w-xl text-lg leading-relaxed text-base-content/85")
           ),
           el(
@@ -403,7 +409,7 @@ export function composePage(input: ComposeInput): ComposedPage {
             "box",
             { classes: "flex flex-col items-start gap-7", anim: { effect: "fade-up", trigger: "load", duration: 800 } },
             eyebrow(c.tagline ?? "Introducing"),
-            h(c.brand, "1", `${display} max-w-2xl text-5xl md:text-7xl ${ink}`),
+            h(c.brand, "1", `${display} ${heroTypeSm} max-w-2xl ${ink}`),
             p(c.intro ?? "", `max-w-lg text-lg leading-relaxed ${muted}`),
             box("flex flex-wrap gap-3", a(action, primaryBtn), a("Learn more", ghostBtn))
           ),
@@ -424,7 +430,7 @@ export function composePage(input: ComposeInput): ComposedPage {
           "box",
           { classes: "relative z-10 mx-auto flex w-full max-w-4xl flex-col items-center gap-7 px-6 text-center", anim: { effect: "fade-up", trigger: "load", duration: 900 } },
           eyebrow(c.tagline ?? "Introducing"),
-          h(c.brand, "1", `${display} text-6xl md:text-8xl ${ink}`),
+          h(c.brand, "1", `${display} ${heroType} ${ink}`),
           p(c.intro ?? "", `max-w-xl text-lg leading-relaxed ${muted}`),
           box("flex flex-wrap justify-center gap-3", a(action, primaryBtn), a("Learn more", ghostBtn))
         )
@@ -453,7 +459,9 @@ export function composePage(input: ComposeInput): ComposedPage {
         box("flex flex-col gap-3", eyebrow("What you get"), title("Built around what matters")),
         el(
           "box",
-          { classes: "grid gap-6 md:grid-cols-3", anim: { effect: "fade-up", trigger: "scroll", scroll: { stagger: 110 } } },
+          // Column count from the count of features, so four never lands as
+          // three-plus-an-orphan.
+          { classes: `grid gap-6 ${cols(Math.min((c.features ?? []).length, 6))}`, anim: { effect: "fade-up", trigger: "scroll", scroll: { stagger: 110 } } },
           ...(c.features ?? []).slice(0, 6).map((f) =>
             box(
               `flex flex-col gap-4 ${surface} p-8 md:p-10`,
@@ -493,14 +501,14 @@ export function composePage(input: ComposeInput): ComposedPage {
           "horizontal",
           { props: { hold: Math.min(3, 1 + pics.length * 0.25), gap: "1.5rem" }, classes: "relative w-full" },
           box(
-            "flex w-[24vw] shrink-0 flex-col justify-center gap-3 pr-6",
+            "flex w-[62vw] md:w-[24vw] shrink-0 flex-col justify-center gap-3 pr-6",
             eyebrow("Selected work"),
             h("A look at what we make", "2", `${display} text-4xl ${ink}`)
           ),
           ...pics.slice(0, 8).map((id, n) =>
             el(
               "box",
-              { classes: "h-[64vh] w-[34vw] shrink-0 overflow-hidden rounded-2xl bg-base-200", anim: { effect: "fade", trigger: "load", scroll: { parallax: n % 2 ? 18 : -18 } } },
+              { classes: "h-[44vh] w-[74vw] md:h-[64vh] md:w-[34vw] shrink-0 overflow-hidden rounded-2xl bg-base-200", anim: { effect: "fade", trigger: "load", scroll: { parallax: n % 2 ? 18 : -18 } } },
               shot(id, "h-full w-full object-cover")
             )
           )
@@ -780,7 +788,7 @@ export function composePage(input: ComposeInput): ComposedPage {
     { classes: "relative w-full border-b border-base-300 bg-base-100 px-6 py-5" },
     box(
       `${shell} flex items-center justify-between gap-6 px-0`,
-      h(c.brand, "3", `font-display text-xl font-bold tracking-tight whitespace-nowrap ${ink}`),
+      h(c.brand, "3", `min-w-0 truncate font-display text-lg md:text-xl font-bold tracking-tight ${ink}`),
       el(
         "nav-menu",
         {
