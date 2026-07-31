@@ -61,6 +61,13 @@ export const node = z.object({
            * so children can be driven across the held span.
            */
           pin: z.number().min(0).max(4).optional(),
+          /**
+           * What the motion is measured against: the element's own pass across
+           * the viewport (default), or the progress through a pinned ancestor's
+           * hold. Inside a pin the viewport reading is frozen — the section does
+           * not move — so anything scrubbing across a hold must say so here.
+           */
+          driver: z.enum(["viewport", "pin"]).optional(),
         })
         .optional(),
     })

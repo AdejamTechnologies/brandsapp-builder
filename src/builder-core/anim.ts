@@ -15,6 +15,15 @@ export interface NodeScrollMotion {
   fade?: boolean
   stagger?: number
   pin?: number
+  /**
+   * What the motion is measured against.
+   *
+   * "viewport" (the default) is the element's own pass across the screen. "pin"
+   * is the progress through a PINNED ancestor's hold — which is the only thing
+   * that works inside one, because a pinned section does not move, so its
+   * children's viewport progress is frozen while the reader scrolls.
+   */
+  driver?: "viewport" | "pin"
 }
 
 export interface NodeAnim {
@@ -69,7 +78,8 @@ export function scrollCss(id: string, s?: NodeScrollMotion): string {
   if (!s) return ""
   const parts: string[] = []
   const m = "var(--bapp-motion,1)"
-  const p = "var(--bapp-p,0)"
+  // --bapp-q is published by the pinned ancestor and inherits down to here.
+  const p = s.driver === "pin" ? "var(--bapp-q,0)" : "var(--bapp-p,0)"
 
   if (s.parallax) parts.push(`translate3d(0,calc(${p} * ${clampF(s.parallax, -400, 400)}px * ${m}),0)`)
   if (s.zoom) parts.push(`scale(calc(1 + ${p} * ${clampF(s.zoom, -0.5, 0.5)} * ${m}))`)

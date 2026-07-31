@@ -158,7 +158,10 @@ const PATTERNS: Record<Pattern, PatternSpec> = {
   "feature-grid": { usable: (c) => (c.features?.length ?? 0) >= 3, media: "light", priority: 70, source: "features" },
   "feature-rows": { usable: (c) => (c.features?.length ?? 0) >= 2 && !!c.images?.length, media: "heavy", priority: 68, source: "features" },
   "gallery-grid": { usable: (c) => (c.images?.length ?? 0) >= 4, media: "heavy", priority: 60, source: "images" },
-  "gallery-wide": { usable: (c) => (c.images?.length ?? 0) >= 1, media: "heavy", priority: 58, source: "images" },
+  // No `source`: this band is PUNCTUATION, not a gallery. It reuses one
+  // photograph as a full-bleed interval, so it does not spend the imagery a
+  // grid or a set of rows still wants.
+  "gallery-wide": { usable: (c) => (c.images?.length ?? 0) >= 1, media: "heavy", priority: 58 },
   "stat-band": { usable: (c) => (c.stats?.length ?? 0) >= 3, media: "none", priority: 55, canAccent: true, source: "stats" },
   "quote-band": { usable: (c) => (c.quotes?.length ?? 0) >= 1, media: "none", priority: 50, canAccent: true, source: "quotes" },
   "quote-columns": { usable: (c) => (c.quotes?.length ?? 0) >= 2, media: "light", priority: 48, source: "quotes" },
@@ -323,8 +326,19 @@ export function composePage(input: ComposeInput): ComposedPage {
   const title = (t: string) => h(t, "2", `${display} text-4xl md:text-5xl ${ink}`)
   const action = c.action ?? "Get started"
 
+  // Every band arrives on scroll. Doing it here rather than per-pattern is what
+  // makes the whole page move as one thing: no band is silently static because
+  // whoever wrote it forgot, and the effect is identical everywhere.
   const band = (accent: boolean, ...kids: NodeSpec[]): NodeSpec =>
-    el("section", { classes: `w-full ${pad} ${accent ? "bg-primary" : ""}` }, box(`${shell} flex flex-col gap-12 md:gap-16`, ...kids))
+    el(
+      "section",
+      { classes: `w-full ${pad} ${accent ? "bg-primary" : ""}` },
+      el(
+        "box",
+        { classes: `${shell} flex flex-col gap-12 md:gap-16`, anim: { effect: "fade-up", trigger: "scroll", duration: 900 } },
+        ...kids
+      )
+    )
 
   const onAccent = (accent: boolean) => (accent ? "text-primary-content" : ink)
   const onAccentMuted = (accent: boolean) => (accent ? "text-primary-content/75" : "text-base-content/60")
@@ -343,6 +357,10 @@ export function composePage(input: ComposeInput): ComposedPage {
           { classes: "absolute inset-0", anim: { effect: "fade", trigger: "load", duration: 1200, scroll: { parallax: -80, zoom: 0.08 } } },
           shot(pic(i), "h-full w-full object-cover")
         ),
+        // Over the photograph, not instead of it: a slow field of colour that
+        // keeps the hero alive while nothing else on it moves. This is also the
+        // hook the WebGL upgrade attaches to.
+        el("aurora", { props: { tone: "p", intensity: 42, speed: 22 } }),
         el("vignette", { props: { intensity: 55, edge: "bottom" } }),
         el("grain", { props: { intensity: 10 } }),
         // A scrim, not just a vignette: the copy has to hold against a photograph
@@ -464,19 +482,32 @@ export function composePage(input: ComposeInput): ComposedPage {
         box("flex flex-col gap-3", eyebrow("Selected work"), title("A look at what we make")),
         el(
           "box",
-          { classes: `grid grid-cols-2 gap-4 ${cols(Math.min(pics.length, 8))}`, anim: { effect: "zoom", trigger: "scroll", scroll: { stagger: 80 } } },
-          ...pics.slice(0, 8).map((id) => box("overflow-hidden rounded-2xl bg-base-200", shot(id, "aspect-square w-full object-cover")))
+          { classes: `grid grid-cols-2 items-start gap-4 ${cols(Math.min(pics.length, 8))}`, anim: { effect: "zoom", trigger: "scroll", scroll: { stagger: 80 } } },
+          ...pics.slice(0, 8).map((id, n) =>
+            el(
+              "box",
+              { classes: "overflow-hidden rounded-2xl bg-base-200", anim: { effect: "fade", trigger: "scroll", scroll: { parallax: [-30, 18, -14, 26][n % 4], rotate: n % 2 ? 1.2 : -1.2 } } },
+              shot(id, "aspect-square w-full object-cover")
+            )
+          )
         )
       ),
 
+    // The one place the page stops. The section pins for an extra viewport and the
+    // photograph scrubs across the hold — motion the reader drives, rather than
+    // motion that happens at them.
     "gallery-wide": (_ac, i) =>
       el(
         "section",
         { classes: "w-full" },
         el(
           "box",
-          { classes: "relative h-[78vh] w-full overflow-hidden", anim: { effect: "fade", trigger: "scroll", scroll: { zoom: 0.12, parallax: -60 } } },
-          shot(pic(i), "h-full w-full object-cover"),
+          { classes: "relative h-screen w-full overflow-hidden", anim: { effect: "fade", trigger: "load", scroll: { pin: 1 } } },
+          el(
+            "box",
+            { classes: "absolute inset-0", anim: { effect: "fade", trigger: "load", scroll: { zoom: 0.22, parallax: -70, driver: "pin" } } },
+            shot(pic(i), "h-full w-full object-cover")
+          ),
           el("vignette", { props: { intensity: 45, edge: "bottom" } })
         )
       ),
@@ -505,10 +536,11 @@ export function composePage(input: ComposeInput): ComposedPage {
     "quote-band": (ac) =>
       el(
         "section",
-        { classes: `w-full ${pad} ${ac ? "bg-primary" : "bg-base-200"}` },
+        { classes: `relative w-full overflow-hidden ${pad} ${ac ? "bg-primary" : "bg-base-200"}` },
+        ...(m.atmosphere && !ac ? [el("aurora", { props: { tone: "s", intensity: 48, speed: 28 } }), el("grain", { props: { intensity: 8 } })] : []),
         el(
           "box",
-          { classes: "mx-auto flex w-full max-w-4xl flex-col items-center gap-8 px-6 text-center", anim: { effect: "fade-up", trigger: "scroll" } },
+          { classes: "relative z-10 mx-auto flex w-full max-w-4xl flex-col items-center gap-8 px-6 text-center", anim: { effect: "fade-up", trigger: "scroll", duration: 900 } },
           p(`“${c.quotes?.[0]?.text ?? ""}”`, `${display} text-3xl md:text-5xl ${onAccent(ac)}`),
           p(c.quotes?.[0]?.who ?? "", `text-xs uppercase tracking-[0.16em] ${onAccentMuted(ac)}`, "span")
         )
@@ -634,10 +666,16 @@ export function composePage(input: ComposeInput): ComposedPage {
         ...groupHead(g, false),
         el(
           "box",
-          { classes: `grid gap-6 ${cols(items.length)}`, anim: { effect: "fade-up", trigger: "scroll", scroll: { stagger: 90 } } },
-          ...items.map((it) =>
-            box(
-              `flex flex-col gap-4 overflow-hidden ${surface} p-0`,
+          { classes: `grid items-start gap-6 ${cols(items.length)}`, anim: { effect: "fade-up", trigger: "scroll", scroll: { stagger: 90 } } },
+          ...items.map((it, n) =>
+            el(
+              "box",
+              {
+                classes: `flex flex-col gap-4 overflow-hidden ${surface} p-0`,
+                // Columns drift at different rates, so a row of cards reads as
+                // depth rather than as one slab sliding past.
+                anim: { effect: "fade", trigger: "scroll", scroll: { parallax: n % 2 ? 34 : -22 } },
+              },
               shot(it.image ?? pic(i), "aspect-[4/3] w-full object-cover"),
               box(
                 "flex flex-col gap-2 px-6 pb-6",
@@ -664,7 +702,7 @@ export function composePage(input: ComposeInput): ComposedPage {
       )
       const media = el(
         "box",
-        { classes: `overflow-hidden ${surface} p-0`, anim: { effect: "fade", trigger: "scroll", scroll: { parallax: flip ? 24 : -24 } } },
+        { classes: `overflow-hidden ${surface} p-0`, anim: { effect: "fade", trigger: "scroll", scroll: { parallax: flip ? 44 : -44 } } },
         shot(it.image ?? pic(i), "aspect-[4/3] h-full w-full object-cover")
       )
       return band(false, box("grid items-center gap-12 md:grid-cols-2", ...(flip ? [media, words] : [words, media])))
