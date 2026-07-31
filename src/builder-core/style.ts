@@ -102,13 +102,40 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } | null {
 }
 const triplet = (c: { h: number; s: number; l: number }) => `${c.h} ${c.s}% ${c.l}%`
 
-/** Fill --x, --xf (focus, darker), --xc (content, contrast) from a brand hex. */
+/** WCAG relative luminance of a hex colour, 0 (black) to 1 (white). */
+export function luminance(hex: string): number | null {
+  let m = hex.trim().replace(/^#/, "")
+  if (m.length === 3) m = m[0] + m[0] + m[1] + m[1] + m[2] + m[2]
+  if (!/^[0-9a-fA-F]{6}$/.test(m)) return null
+  const ch = [0, 2, 4].map((i) => {
+    const v = parseInt(m.slice(i, i + 2), 16) / 255
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+  })
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]
+}
+
+/** Is this a dark ground? Surfaces have to sit ABOVE a dark page and BELOW a light one. */
+export const isDarkHex = (hex: string | undefined): boolean => (hex ? (luminance(hex) ?? 1) < 0.2 : false)
+
+/**
+ * Fill --x, --xf (focus, darker), --xc (content, contrast) from a brand hex.
+ *
+ * The content colour used to be picked on HSL lightness alone, which reads a
+ * saturated blue like #5b6cff as "light" (l = 68%) and puts near-black on it. It
+ * measures as the higher contrast of the two, but only just, and it looks like a
+ * mistake — a dark label on a vivid button. So: luminance, not lightness, and
+ * black has to win CLEARLY before it is chosen. Anything on a genuinely light
+ * surface (a yellow, a cream) still gets ink.
+ */
 function brand(vars: Record<string, string>, hex: string | undefined, base: string, focus: string, content: string) {
   const c = hex ? hexToHsl(hex) : null
   if (!c) return
   vars[base] = triplet(c)
   vars[focus] = triplet({ ...c, l: Math.max(0, c.l - 8) })
-  vars[content] = c.l > 60 ? "0 0% 20%" : "0 0% 100%"
+  const L = luminance(hex!) ?? 0
+  const onWhite = 1.05 / (L + 0.05)
+  const onBlack = (L + 0.05) / 0.05
+  vars[content] = onBlack >= onWhite * 1.6 ? "0 0% 12%" : "0 0% 100%"
 }
 
 /** daisyUI theme vars derived from the doc theme (defaults + brand/base overrides). */
@@ -152,66 +179,70 @@ export function themeToCss(theme: ThemeTokens, rootSelector: string): string {
   return base + scaleToCss(theme, rootSelector)
 }
 
-/** Utility families the scales re-interpret, with the step values they ship with. */
-const PAD_STEPS = [8, 10, 12, 14, 16, 20, 24, 28, 32]
-const GAP_STEPS = [4, 5, 6, 8, 10, 12, 16]
-const RADII: Array<[string, number]> = [
-  ["sm", 0.125], ["", 0.25], ["md", 0.375], ["lg", 0.5],
-  ["xl", 0.75], ["2xl", 1], ["3xl", 1.5],
+/**
+ * The COMPLETE scales, not a sample of them.
+ *
+ * These are the steps the utility generator is taught to express in terms of the
+ * theme (see unocss.ts): every one is emitted as `calc(<step> * var(--bapp-…))`,
+ * so a page re-proportions itself from the variables this file sets. Listing only
+ * the steps our own templates happened to use meant a page written with any other
+ * step silently ignored the theme — it still rendered, just unthemed.
+ */
+export const SPACE_STEPS = [
+  0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 48,
+  52, 56, 60, 64, 72, 80, 96,
 ]
-const DISPLAY_TEXT: Array<[string, number]> = [
-  ["2xl", 1.5], ["3xl", 1.875], ["4xl", 2.25], ["5xl", 3], ["6xl", 3.75], ["7xl", 4.5],
+export const RADII: Array<[string, number]> = [
+  ["sm", 0.125], ["", 0.25], ["md", 0.375], ["lg", 0.5],
+  ["xl", 0.75], ["2xl", 1], ["3xl", 1.5], ["4xl", 2],
+]
+/**
+ * Display sizes only — body steps (xs…lg) are deliberately absent, because
+ * scaling body copy hurts legibility and is not a look. Leading is Tailwind's,
+ * expressed as a ratio so it tracks the scaled size instead of fighting it.
+ */
+export const DISPLAY_TEXT: Array<[string, number, number]> = [
+  ["xl", 1.25, 1.4], ["2xl", 1.5, 1.33], ["3xl", 1.875, 1.2], ["4xl", 2.25, 1.11],
+  ["5xl", 3, 1], ["6xl", 3.75, 1], ["7xl", 4.5, 1], ["8xl", 6, 1], ["9xl", 8, 1],
 ]
 
 /**
- * Re-interprets the utilities a page already uses, scoped to the document root.
+ * The scale, as three variables the utility generator already multiplies by.
  *
- * A theme that only swaps colour cannot change a LOOK — density, corner language
- * and type contrast do most of that work. Rather than requiring every template to
- * be rewritten against bespoke classes, this restates the handful of families that
- * carry a design (section padding, gaps, corners, display type) in terms of the
- * scale tokens. An untouched page therefore re-proportions itself when the theme
- * changes, which is what makes a template a function of its tokens.
+ * This used to restate every affected utility as a more specific override —
+ * `.bapp-root .gap-7{…}` — which worked until a page used a responsive variant.
+ * `md:gap-7` is one class, the override is two, so the override won at every
+ * breakpoint and the page silently lost its responsive spacing. (That is not
+ * hypothetical: it flattened the nav menu's `md:gap-7` to the mobile `gap-1`.)
  *
- * Emitted ONLY for scales that differ from 1, so a default theme costs nothing and
- * the authored classes keep their exact meaning.
+ * So the scale is no longer an override at all. `generateUtilityCss` emits every
+ * spacing, radius and display-type utility as `calc(<step> * var(--bapp-…))`, and
+ * all this has to do is set the variables — which means variants, arbitrary
+ * breakpoints and anything else UnoCSS generates scale for free, and nothing is
+ * fighting anything else in the cascade.
+ *
+ * A default theme still costs nothing: every variable defaults to 1 at the point
+ * of use, so a scale of 1 emits no declaration.
  */
 export function scaleToCss(theme: ThemeTokens, rootSelector: string): string {
   const s = theme.scale
   if (!s) return ""
   const out: string[] = []
+  const vars: string[] = []
   const r = (n: number) => Math.round(n * 1000) / 1000
 
-  if (s.density !== 1) {
-    for (const step of PAD_STEPS) {
-      const v = `${r((step / 4) * s.density)}rem`
-      out.push(`${rootSelector} .py-${step}{padding-top:${v};padding-bottom:${v}}`)
-      out.push(`${rootSelector} .p-${step}{padding:${v}}`)
-    }
-    for (const step of GAP_STEPS) out.push(`${rootSelector} .gap-${step}{gap:${r((step / 4) * s.density)}rem}`)
-  }
-
-  if (s.radius !== 1) {
-    for (const [name, rem] of RADII) {
-      const cls = name ? `.rounded-${name}` : ".rounded"
-      out.push(`${rootSelector} ${cls}{border-radius:${r(rem * s.radius)}rem}`)
-    }
-    // A square language means square, not "nearly round".
-    if (s.radius === 0) out.push(`${rootSelector} .rounded-full{border-radius:0}`)
-  }
-
-  if (s.typeScale !== 1) {
-    // Display sizes only: scaling body copy hurts legibility and is not a look.
-    for (const [name, rem] of DISPLAY_TEXT) {
-      out.push(`${rootSelector} .text-${name}{font-size:${r(rem * s.typeScale)}rem;line-height:1.05}`)
-    }
-  }
-
+  if (s.density !== 1) vars.push(`--bapp-density:${r(s.density)}`)
+  if (s.radius !== 1) vars.push(`--bapp-radius:${r(s.radius)}`)
+  if (s.typeScale !== 1) vars.push(`--bapp-type:${r(s.typeScale)}`)
   if (s.motion !== 1) {
     // One variable damps every scroll-linked effect on the page at once — the
     // travel in anim.ts multiplies by it — so "calm" is a theme decision rather
     // than something an author re-tunes on each node.
-    out.push(`${rootSelector}{--bapp-motion:${r(s.motion)}}`)
+    vars.push(`--bapp-motion:${r(s.motion)}`)
+  }
+  if (vars.length) out.push(`${rootSelector}{${vars.join(";")}}`)
+
+  if (s.motion !== 1) {
     const d = s.motion === 0 ? "0.01ms" : `calc(var(--bapp-anim-duration, 600ms) * ${r(s.motion)})`
     out.push(`${rootSelector} [class*="n-"]{animation-duration:${d}}`)
     if (s.motion === 0) out.push(`${rootSelector} *{animation:none!important;transition:none!important}`)
