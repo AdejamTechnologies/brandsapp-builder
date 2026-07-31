@@ -28,6 +28,7 @@
 import { buildDoc, el, type NodeSpec } from "./authoring"
 import { iconSvg } from "./icons"
 import { MOODS_SPEC, type Mood } from "./moods"
+import { LAYOUTS_FOR, LAYOUT_SPECS, type Layout } from "./layout"
 import { isDarkHex } from "./style"
 import type { Doc } from "./schema"
 
@@ -121,10 +122,13 @@ export interface ComposeInput {
   seed?: number
   /** Cap the page length; the engine drops the weakest bands first. */
   maxBands?: number
+  /** Force the page geometry. Omitted, it is chosen from the mood and the seed. */
+  layout?: Layout
 }
 
 /** Patterns the engine can reach for. Each declares what it needs to be usable. */
 type Pattern =
+  | "hero-type"
   | "product-grid"
   | "category-tiles"
   | "assurance-bar"
@@ -167,6 +171,10 @@ const PATTERNS: Record<Pattern, PatternSpec> = {
   // available, and the one a page with strong imagery should usually take.
   "hero-full": { usable: (c) => !!c.images?.length, media: "heavy", priority: 101 },
   "hero-split": { usable: (c) => !!c.images?.length, media: "heavy", priority: 100 },
+  // A typographic opening: the name at the size of a poster, a single line of
+  // prose, and the photographs demoted to a strip along the bottom. No photo
+  // competes with the words, which is a different page, not a different skin.
+  "hero-type": { usable: () => true, media: "light", priority: 98 },
   "hero-centred": { usable: () => true, media: "none", priority: 99 },
   // Commerce bands outrank everything except the hero: on a shop, the things for
   // sale come before the manifesto, and a category is how most people start.
@@ -231,7 +239,9 @@ export function planPage(input: ComposeInput): ComposedPlan {
   // The hero is whichever hero the content supports, not a fixed choice. With
   // photography the full-bleed opening is the default and the split is the
   // variation; with none, the page opens typographically.
-  const heroes: Pattern[] = available.includes("hero-full") ? ["hero-full", "hero-full", "hero-split", "hero-centred"] : ["hero-centred"]
+  const heroes: Pattern[] = available.includes("hero-full")
+    ? ["hero-full", "hero-split", "hero-centred", "hero-type"]
+    : ["hero-centred", "hero-type"]
   const hero: Pattern = heroes[Math.floor(rand() * heroes.length)]
 
   const pool = available.filter((p) => !p.startsWith("hero") && !p.startsWith("cta"))
@@ -378,18 +388,36 @@ export function composePage(input: ComposeInput): ComposedPage {
    * divided by a rule or by air. Same bands, same content — genuinely different
    * pages, and no new patterns needed to get there.
    */
+  const pick = <T,>(xs: T[]) => xs[Math.floor(rand() * xs.length)]
+
+  /**
+   * The page's GEOMETRY, chosen before anything else. A register decides how a
+   * band is dressed; this decides where it is — whether the page has a sticky
+   * rail, whether bands sit on a twelve-column grid at alternating offsets, and
+   * whether media is allowed past the container edge. Two pages that differ only
+   * in their register still look like each other; two that differ here do not.
+   */
+  const LAY: Layout = input.layout ?? pick(LAYOUTS_FOR[plan.mood] ?? ["stacked"])
+  const L = LAYOUT_SPECS[LAY]
+
   const REG = (() => {
-    const pick = <T,>(xs: T[]) => xs[Math.floor(rand() * xs.length)]
-    const wide = pick(["max-w-7xl", "max-w-6xl", "max-w-[88rem]"])
-    const head = pick(["left", "left", "centre", "split"] as const)
     const card = m.scale.radius === 0 ? "flat" : pick(["bordered", "soft", "flat", "hairline"] as const)
     const ruled = rand() > 0.6
-    return { wide, head, card, ruled }
+    return { head: L.head, card, ruled }
   })()
 
-  const shell = `mx-auto w-full ${REG.wide} px-6 md:px-10`
-  const reading = "mx-auto w-full max-w-3xl px-6"
-  const pad = `py-${m.rhythm} md:py-${nearest(m.rhythm * 1.5)}`
+  const shell = L.shell
+  /**
+   * Where the imagery lives. On a bleed page the prose keeps a narrow measure
+   * and the pictures run edge to edge — the magazine contract, and the reason a
+   * bleed page cannot be mistaken for a stacked one even in greyscale. Done by
+   * removing the container rather than by negative margins, which is the version
+   * that does not produce a horizontal scrollbar.
+   */
+  const mediaShell = L.bleeds ? "w-full max-w-none px-0" : L.shell
+  const reading = `mx-auto w-full ${L.measure} px-6`
+  const step = Math.round(m.rhythm * L.rhythm)
+  const pad = `py-${nearest(step)} md:py-${nearest(step * 1.5)}`
   const ink = "text-base-content"
   const muted = "text-base-content/60"
   // A card has to read as raised. On a light page that means it stays white and
@@ -447,16 +475,22 @@ export function composePage(input: ComposeInput): ComposedPage {
   // Every band arrives on scroll. Doing it here rather than per-pattern is what
   // makes the whole page move as one thing: no band is silently static because
   // whoever wrote it forgot, and the effect is identical everywhere.
-  const band = (accent: boolean, ...kids: NodeSpec[]): NodeSpec =>
-    el(
+  // How many bands have been laid so far — the editorial grid alternates its
+  // offsets from this, so the page reads diagonally rather than as a stack.
+  let bandNo = 0
+  const band = (accent: boolean, ...kids: NodeSpec[]): NodeSpec => {
+    const n = bandNo++
+    const inner = el(
+      "box",
+      { classes: `${L.bandInner} ${L.bandOffset(n)}`, anim: { effect: "fade-up", trigger: "scroll", duration: 900 } },
+      ...kids
+    )
+    return el(
       "section",
       { classes: `w-full ${pad} ${accent ? "bg-primary" : ""} ${REG.ruled && !accent ? "border-t border-base-300" : ""}` },
-      el(
-        "box",
-        { classes: `${shell} flex flex-col gap-12 md:gap-16`, anim: { effect: "fade-up", trigger: "scroll", duration: 900 } },
-        ...kids
-      )
+      LAY === "editorial" ? box(shell, inner) : box(shell, inner)
     )
+  }
 
   const onAccent = (accent: boolean) => (accent ? "text-primary-content" : ink)
   const onAccentMuted = (accent: boolean) => (accent ? "text-primary-content/75" : "text-base-content/60")
@@ -504,6 +538,38 @@ export function composePage(input: ComposeInput): ComposedPage {
             a("Learn more", ghostBtn)
           )
         )
+      ),
+
+    // No photograph behind the words. The name is set at poster scale, a single
+    // sentence sits under it, and the imagery runs as a strip along the bottom —
+    // which makes the first screen about the brand rather than about stock.
+    "hero-type": (_ac, i) =>
+      el(
+        "section",
+        { classes: `relative w-full overflow-hidden ${pad} ${REG.ruled ? "" : ""}` },
+        box(
+          shell,
+          el(
+            "box",
+            { classes: `${L.bandOffset(0)} flex flex-col gap-10`, anim: { effect: "fade-up", trigger: "load", duration: 900 } },
+            box(
+              "flex flex-col gap-6",
+              box("flex items-center gap-3", eyebrow(c.tagline ?? "Introducing"), box("h-px w-16 bg-base-300")),
+              h(c.brand, "1", `${display} ${heroType} max-w-[14ch] ${ink}`),
+              p(c.intro ?? "", `max-w-xl text-lg leading-relaxed ${muted}`),
+              box("flex flex-wrap gap-3", a(action, primaryBtn), a("Learn more", ghostBtn))
+            )
+          )
+        ),
+        pics.length
+          ? el(
+              "box",
+              { classes: "mt-14 flex w-full gap-3 overflow-hidden px-6 md:px-10", anim: { effect: "fade", trigger: "load", delay: 200, scroll: { parallax: -30 } } },
+              ...pics.slice(0, 4).map((id, n) =>
+                box(`h-[26vh] flex-1 overflow-hidden ${cardMedia} bg-base-200 ${n > 1 ? "hidden md:block" : ""}`, shot(id, "h-full w-full object-cover"))
+              )
+            )
+          : box("hidden")
       ),
 
     "hero-split": (_ac, i) =>
@@ -717,16 +783,17 @@ export function composePage(input: ComposeInput): ComposedPage {
       ),
 
     "gallery-grid": () =>
-      band(
-        false,
-        bandHead("Selected work", "A look at what we make"),
+      el(
+        "section",
+        { classes: `w-full ${pad}` },
+        box(`${shell} mb-10 md:mb-14`, bandHead("Selected work", "A look at what we make")),
         el(
           "box",
-          { classes: `grid grid-cols-2 items-start gap-4 ${cols(Math.min(pics.length, 8))}`, anim: { effect: "zoom", trigger: "scroll", scroll: { stagger: 80 } } },
+          { classes: `${mediaShell} grid grid-cols-2 items-start gap-4 ${L.bleeds ? "gap-2" : ""} ${cols(Math.min(pics.length, 8))}`, anim: { effect: "zoom", trigger: "scroll", scroll: { stagger: 80 } } },
           ...pics.slice(0, 8).map((id, n) =>
             el(
               "box",
-              { classes: "overflow-hidden rounded-2xl bg-base-200", anim: { effect: "fade", trigger: "scroll", scroll: { parallax: [-30, 18, -14, 26][n % 4], rotate: n % 2 ? 1.2 : -1.2 } } },
+              { classes: `overflow-hidden ${L.bleeds ? "rounded-none" : "rounded-2xl"} bg-base-200`, anim: { effect: "fade", trigger: "scroll", scroll: { parallax: [-30, 18, -14, 26][n % 4], rotate: n % 2 ? 1.2 : -1.2 } } },
               shot(id, "aspect-square w-full object-cover")
             )
           )
@@ -986,11 +1053,34 @@ export function composePage(input: ComposeInput): ComposedPage {
     )
   }
 
+  const LINKS = ["Work", "About", "Pricing", "Contact"]
+
+  /**
+   * The rail: a column that stays put while the page moves past it. This is the
+   * whole reason `railed` is a different design rather than a different theme —
+   * the brand and the index are never re-read because they never leave, so the
+   * content column can be narrow and the page can breathe.
+   *
+   * It is desktop-only by necessity; below the breakpoint the page falls back to
+   * the ordinary top bar, which is also what a phone expects.
+   */
+  const railColumn = el(
+    "box",
+    { classes: "sticky top-0 hidden h-screen w-[28%] shrink-0 flex-col justify-between py-14 md:flex" },
+    box(
+      "flex flex-col gap-8",
+      h(c.brand, "3", `${display} text-2xl ${ink}`),
+      p(c.intro ?? "", `max-w-[22ch] text-sm leading-relaxed ${muted}`)
+    ),
+    box("flex flex-col gap-3", ...LINKS.map((t) => a(t, `text-sm ${muted} no-underline`))),
+    box("flex flex-col gap-4", a(action, primaryBtn), p(`© 2026 ${c.brand}`, "text-xs text-base-content/40", "span"))
+  )
+
   const nav = el(
     "navbar",
-    { classes: "relative w-full border-b border-base-300 bg-base-100 px-6 py-5" },
+    { classes: `relative w-full ${L.rail ? "md:hidden " : ""}border-b border-base-300 bg-base-100 px-6 py-5` },
     box(
-      `${shell} flex items-center justify-between gap-6 px-0`,
+      `mx-auto flex w-full max-w-7xl items-center justify-between gap-6 px-0`,
       h(c.brand, "3", `min-w-0 truncate font-display text-lg md:text-xl font-bold tracking-tight ${ink}`),
       el(
         "nav-menu",
@@ -999,7 +1089,7 @@ export function composePage(input: ComposeInput): ComposedPage {
             "hidden absolute left-0 right-0 top-full z-40 flex-col items-stretch gap-1 border-t border-base-300 bg-base-100 p-4 shadow-lg " +
             "md:static md:z-auto md:flex md:flex-row md:items-center md:gap-7 md:border-0 md:bg-transparent md:p-0 md:shadow-none",
         },
-        ...["Work", "About", "Pricing", "Contact"].map((t) => a(t, `text-sm ${muted} no-underline`))
+        ...LINKS.map((t) => a(t, `text-sm ${muted} no-underline`))
       ),
       a(action, primaryBtn.replace("inline-flex", "hidden sm:inline-flex")),
       el("nav-toggle", { classes: "md:hidden inline-flex flex-col justify-center gap-[5px] w-10 h-10 px-[9px] cursor-pointer text-base-content" })
@@ -1021,12 +1111,32 @@ export function composePage(input: ComposeInput): ComposedPage {
 
   void rand()
 
+  // Some patterns assume the whole viewport. Beside a rail there is no whole
+  // viewport, so they are exchanged for the version that fits the column rather
+  // than rendered at a width the page does not have.
+  const RAIL_SWAP: Partial<Record<Pattern, Pattern>> = { "hero-full": "hero-split", "gallery-run": "gallery-grid" }
+  const bands = plan.bands.map((b, i) =>
+    b.pattern === "group"
+      ? renderGroup(b.shape ?? "card-grid", (c.groups ?? [])[b.group ?? 0] ?? { items: [] }, b.accent, i)
+      : render[(L.rail && RAIL_SWAP[b.pattern]) || b.pattern](b.accent, i)
+  )
+
+  // The geometry decides the page's own shape, not just what is inside it.
+  const page = L.rail
+    ? box(
+        `font-body ${ink} bg-base-100 antialiased min-h-screen`,
+        nav,
+        box(
+          "mx-auto flex w-full max-w-[92rem] gap-12 px-6 md:px-10",
+          railColumn,
+          box("min-w-0 flex-1", ...bands)
+        ),
+        footer
+      )
+    : box(`font-body ${ink} bg-base-100 antialiased min-h-screen`, nav, ...bands, footer)
+
   const doc = buildDoc(
-    box(`font-body ${ink} bg-base-100 antialiased min-h-screen`, nav, ...plan.bands.map((b, i) =>
-        b.pattern === "group"
-          ? renderGroup(b.shape ?? "card-grid", (c.groups ?? [])[b.group ?? 0] ?? { items: [] }, b.accent, i)
-          : render[b.pattern](b.accent, i)
-      ), footer),
+    page,
     {
       theme: {
         colors: m.colors,
