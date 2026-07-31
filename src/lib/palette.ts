@@ -5,7 +5,7 @@ import {
   Quote, Rows3, Search, Shapes, ShieldCheck, Sparkles, Square, SquareCheck, Tag, ThumbsUp,
   Type, Upload, Video,
   AlertCircle, Aperture, Badge as BadgeIcon, ChevronsRight, ChevronsUpDown, CircleUser, CreditCard,
-  Ellipsis, Grip, Sun, Waves,
+  Ellipsis, Grip, Sun, Waves, MoveHorizontal, Orbit,
   PanelBottom,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -58,6 +58,7 @@ export const PALETTE: PaletteSection[] = [
     label: "Structure",
     entries: [
       { label: "Section", icon: PanelTop, module: "section", keywords: "band region" },
+      { label: "Horizontal Section", icon: MoveHorizontal, module: "horizontal", keywords: "sideways pin scroll track run carousel" },
       { label: "Container", icon: Frame, module: "container", keywords: "wrapper centred" },
       { label: "Quick Stack", icon: LayoutGrid, module: "grid", props: { columns: 2 }, keywords: "layout responsive" },
       { label: "V Flex", icon: Rows3, module: "stack", props: { direction: "column" }, keywords: "vertical column flex" },
@@ -118,6 +119,10 @@ export const PALETTE: PaletteSection[] = [
       { label: "Light", icon: Sun, module: "light", keywords: "glow radial gradient atmosphere" },
       { label: "Grain", icon: Grip, module: "grain", keywords: "noise texture film atmosphere" },
       { label: "Vignette", icon: Aperture, module: "vignette", keywords: "edge darken fade atmosphere" },
+      // Real 3D and scroll-driven cinema. The scene is dependency-free WebGL and
+      // degrades to its own gradient on a device that cannot afford it.
+      { label: "3D Scene", icon: Orbit, module: "scene", keywords: "webgl three orb grid particles field depth camera" },
+      { label: "Scrubbed Video", icon: Film, module: "scrub-video", keywords: "scroll scrub sequence timeline playhead" },
     ],
   },
   {

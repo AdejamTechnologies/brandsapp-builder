@@ -36,6 +36,8 @@ export const node = z.object({
       trigger: z.enum(["load", "scroll"]).optional(),
       duration: z.number().optional(),
       delay: z.number().optional(),
+      /** Reveal the node's own text a word or a line at a time, from behind a mask. */
+      text: z.enum(["words", "lines"]).optional(),
       /**
        * Scroll-LINKED motion, as distinct from the entrance animation above: an
        * entrance plays once, this tracks the element's progress through the
@@ -68,6 +70,14 @@ export const node = z.object({
            * not move — so anything scrubbing across a hold must say so here.
            */
           driver: z.enum(["viewport", "pin"]).optional(),
+          /** Degrees of X-axis lean across the pass. Real 3D — carries its own perspective. */
+          tilt: z.number().min(-30).max(30).optional(),
+          /** Push along Z in px; negative sits the element behind the page plane. */
+          depth: z.number().min(-600).max(600).optional(),
+          /** Px of pointer-following. Ignored on coarse pointers and reduced motion. */
+          pointer: z.number().min(-120).max(120).optional(),
+          /** Ride a pinned ancestor's hold sideways — a horizontal section. */
+          horizontal: z.boolean().optional(),
         })
         .optional(),
     })
@@ -125,6 +135,23 @@ export const themeScale = z.object({
   typeScale: z.number().min(0.6).max(2).default(1),
   /** Animation intensity. 0 disables motion entirely (and honours reduced-motion). */
   motion: z.number().min(0).max(2).default(1),
+  /**
+   * How much motion the page CHOREOGRAPHS by itself.
+   *
+   * `motion` above is a volume knob on effects that already exist; this decides
+   * whether they exist at all. At "subtle" every band arrives and media drifts;
+   * at "cinematic" that gains depth, tilt and per-word headlines. It applies to
+   * any document — generated, imported or hand-built — because it is resolved
+   * while rendering rather than written into the tree (see choreography.ts).
+   *
+   * Defaults to "none" so an existing page renders exactly as it did.
+   */
+  choreography: z.enum(["none", "subtle", "cinematic"]).default("none"),
+  /**
+   * Smooth out the wheel, so a pinned scrub is scrubbed rather than stepped.
+   * Off by default and never applied to touch, which already has inertia.
+   */
+  smoothScroll: z.boolean().default(false),
 })
 export type ThemeScale = z.infer<typeof themeScale>
 

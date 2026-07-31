@@ -12,6 +12,8 @@ import { CAPTCHA_MODULES } from "./captcha"
 import { LIGHTBOX_MODULES } from "./lightbox"
 import { EMBED_MODULES } from "./embeds"
 import { STRUCTURE_MODULES } from "./structure"
+import { CINEMA_MODULES } from "./cinema"
+import { Scene } from "./scene"
 
 /**
  * `loop` is special-cased by the renderer (it iterates a source and re-renders its
@@ -77,6 +79,8 @@ export function createDefaultRegistry(): ModuleRegistry {
     ...INTERACTIVE_MODULES,
     ...COMPONENT_MODULES,
     ...ATMOSPHERE_MODULES,
+    ...CINEMA_MODULES,
+    Scene,
     ...FORM_MODULES,
     Loop,
     Instance,
@@ -90,5 +94,7 @@ export function createDefaultRegistry(): ModuleRegistry {
 export { ANIMATION_LOADER } from "./animation"
 export { RECAPTCHA_LOADER } from "./captcha"
 export { LIGHTBOX_RUNTIME } from "./lightbox"
+// Real 3D, gated: hosts inject it only when the page contains a scene.
+export { SCENE_LOADER } from "./scene"
 export { ALL_BUTTON_TOKENS, buttonClasses } from "./primitives"
 export { PRIMITIVES }

@@ -29,6 +29,15 @@ const Row = ({ label, children }: { label: string; children: ReactNode }) => (
 )
 
 /** The four scale tokens, with the range each is useful across. */
+/** Every field the schema defaults, so a partial edit never drops the others. */
+const BASE_SCALE = { density: 1, radius: 1, typeScale: 1, motion: 1, choreography: "none" as const, smoothScroll: false }
+
+const CHOREO: Array<{ value: "none" | "subtle" | "cinematic"; label: string; hint: string }> = [
+  { value: "none", label: "None", hint: "Nothing moves unless you animate it yourself." },
+  { value: "subtle", label: "Subtle", hint: "Bands arrive and imagery drifts. The right default for a storefront." },
+  { value: "cinematic", label: "Cinematic", hint: "Adds depth, tilt and headlines that arrive a word at a time." },
+]
+
 const SCALE_ROWS: Array<{ key: "density" | "radius" | "typeScale" | "motion"; label: string; hint: string; min: number; max: number }> = [
   { key: "density", label: "density", hint: "Section padding and gaps. Below 1 tightens, above 1 opens out.", min: 0.4, max: 2 },
   { key: "radius", label: "corners", hint: "0 is square/brutalist, 1 as authored, above 1 softer.", min: 0, max: 3 },
@@ -149,7 +158,7 @@ export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
                 title={r.hint}
                 onChange={(e) =>
                   onChange(
-                    { scale: { density: 1, radius: 1, typeScale: 1, motion: 1, ...theme.scale, [r.key]: Number(e.target.value) } },
+                    { scale: { ...BASE_SCALE, ...theme.scale, [r.key]: Number(e.target.value) } },
                     `theme:scale:${r.key}`
                   )
                 }
@@ -160,6 +169,47 @@ export function ThemeDialog({ theme, onChange, onClose }: ThemeDialogProps) {
           </Row>
         )
       })}
+
+      {/* Motion is a property of the PAGE, not of the elements on it: this is
+          resolved while rendering, so it reaches imported blocks and anything
+          added later without a single node being annotated. */}
+      <GroupTitle>Motion</GroupTitle>
+      <p className="mb-2 -mt-1 text-[11px] leading-relaxed text-muted-foreground">
+        Applies to every element that has no animation of its own — including blocks you import.
+        Anything you animate by hand is left exactly as you set it.
+      </p>
+      <Row label="choreography">
+        <div className="flex w-full gap-1">
+          {CHOREO.map((c) => {
+            const active = (theme.scale?.choreography ?? "none") === c.value
+            return (
+              <button
+                key={c.value}
+                type="button"
+                title={c.hint}
+                onClick={() => onChange({ scale: { ...BASE_SCALE, ...theme.scale, choreography: c.value } }, "theme:choreography")}
+                className={
+                  "flex-1 cursor-pointer rounded-md border px-2 py-1 text-[11px] transition-colors " +
+                  (active ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:bg-muted")
+                }
+              >
+                {c.label}
+              </button>
+            )
+          })}
+        </div>
+      </Row>
+      <Row label="smooth scroll">
+        <label className="flex w-full cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={!!theme.scale?.smoothScroll}
+            onChange={(e) => onChange({ scale: { ...BASE_SCALE, ...theme.scale, smoothScroll: e.target.checked } }, "theme:smooth")}
+            className="accent-primary"
+          />
+          Ease the wheel. Never applied to touch, which already has inertia.
+        </label>
+      </Row>
 
       <GroupTitle>Radius</GroupTitle>
       {Object.entries(radius).map(([k, v]) => (

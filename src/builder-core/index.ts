@@ -29,6 +29,7 @@ export * from "./component-variants"
 export * from "./generate"
 export * from "./compose"
 export * from "./moods"
+export * from "./choreography"
 export * from "./icons"
 export {
   ALL_BUTTON_TOKENS,
@@ -39,5 +40,6 @@ export {
   LIGHTBOX_RUNTIME,
   PRIMITIVES,
   RECAPTCHA_LOADER,
+  SCENE_LOADER,
   SHADER_LOADER,
 } from "./modules"

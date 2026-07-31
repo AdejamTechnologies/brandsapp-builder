@@ -411,7 +411,8 @@ export const BUILDER_RUNTIME = `(function(){
      mid-scroll reflows the page under the reader and is the classic cause of
      pinned sections jumping.                                                   */
   function initPin(d){
-    var pins=[].slice.call(d.querySelectorAll('.bapp-pin'));
+    /* A horizontal section IS a pin — it just declares itself structurally. */
+    var pins=[].slice.call(d.querySelectorAll('.bapp-pin,[data-bapp-horizontal]'));
     if(!pins.length)return;
     pins.forEach(function(el){
       if(el.__bappPin)return; el.__bappPin=1;
@@ -475,6 +476,181 @@ export const BUILDER_RUNTIME = `(function(){
     els.forEach(function(e){ if(e.__bapp)return; e.__bapp=1; io.observe(e) });
   }
 
+
+  /* ── Device tier ───────────────────────────────────────────────────────────
+     Everything expensive asks this first. The audience for these pages is on
+     mid-range Android over patchy data as often as not, and a shader or a
+     hijacked scroll on a phone that cannot afford it is worse than no effect at
+     all — so capability is measured once and published as an attribute that CSS
+     and every other routine can read.                                          */
+  function tier(){
+    if(window.__bappTier)return window.__bappTier;
+    var t='high';
+    try{
+      var nav=navigator||{}, mem=nav.deviceMemory||4, cores=nav.hardwareConcurrency||4;
+      var save=nav.connection&&(nav.connection.saveData||/2g/.test(nav.connection.effectiveType||''));
+      var coarse=window.matchMedia('(pointer: coarse)').matches;
+      if(reduced()||save||mem<4||cores<4)t='low';
+      else if(coarse&&mem<6)t='mid';
+    }catch(e){}
+    window.__bappTier=t;
+    try{ DOC.documentElement.setAttribute('data-bapp-tier',t) }catch(e){}
+    return t;
+  }
+
+  /* ── Split text ────────────────────────────────────────────────────────────
+     A heading revealed word by word from behind a mask. The split happens here
+     rather than in the renderer on purpose: the published HTML stays a plain
+     sentence for anything that reads the page without running scripts, and every
+     module that prints a string gets the effect without knowing it exists.
+     Words are wrapped, whitespace is preserved as real text so the line still
+     wraps and copies correctly, and nested markup is walked rather than flattened. */
+  function splitWords(el){
+    if(el.__bappSplit)return; el.__bappSplit=1;
+    var n=0;
+    function walk(parent){
+      var kids=[].slice.call(parent.childNodes);
+      for(var i=0;i<kids.length;i++){
+        var node=kids[i];
+        if(node.nodeType===3){
+          var parts=(node.nodeValue||'').split(/(\\s+)/);
+          if(parts.length===1&&!parts[0].trim())continue;
+          var frag=DOC.createDocumentFragment();
+          for(var j=0;j<parts.length;j++){
+            var part=parts[j];
+            if(!part)continue;
+            if(!part.trim()){ frag.appendChild(DOC.createTextNode(part)); continue }
+            var outer=DOC.createElement('span');
+            outer.className='bapp-w';
+            outer.style.setProperty('--bapp-i',String(n++));
+            var inner=DOC.createElement('span');
+            inner.textContent=part;
+            outer.appendChild(inner);
+            frag.appendChild(outer);
+          }
+          parent.replaceChild(frag,node);
+        } else if(node.nodeType===1&&!node.classList.contains('bapp-w')){
+          walk(node);
+        }
+      }
+    }
+    walk(el);
+  }
+  function initSplit(d){
+    var els=[].slice.call(d.querySelectorAll('.bapp-split'));
+    if(!els.length)return;
+    /* Reduced motion keeps the sentence exactly as authored — no spans at all. */
+    if(reduced()){ els.forEach(function(e){ e.classList.add('bapp-in') }); return }
+    els.forEach(splitWords);
+  }
+
+  /* ── Pointer ───────────────────────────────────────────────────────────────
+     Two numbers, -1 to 1, published on the document element: how far the pointer
+     is from the centre of the viewport. Layers read them in CSS, so following
+     the cursor costs one variable write per frame no matter how many elements
+     are doing it. Skipped entirely on touch, where there is no cursor to follow. */
+  function initPointer(){
+    if(window.__bappPointer)return;
+    if(reduced()||tier()==='low')return;
+    try{ if(window.matchMedia('(pointer: coarse)').matches)return }catch(e){}
+    if(!DOC.querySelector('.bapp-pointer'))return;
+    window.__bappPointer=1;
+    var tx=0,ty=0,cx=0,cy=0,run=false;
+    function frame(){
+      cx+=(tx-cx)*0.08; cy+=(ty-cy)*0.08;
+      var root=DOC.documentElement;
+      root.style.setProperty('--bapp-mx',String(Math.round(cx*1000)/1000));
+      root.style.setProperty('--bapp-my',String(Math.round(cy*1000)/1000));
+      if(Math.abs(tx-cx)>0.001||Math.abs(ty-cy)>0.001)requestAnimationFrame(frame);
+      else run=false;
+    }
+    window.addEventListener('pointermove',function(e){
+      tx=(e.clientX/(window.innerWidth||1))*2-1;
+      ty=(e.clientY/(window.innerHeight||1))*2-1;
+      if(!run){ run=true; requestAnimationFrame(frame) }
+    },{passive:true});
+  }
+
+  /* ── Smooth scroll ─────────────────────────────────────────────────────────
+     Wheel input is coarse and steppy, which a pinned scrub exposes immediately:
+     the held image jumps in 100px increments instead of scrubbing. This eases the
+     wheel toward a target position.
+     It is deliberately narrow. Touch is left alone — it already has inertia, and
+     hijacking it is the single most complained-about pattern on sites that do
+     this. Keyboard, anchor links and the scrollbar are untouched because only
+     wheel events are intercepted, and any of them simply resets the target.     */
+  function initSmooth(){
+    if(window.__bappSmooth)return;
+    if(!DOC.querySelector('[data-bapp-smooth]'))return;
+    if(reduced()||tier()==='low')return;
+    try{ if(window.matchMedia('(pointer: coarse)').matches)return }catch(e){}
+    window.__bappSmooth=1;
+    var target=window.scrollY||0, running=false, own=false;
+    function max(){ return Math.max(0,(DOC.documentElement.scrollHeight||0)-(window.innerHeight||0)) }
+    function frame(){
+      var cur=window.scrollY;
+      var next=cur+(target-cur)*0.14;
+      if(Math.abs(target-next)<0.5){ next=target; running=false } else { requestAnimationFrame(frame) }
+      own=true; window.scrollTo(0,next); own=false;
+    }
+    window.addEventListener('wheel',function(e){
+      if(e.ctrlKey)return;
+      /* Anything scrollable under the cursor keeps its own scrolling. */
+      var el=e.target;
+      while(el&&el!==DOC.body&&el!==DOC.documentElement){
+        if(el.scrollHeight-el.clientHeight>4){
+          var st=getComputedStyle(el).overflowY;
+          if(st==='auto'||st==='scroll')return;
+        }
+        el=el.parentElement;
+      }
+      e.preventDefault();
+      target=Math.max(0,Math.min(max(),target+e.deltaY*(e.deltaMode===1?32:1)));
+      if(!running){ running=true; requestAnimationFrame(frame) }
+    },{passive:false});
+    window.addEventListener('scroll',function(){ if(!running&&!own)target=window.scrollY },{passive:true});
+    window.addEventListener('resize',function(){ target=window.scrollY },{passive:true});
+  }
+
+  /* ── Scrubbed video ────────────────────────────────────────────────────────
+     A video whose playhead is the scroll position. One file instead of the
+     several hundred stills an image sequence needs, which on a metered
+     connection is the difference between shipping this and not.                */
+  function initVideoScrub(d){
+    var els=[].slice.call(d.querySelectorAll('[data-bapp-scrub]'));
+    if(!els.length)return;
+    els.forEach(function(el){
+      if(el.__bappScrub)return; el.__bappScrub=1;
+      var v=el.tagName==='VIDEO'?el:el.querySelector('video');
+      if(!v)return;
+      v.pause(); v.muted=true; v.playsInline=true;
+      var want=0, ticking=false;
+      function apply(){
+        ticking=false;
+        var dur=v.duration;
+        if(!dur||!isFinite(dur))return;
+        var t=Math.max(0,Math.min(dur-0.05,want*dur));
+        if(Math.abs(v.currentTime-t)>0.02)try{ v.currentTime=t }catch(e){}
+      }
+      function read(){
+        /* Whichever driver the author used: a pinned hold, or its own pass. */
+        var cs=getComputedStyle(el);
+        var q=parseFloat(cs.getPropertyValue('--bapp-q'));
+        if(isNaN(q))q=parseFloat(cs.getPropertyValue('--bapp-p'));
+        if(isNaN(q)){
+          var r=el.getBoundingClientRect(), vh=window.innerHeight||1;
+          q=(vh-r.top)/(vh+r.height);
+        }
+        want=q<0?0:q>1?1:q;
+        if(!ticking){ ticking=true; requestAnimationFrame(apply) }
+      }
+      window.addEventListener('scroll',read,{passive:true});
+      window.addEventListener('resize',read);
+      v.addEventListener('loadedmetadata',read);
+      read();
+    });
+  }
+
   function init(scope){
     var d=scope||DOC;
     injectCss();
@@ -484,10 +660,15 @@ export const BUILDER_RUNTIME = `(function(){
     d.querySelectorAll('[data-bapp-form]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initForm(el) });
     d.querySelectorAll('[data-bapp-bgvideo]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initBgVideo(el) });
     d.querySelectorAll('[data-bapp-navbar]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initNavbar(el) });
+    tier();
+    initSplit(d);
     initReveal(d);
     initScrollMotion(d);
     initPin(d);
     initStagger(d);
+    initPointer();
+    initSmooth();
+    initVideoScrub(d);
   }
   if(DOC.readyState!=='loading')init();
   else DOC.addEventListener('DOMContentLoaded',function(){ init() });

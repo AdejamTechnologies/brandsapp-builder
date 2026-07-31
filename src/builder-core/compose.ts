@@ -115,6 +115,7 @@ export interface ComposeInput {
 
 /** Patterns the engine can reach for. Each declares what it needs to be usable. */
 type Pattern =
+  | "gallery-run"
   | "hero-full"
   | "hero-split"
   | "hero-centred"
@@ -157,6 +158,7 @@ const PATTERNS: Record<Pattern, PatternSpec> = {
   "logo-row": { usable: (c) => (c.logos?.length ?? 0) >= 3, media: "light", priority: 80, source: "logos" },
   "feature-grid": { usable: (c) => (c.features?.length ?? 0) >= 3, media: "light", priority: 70, source: "features" },
   "feature-rows": { usable: (c) => (c.features?.length ?? 0) >= 2 && !!c.images?.length, media: "heavy", priority: 68, source: "features" },
+  "gallery-run": { usable: (c) => (c.images?.length ?? 0) >= 5, media: "heavy", priority: 61, source: "images" },
   "gallery-grid": { usable: (c) => (c.images?.length ?? 0) >= 4, media: "heavy", priority: 60, source: "images" },
   // No `source`: this band is PUNCTUATION, not a gallery. It reuses one
   // photograph as a full-bleed interval, so it does not spend the imagery a
@@ -361,6 +363,10 @@ export function composePage(input: ComposeInput): ComposedPage {
         // keeps the hero alive while nothing else on it moves. This is also the
         // hook the WebGL upgrade attaches to.
         el("aurora", { props: { tone: "p", intensity: 42, speed: 22 } }),
+        // …and, on a mood that wants it, an actual 3D field the camera moves
+        // through as the page scrolls. It is the last thing on the page that can
+        // fail: every device that cannot run it keeps the gradient underneath.
+        ...(m.atmosphere ? [el("scene", { props: { preset: "field", tone: "p", intensity: 55, speed: 26 } })] : []),
         el("vignette", { props: { intensity: 55, edge: "bottom" } }),
         el("grain", { props: { intensity: 10 } }),
         // A scrim, not just a vignette: the copy has to hold against a photograph
@@ -472,6 +478,31 @@ export function composePage(input: ComposeInput): ComposedPage {
                  box("flex flex-col gap-4", h(f.title, "3", `${display} text-3xl md:text-4xl ${ink}`), p(f.body, `max-w-md text-base leading-relaxed ${muted}`))]
               : [box("flex flex-col gap-4", h(f.title, "3", `${display} text-3xl md:text-4xl ${ink}`), p(f.body, `max-w-md text-base leading-relaxed ${muted}`)),
                  box(`overflow-hidden ${surface} p-0`, shot(pic(i + 1), "aspect-[4/3] w-full object-cover"))])
+          )
+        )
+      ),
+
+    // Five or more photographs read better as a run the reader travels along
+    // than as a grid that scrolls past — and it is the one band where the page
+    // stops moving down and starts moving sideways.
+    "gallery-run": () =>
+      el(
+        "section",
+        { classes: "w-full" },
+        el(
+          "horizontal",
+          { props: { hold: Math.min(3, 1 + pics.length * 0.25), gap: "1.5rem" }, classes: "relative w-full" },
+          box(
+            "flex w-[24vw] shrink-0 flex-col justify-end gap-3 pr-6",
+            eyebrow("Selected work"),
+            h("A look at what we make", "2", `${display} text-4xl ${ink}`)
+          ),
+          ...pics.slice(0, 8).map((id, n) =>
+            el(
+              "box",
+              { classes: "h-[52vh] w-[34vw] shrink-0 overflow-hidden rounded-2xl bg-base-200", anim: { effect: "fade", trigger: "load", scroll: { parallax: n % 2 ? 18 : -18 } } },
+              shot(id, "h-full w-full object-cover")
+            )
           )
         )
       ),

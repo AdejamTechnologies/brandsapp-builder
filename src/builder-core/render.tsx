@@ -10,6 +10,7 @@ import { createElement, Fragment as RFragment, type ReactNode } from "react"
 import { renderToString } from "react-dom/server"
 
 import { animCss, ANIMATION_KEYFRAMES } from "./anim"
+import { choreographFor } from "./choreography"
 import { truthyProp } from "./advanced"
 import { applyBindings, emptyDataContext, type DataContext } from "./binding"
 import { escapeByControl } from "./escape"
@@ -75,6 +76,12 @@ class RenderCtx {
   usesRuntime = false
   /** a node animates → include the shared keyframes. */
   usesAnim = false
+  /** Monotonic counter, so theme-driven motion alternates deterministically. */
+  motionSeq = 0
+  /** The first band on the page plays on load rather than waiting to be scrolled to. */
+  sawFirstBand = false
+  /** A word-split heading is present → the runtime has to do the splitting. */
+  usesSplit = false
   /** >0 while rendering inside a linked-component instance → suppress internal
    * editor selection (the instance is an opaque unit; edit via the master). */
   instanceDepth = 0
@@ -124,6 +131,44 @@ class RenderCtx {
   }
 }
 
+/**
+ * Fill in the motion the THEME asks for, on nodes that do not carry their own.
+ *
+ * This is the whole reason `choreography` is a token rather than something the
+ * generators write: it runs over every node of every document on the way to the
+ * screen, so an imported block, a hand-built page and a generated one all move
+ * the same way, and none of them had to be annotated to get there.
+ */
+function choreograph(node: Node, ctx: RenderCtx, depth: number): Node {
+  const level = ctx.doc.theme.scale?.choreography ?? "none"
+  if (level === "none" || ctx.isEditor) return node
+  const isBand = node.module === "section" || node.module === "footer"
+  const anim = choreographFor({
+    level,
+    module: node.module,
+    classes: node.classes ?? "",
+    depth,
+    seq: ctx.motionSeq,
+    hasAnim: !!node.anim,
+    isFirstBand: isBand && depth <= 2 && !ctx.sawFirstBand,
+  })
+  if (isBand && depth <= 2) ctx.sawFirstBand = true
+  if (!anim) return node
+  ctx.motionSeq++
+  return { ...node, anim }
+}
+
+/** Motion attributes for the `.bapp-root` wrapper — read by the runtime. */
+function rootMotionAttrs(doc: Doc, ctx: RenderCtx): Record<string, string> {
+  const sc = doc.theme.scale
+  if (!sc || ctx.isEditor) return {}
+  const attrs: Record<string, string> = {}
+  if (sc.choreography && sc.choreography !== "none") attrs["data-bapp-choreography"] = sc.choreography
+  if (sc.smoothScroll) attrs["data-bapp-smooth"] = ""
+  if (Object.keys(attrs).length) ctx.usesRuntime = true
+  return attrs
+}
+
 function classNamesFor(node: Node, ctx: RenderCtx): string {
   const classes: string[] = []
   for (const sid of node.styleIds) {
@@ -150,11 +195,16 @@ function classNamesFor(node: Node, ctx: RenderCtx): string {
   if (node.anim && !ctx.isEditor) {
     classes.push("bapp-anim", classForNode(node.id))
     if (node.anim.trigger === "scroll") classes.push("bapp-reveal")
+    if (node.anim.text) {
+      classes.push("bapp-split")
+      ctx.usesSplit = true
+    }
     // Scroll-linked motion needs the runtime to drive its progress variable; the
     // stagger form drives its CHILDREN, so the two hooks are separate.
     if (node.anim.scroll) {
       const s = node.anim.scroll
-      if (s.parallax || s.zoom || s.rotate || s.fade) classes.push("bapp-scroll")
+      if (s.parallax || s.zoom || s.rotate || s.fade || s.tilt || s.depth || s.horizontal) classes.push("bapp-scroll")
+      if (s.pointer) classes.push("bapp-pointer")
       if (s.stagger) classes.push("bapp-stagger")
       if (s.pin) classes.push("bapp-pin")
     }
@@ -190,7 +240,7 @@ function resolveProps(node: Node, def: ModuleDefinition, data: DataContext): Rec
   return out
 }
 
-function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string): ReactNode {
+function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string, depth = 0): ReactNode {
   const raw = ctx.doc.nodes[id]
   if (!raw) return null
   // A hidden node normally vanishes entirely. `keepInHtml` (one of the four
@@ -218,12 +268,12 @@ function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string):
     return null
   }
   if (def.needsRuntime && !ctx.isEditor) ctx.usesRuntime = true
-  const node = effectiveNode(raw, ctx.previewBreakpoint)
+  const node = choreograph(effectiveNode(raw, ctx.previewBreakpoint), ctx, depth)
   const children = node.children.length
     ? createElement(
         RFragment,
         null,
-        ...node.children.map((cid, i) => renderNode(cid, ctx, data, `${cid}-${i}`))
+        ...node.children.map((cid, i) => renderNode(cid, ctx, data, `${cid}-${i}`, depth + 1))
       )
     : null
   return createElement(def.Component, {
@@ -254,7 +304,7 @@ function renderInstance(raw: Node, ctx: RenderCtx, data: DataContext, key: strin
     return createElement("div", { key, className, ...editorAttrs }, ctx.isEditor ? "⚠ missing component" : null)
   }
   ctx.instanceDepth++
-  const inner = renderNode(comp.rootId, ctx, data, `${key}::${comp.rootId}`)
+  const inner = renderNode(comp.rootId, ctx, data, `${key}::${comp.rootId}`, 1)
   ctx.instanceDepth--
   return createElement("div", { key, className, ...editorAttrs }, inner)
 }
@@ -268,7 +318,7 @@ function renderLoop(raw: Node, ctx: RenderCtx, data: DataContext, key: string): 
   const wrapperTag = typeof node.props.tag === "string" ? node.props.tag : "div"
   const rendered = items.flatMap((item, i) => {
     const childData: DataContext = { ...data, entryStack: [...data.entryStack, item] }
-    return node.children.map((cid, ci) => renderNode(cid, ctx, childData, `${i}-${cid}-${ci}`))
+    return node.children.map((cid, ci) => renderNode(cid, ctx, childData, `${i}-${cid}-${ci}`, 1))
   })
   const editorAttrs = ctx.selectable ? { "data-node-id": node.id } : {}
   return createElement(wrapperTag, { key, className, ...editorAttrs }, ...rendered)
@@ -291,7 +341,10 @@ export function renderDocToReact(input: unknown, opts: RenderOptions): ReactRend
   )
   const data = opts.data ?? emptyDataContext()
   const rootEl = renderNode(parsed.rootId, ctx, data, parsed.rootId)
-  const node = createElement("div", { className: ROOT_CLASS }, rootEl)
+  // The wrapper carries the page's motion contract, so the runtime can read it
+  // without the renderer needing to reach outside its own subtree (it cannot set
+  // attributes on <html>, and a tenant page is not the only host).
+  const node = createElement("div", { className: ROOT_CLASS, ...rootMotionAttrs(parsed, ctx) }, rootEl)
   const themeCss = themeToCss(parsed.theme, `.${ROOT_CLASS}`)
   const css = [themeCss, ctx.usesAnim ? ANIMATION_KEYFRAMES : "", ...ctx.cssParts].filter(Boolean).join("")
   return { node, css, missing: ctx.missing, classes: [...ctx.classes], usesRuntime: ctx.usesRuntime }
