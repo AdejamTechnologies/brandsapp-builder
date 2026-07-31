@@ -74,6 +74,7 @@ import {
   Smartphone,
   Tablet,
   Undo2,
+  Wand2,
 } from "lucide-react"
 
 // Typed layer icons (Instatic-style Explorer): module → glyph.
@@ -165,6 +166,7 @@ import {
   type Fragment,
   type Node,
 } from "@brandsapp/builder-core"
+import { BuildDialog } from "../components/build-dialog"
 import { CommentsDialog } from "../components/comments-dialog"
 import { ContextMenu, type MenuItem } from "../components/context-menu"
 import { QuickStackChip, QuickStackPresets } from "../components/quick-stack-presets"
@@ -275,6 +277,7 @@ export function EditorPage() {
   const [showCode, setShowCode] = useState(false)
   const [activeBp, setActiveBp] = useState<string | null>(null)
   const [interactive, setInteractive] = useState(false)
+  const [buildOpen, setBuildOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
   // When set, the canvas + navigator show a linked component's master subtree for
@@ -994,6 +997,10 @@ export function EditorPage() {
           {/* Interact runs the real page runtime on the canvas. Authoring is off
               while it is on, because selecting an element and activating it are
               the same click — so it is a mode, not a setting. */}
+          <Button variant="ghost" size="sm" aria-label="Build" onClick={() => setBuildOpen(true)}>
+            <Wand2 className="size-4" />
+            Build
+          </Button>
           <Button
             variant={interactive ? "soft" : "ghost"}
             size="sm"
@@ -1251,6 +1258,17 @@ export function EditorPage() {
       )}
 
       {libraryOpen && <LibraryDialog onInsert={installFragment} onClose={() => setLibraryOpen(false)} />}
+      {buildOpen && (
+        <BuildDialog
+          onBuild={(d) => {
+            // A generated page replaces the document outright, so it goes through
+            // `reset` rather than `apply` — it is a new starting point, not an edit.
+            reset(d)
+            setSelectedId(d.rootId)
+          }}
+          onClose={() => setBuildOpen(false)}
+        />
+      )}
       {themeOpen && <ThemeDialog theme={doc.theme} onChange={setTheme} onClose={() => setThemeOpen(false)} />}
 
       {ghost && (

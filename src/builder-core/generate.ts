@@ -25,12 +25,10 @@
 
 import { buildDoc, el, type NodeSpec } from "./authoring"
 import { iconSvg } from "./icons"
-import type { Doc, ThemeScale } from "./schema"
+import { MOODS, MOODS_SPEC, type Mood } from "./moods"
+import type { Doc } from "./schema"
 
 // ── inputs ───────────────────────────────────────────────────────────────────
-
-export const MOODS = ["luxe", "technical", "organic", "playful", "brutalist", "calm"] as const
-export type Mood = (typeof MOODS)[number]
 
 export const INDUSTRIES = ["retail", "services", "food", "fitness", "beauty"] as const
 export type Industry = (typeof INDUSTRIES)[number]
@@ -61,67 +59,14 @@ export type SectionKind =
   | "cta"
   | "footer"
 
-// ── the design engine ────────────────────────────────────────────────────────
-
-interface MoodSpec {
-  scale: ThemeScale
-  fonts: { display: string; body: string }
-  colors: Record<string, string>
-  /** Dark grounds want their atmosphere; light ones mostly do not. */
-  atmosphere: boolean
-  /** Section padding step, in Tailwind units, before the density multiplier. */
-  rhythm: number
-}
 
 /**
  * Mood is expressed as TOKENS, not as different markup. That is what lets one
  * section plan render six ways, and it is why adding a mood costs a table row
  * rather than a template.
  */
-const MOODS_SPEC: Record<Mood, MoodSpec> = {
-  luxe: {
-    scale: { density: 1.5, radius: 0.25, typeScale: 1.3, motion: 0.8 },
-    fonts: { display: "Fraunces", body: "Inter" },
-    colors: { primary: "#8a6a3c", secondary: "#3f4a3c", neutral: "#241d16", "base-100": "#fbf9f6", "base-200": "#f2ece3", "base-300": "#e0d5c4", "base-content": "#241d16" },
-    atmosphere: false,
-    rhythm: 24,
-  },
-  technical: {
-    scale: { density: 0.85, radius: 0.5, typeScale: 1, motion: 1 },
-    fonts: { display: "Sora", body: "Inter" },
-    colors: { primary: "#5b6cff", secondary: "#00c2a8", neutral: "#0d1220", "base-100": "#0b0f1a", "base-200": "#131a2b", "base-300": "#1f293f", "base-content": "#e8ecf6" },
-    atmosphere: true,
-    rhythm: 20,
-  },
-  organic: {
-    scale: { density: 1.25, radius: 1.6, typeScale: 1.1, motion: 0.9 },
-    fonts: { display: "Plus Jakarta Sans", body: "Inter" },
-    colors: { primary: "#4f6f52", secondary: "#c98f4b", neutral: "#26301f", "base-100": "#fcfaf5", "base-200": "#eef1e6", "base-300": "#dde3cf", "base-content": "#26301f" },
-    atmosphere: false,
-    rhythm: 22,
-  },
-  playful: {
-    scale: { density: 1, radius: 2, typeScale: 1.15, motion: 1.3 },
-    fonts: { display: "Poppins", body: "Inter" },
-    colors: { primary: "#ff5a3c", secondary: "#2b6cff", neutral: "#1b1330", "base-100": "#ffffff", "base-200": "#fff2ee", "base-300": "#ffd9cf", "base-content": "#1b1330" },
-    atmosphere: false,
-    rhythm: 20,
-  },
-  brutalist: {
-    scale: { density: 0.6, radius: 0, typeScale: 1.25, motion: 0 },
-    fonts: { display: "Sora", body: "Inter" },
-    colors: { primary: "#111111", secondary: "#f2f200", neutral: "#000000", "base-100": "#f2f200", "base-200": "#ffffff", "base-300": "#111111", "base-content": "#0a0a0a" },
-    atmosphere: false,
-    rhythm: 16,
-  },
-  calm: {
-    scale: { density: 1.35, radius: 1.2, typeScale: 1.05, motion: 0.5 },
-    fonts: { display: "Manrope", body: "Inter" },
-    colors: { primary: "#5b7c99", secondary: "#8fa6b2", neutral: "#1f2a33", "base-100": "#fbfcfd", "base-200": "#eef3f6", "base-300": "#dde6ec", "base-content": "#1f2a33" },
-    atmosphere: false,
-    rhythm: 24,
-  },
-}
+
+
 
 /** Default plans. Order is the argument the page makes, so it is industry-led. */
 const PLANS: Record<Industry, SectionKind[]> = {

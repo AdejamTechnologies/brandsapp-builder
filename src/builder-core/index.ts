@@ -27,6 +27,8 @@ export * from "./navbar-variants"
 export * from "./dropdown-variants"
 export * from "./component-variants"
 export * from "./generate"
+export * from "./compose"
+export * from "./moods"
 export * from "./icons"
 export {
   ALL_BUTTON_TOKENS,
