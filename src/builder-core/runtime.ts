@@ -465,14 +465,27 @@ export const BUILDER_RUNTIME = `(function(){
     });
   }
 
-  /* ── Scroll reveal ────────────────────────────────────────────────────── */
+  /* ── Scroll reveal ─────────────────────────────────────────────────────────
+     A twelve-percent threshold gives a reveal that fires when the element is
+     properly on screen rather than as its first pixel appears. But a threshold
+     is a RATIO, and an element with no height can never reach one: a card whose
+     image 404s collapses to zero, never satisfies 0.12, and stays at opacity 0
+     forever — so a page that loses its pictures loses its words as well. The
+     zero-size escape below is the difference between a degraded page and a
+     blank one.                                                                 */
   function initReveal(d){
     var els=[].slice.call(d.querySelectorAll('.bapp-reveal'));
     if(!els.length)return;
     if(reduced()||!('IntersectionObserver' in window)){ els.forEach(function(e){ e.classList.add('bapp-in') }); return }
     var io=new IntersectionObserver(function(entries){
-      entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('bapp-in'); io.unobserve(en.target) } });
-    },{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+      entries.forEach(function(en){
+        if(!en.isIntersecting)return;
+        var r=en.boundingClientRect;
+        if(en.intersectionRatio<0.12 && r.height>=8 && r.width>=8)return;
+        en.target.classList.add('bapp-in');
+        io.unobserve(en.target);
+      });
+    },{threshold:[0,0.12],rootMargin:'0px 0px -8% 0px'});
     els.forEach(function(e){ if(e.__bapp)return; e.__bapp=1; io.observe(e) });
   }
 

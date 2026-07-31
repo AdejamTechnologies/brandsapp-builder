@@ -46,6 +46,16 @@ export interface ComposeContent {
   prices?: Array<{ name: string; price: string; features: string[] }>
   faqs?: Array<{ q: string; a: string }>
   logos?: string[]
+  /**
+   * Things for sale. A shop is not a brochure with a buy button: the price, the
+   * price it USED to be, and the badge are the design, so they are first-class
+   * rather than something to be improvised from a `groups` entry.
+   */
+  products?: Array<{ name: string; price: string; was?: string; image: string; badge?: string; meta?: string }>
+  /** Ways into the catalogue. Rendered as tiles, sized by their own count. */
+  categories?: Array<{ title: string; image: string; count?: string }>
+  /** Delivery, returns, payment — the row of promises a shop lives or dies on. */
+  assurances?: Array<{ title: string; body: string; icon?: string }>
   /** What the primary action should say. */
   action?: string
   /**
@@ -115,6 +125,9 @@ export interface ComposeInput {
 
 /** Patterns the engine can reach for. Each declares what it needs to be usable. */
 type Pattern =
+  | "product-grid"
+  | "category-tiles"
+  | "assurance-bar"
   | "gallery-run"
   | "hero-full"
   | "hero-split"
@@ -155,6 +168,11 @@ const PATTERNS: Record<Pattern, PatternSpec> = {
   "hero-full": { usable: (c) => !!c.images?.length, media: "heavy", priority: 101 },
   "hero-split": { usable: (c) => !!c.images?.length, media: "heavy", priority: 100 },
   "hero-centred": { usable: () => true, media: "none", priority: 99 },
+  // Commerce bands outrank everything except the hero: on a shop, the things for
+  // sale come before the manifesto, and a category is how most people start.
+  "product-grid": { usable: (c) => (c.products?.length ?? 0) >= 3, media: "heavy", priority: 92, source: "products" },
+  "category-tiles": { usable: (c) => (c.categories?.length ?? 0) >= 3, media: "heavy", priority: 88, source: "categories" },
+  "assurance-bar": { usable: (c) => (c.assurances?.length ?? 0) >= 3, media: "none", priority: 84, source: "assurances" },
   "logo-row": { usable: (c) => (c.logos?.length ?? 0) >= 3, media: "light", priority: 80, source: "logos" },
   "feature-grid": { usable: (c) => (c.features?.length ?? 0) >= 3, media: "light", priority: 70, source: "features" },
   "feature-rows": { usable: (c) => (c.features?.length ?? 0) >= 2 && !!c.images?.length, media: "heavy", priority: 68, source: "features" },
@@ -173,9 +191,21 @@ const PATTERNS: Record<Pattern, PatternSpec> = {
   "cta-split": { usable: (c) => !!c.images?.length, media: "heavy", priority: 19, canAccent: true },
 }
 
+/**
+ * Seeded randomness — with the seed SCRAMBLED before first use.
+ *
+ * A plain LCG advances by a constant, so consecutive seeds produce first draws
+ * about 0.0004 apart. Every decision the engine makes from its first call —
+ * which hero opens the page, which register dresses it — was therefore the same
+ * for seed 1 and seed 34, and "try another seed" quietly did nothing to the
+ * choices that matter most. Mixing the seed first costs two multiplies.
+ */
 const rng = (seed: number) => {
-  let s = seed >>> 0 || 1
-  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296)
+  let s = (seed >>> 0) || 1
+  s = Math.imul(s ^ 0x9e3779b9, 0x85ebca6b) >>> 0
+  s = Math.imul(s ^ (s >>> 13), 0xc2b2ae35) >>> 0
+  s = (s ^ (s >>> 16)) >>> 0 || 1
+  return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296)
 }
 
 // ── arrangement ──────────────────────────────────────────────────────────────
@@ -210,8 +240,16 @@ export function planPage(input: ComposeInput): ComposedPlan {
   pool.sort((a, b) => PATTERNS[b].priority - PATTERNS[a].priority + (rand() - 0.5) * 12)
 
   const body: Pattern[] = []
+  const held: Pattern[] = []
   const spent = new Set<string>()
-  let lastMedia: PatternSpec["media"] = "heavy" // the hero already spent the eye
+  // The band after the hero may be media-heavy. A hero is a hero — the rule is
+  // about two GRIDS colliding, and on a shop the products belong immediately
+  // under the opening, not four bands down.
+  let lastMedia = "light" as PatternSpec["media"]
+  const place = (p: Pattern) => {
+    body.push(p)
+    lastMedia = PATTERNS[p].media
+  }
   for (const p of pool) {
     if (body.length >= max - 3) break
     const spec = PATTERNS[p]
@@ -220,41 +258,60 @@ export function planPage(input: ComposeInput): ComposedPlan {
       if (spent.has(spec.source)) continue
       spent.add(spec.source)
     }
-    // ALTERNATION: never two media-heavy bands in a row.
-    if (spec.media === "heavy" && lastMedia === "heavy") continue
+    // ALTERNATION: never two media-heavy bands in a row. Note DEFERRED, not
+    // dropped — the old rule deleted the band outright, which is how a shop
+    // ended up with no product grid at all: two heavy commerce bands sorted to
+    // the top, collided with the hero, and both vanished. A rule about ORDER
+    // must not decide what the page contains.
+    if (spec.media === "heavy" && lastMedia === "heavy") {
+      held.push(p)
+      continue
+    }
     // VARIETY: never the same pattern twice running.
     if (body[body.length - 1] === p) continue
-    body.push(p)
-    lastMedia = spec.media
+    place(p)
+    // A light band just landed, so whatever was waiting for one can follow.
+    if (lastMedia !== "heavy" && held.length && body.length < max - 3) place(held.shift()!)
   }
+  // Anything still waiting takes the next legal slot rather than being lost.
+  while (held.length && body.length < max - 3 && lastMedia !== "heavy") place(held.shift()!)
 
   const closer: Pattern = available.includes("cta-split") && lastMedia !== "heavy" && rand() > 0.6 ? "cta-split" : "cta-band"
 
   // Untyped groups are bands like any other. They interleave rather than being
   // appended, so a page built entirely from them still alternates properly.
   const groupBands = (c.groups ?? []).map((g, i) => ({ group: i, shape: shapeOf(g) }))
-  const woven: Array<Pattern | { group: number; shape: GroupShape }> = []
+  type Band = Pattern | { group: number; shape: GroupShape }
+  const woven: Band[] = []
   const heavyShape = (sh: GroupShape) => sh === "media-grid" || sh === "split"
-  let media = lastMedia
+  const isHeavy = (b: Band) => (typeof b === "string" ? PATTERNS[b].media === "heavy" : heavyShape(b.shape))
+  // The weave starts after the HERO, so what it follows is the hero — not the
+  // media weight of whichever band happened to sort last. Seeding it with that
+  // was why the highest-priority band kept being deferred to the middle of the
+  // page: on a shop, the product grid.
+  let media = "light" as PatternSpec["media"]
   const named = [...body]
+  const push = (b: Band) => {
+    woven.push(b)
+    media = isHeavy(b) ? "heavy" : "light"
+  }
   while (named.length || groupBands.length) {
+    // Prefer whichever queue has something that fits here. Deliberately NOT
+    // "shift and discard if it collides": that dropped the band from the page
+    // entirely, and a rule about order has no business deciding what a page
+    // contains — it cost a shop its product grid.
     const wantLight = media === "heavy"
     const gi = groupBands.findIndex((g) => (wantLight ? !heavyShape(g.shape) : true))
-    const takeGroup = gi >= 0 && (named.length === 0 || rand() > 0.45)
-    if (takeGroup) {
-      const g = groupBands.splice(gi, 1)[0]
-      woven.push(g)
-      media = heavyShape(g.shape) ? "heavy" : "light"
-    } else if (named.length) {
-      const p = named.shift()!
-      if (PATTERNS[p].media === "heavy" && media === "heavy") continue
-      woven.push(p)
-      media = PATTERNS[p].media
-    } else {
-      const g = groupBands.shift()!
-      woven.push(g)
-      media = heavyShape(g.shape) ? "heavy" : "light"
-    }
+    const ni = named.findIndex((p) => (wantLight ? PATTERNS[p].media !== "heavy" : true))
+    // Named bands are priority-sorted; groups are not, so a tie goes to the
+    // named one more often than not.
+    const takeGroup = gi >= 0 && (ni < 0 || rand() > 0.62)
+    if (takeGroup) push(groupBands.splice(gi, 1)[0])
+    else if (ni >= 0) push(named.splice(ni, 1)[0])
+    // Nothing light is left on either side — the alternation cannot be honoured
+    // without losing content, so the content wins and two heavy bands touch.
+    else if (named.length) push(named.shift()!)
+    else push(groupBands.shift()!)
   }
   const order: Array<Pattern | { group: number; shape: GroupShape }> = [hero, ...woven, closer]
 
@@ -306,7 +363,31 @@ export function composePage(input: ComposeInput): ComposedPage {
   // cards and starts reading as a designed sequence of rooms.
   const STEPS = [12, 14, 16, 20, 24, 28, 32, 36, 40]
   const nearest = (n: number) => STEPS.reduce((a, b) => (Math.abs(b - n) < Math.abs(a - n) ? b : a), STEPS[0])
-  const shell = "mx-auto w-full max-w-7xl px-6 md:px-10"
+  /**
+   * THE REGISTER — why two pages built from different content stopped looking
+   * different.
+   *
+   * The engine was choosing bands well and dressing every one of them the same
+   * way: one shell width, one card, headings always top-left, sections always
+   * flush against each other. Two brands with completely different material came
+   * out looking like the same template with the words swapped, which is the exact
+   * failure the whole content-first idea exists to avoid.
+   *
+   * So the LOOK is now chosen too, from mood and seed: how wide the page runs,
+   * where a band's heading sits, what a card actually is, and whether bands are
+   * divided by a rule or by air. Same bands, same content — genuinely different
+   * pages, and no new patterns needed to get there.
+   */
+  const REG = (() => {
+    const pick = <T,>(xs: T[]) => xs[Math.floor(rand() * xs.length)]
+    const wide = pick(["max-w-7xl", "max-w-6xl", "max-w-[88rem]"])
+    const head = pick(["left", "left", "centre", "split"] as const)
+    const card = m.scale.radius === 0 ? "flat" : pick(["bordered", "soft", "flat", "hairline"] as const)
+    const ruled = rand() > 0.6
+    return { wide, head, card, ruled }
+  })()
+
+  const shell = `mx-auto w-full ${REG.wide} px-6 md:px-10`
   const reading = "mx-auto w-full max-w-3xl px-6"
   const pad = `py-${m.rhythm} md:py-${nearest(m.rhythm * 1.5)}`
   const ink = "text-base-content"
@@ -315,10 +396,39 @@ export function composePage(input: ComposeInput): ComposedPage {
   // the page steps down; on a dark one it has to step UP, or the card is nothing
   // but a hairline rectangle — which is exactly how it looked before this.
   const dark = isDarkHex(m.colors["base-100"])
-  const surface = `rounded-2xl border border-base-300 ${dark ? "bg-base-200" : "bg-base-100"}`
+  // What a card IS, rather than one card everywhere. A bordered card and a card
+  // that is only an image with type under it are different design languages, and
+  // a page that uses one consistently reads as authored.
+  const raised = dark ? "bg-base-200" : "bg-base-100"
+  const surface =
+    REG.card === "bordered"
+      ? `rounded-2xl border border-base-300 ${raised}`
+      : REG.card === "soft"
+        ? `rounded-3xl ${raised} shadow-[0_1px_2px_rgba(0,0,0,.04),0_12px_32px_-12px_rgba(0,0,0,.18)]`
+        : REG.card === "hairline"
+          ? `rounded-none border-t border-base-300 ${dark ? "bg-transparent" : "bg-transparent"}`
+          : "rounded-2xl bg-transparent"
+  /** Media inside a card: only a bordered/soft card should clip its own corners. */
+  const cardMedia = REG.card === "hairline" ? "rounded-none" : "rounded-2xl"
   const primaryBtn = "inline-flex h-12 items-center rounded-full bg-primary px-7 text-sm font-semibold text-primary-content no-underline"
   const ghostBtn = "inline-flex h-12 items-center rounded-full border border-base-300 px-7 text-sm font-medium text-base-content no-underline"
   const eyebrow = (t: string) => p(t, "text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45", "span")
+  /** A band's heading, placed where the register says rather than always top-left. */
+  const bandHead = (eye: string | null, t: string, sub?: string): NodeSpec => {
+    const kids = [
+      ...(eye ? [eyebrow(eye)] : []),
+      h(t, "2", `${display} text-4xl md:text-5xl ${ink}`),
+      ...(sub ? [p(sub, `max-w-lg text-base leading-relaxed ${muted}`)] : []),
+    ]
+    if (REG.head === "centre") return box("mx-auto flex max-w-2xl flex-col items-center gap-3 text-center", ...kids)
+    if (REG.head === "split")
+      return box(
+        "flex flex-col gap-6 md:flex-row md:items-end md:justify-between",
+        box("flex flex-col gap-3", ...kids.slice(0, eye ? 2 : 1)),
+        ...(sub ? [p(sub, `max-w-sm text-base leading-relaxed ${muted}`)] : [])
+      )
+    return box("flex flex-col gap-3", ...kids)
+  }
   // Over a photograph the same label at 45% disappears — and which photograph it
   // is cannot be known in advance, so type on media gets its own contrast.
   const eyebrowOnMedia = (t: string) => p(t, "text-xs font-semibold uppercase tracking-[0.16em] text-base-content/80", "span")
@@ -340,7 +450,7 @@ export function composePage(input: ComposeInput): ComposedPage {
   const band = (accent: boolean, ...kids: NodeSpec[]): NodeSpec =>
     el(
       "section",
-      { classes: `w-full ${pad} ${accent ? "bg-primary" : ""}` },
+      { classes: `w-full ${pad} ${accent ? "bg-primary" : ""} ${REG.ruled && !accent ? "border-t border-base-300" : ""}` },
       el(
         "box",
         { classes: `${shell} flex flex-col gap-12 md:gap-16`, anim: { effect: "fade-up", trigger: "scroll", duration: 900 } },
@@ -438,6 +548,97 @@ export function composePage(input: ComposeInput): ComposedPage {
 
     // Deliberately the quietest band on the page: a border-to-border strip, half
     // the rhythm of everything else. A logo wall given a full band reads as filler.
+    // A shop's most important band. The price is set at display size next to the
+    // name rather than whispered underneath it, and a reduced price shows what it
+    // was — which is the whole reason anyone reads a shop grid twice.
+    "product-grid": () =>
+      band(
+        false,
+        bandHead("Shop", "New this week", "Free delivery on orders over ₦50,000."),
+        el(
+          "box",
+          { classes: `grid grid-cols-2 gap-x-5 gap-y-10 ${cols(Math.min((c.products ?? []).length, 8))}`, anim: { effect: "fade-up", trigger: "scroll", scroll: { stagger: 80 } } },
+          ...(c.products ?? []).slice(0, 8).map((pr) =>
+            // No drift on a product row. Prices are read by comparing them, and
+            // parallax puts every one at a different height — which reads as a
+            // broken grid rather than as depth. Depth belongs in a gallery.
+            box(
+              "group flex flex-col gap-3",
+              box(
+                `relative overflow-hidden ${cardMedia} bg-base-200`,
+                shot(pr.image, "aspect-[4/5] w-full object-cover"),
+                ...(pr.badge
+                  ? [box("absolute left-3 top-3 rounded-full bg-primary px-3 py-1", p(pr.badge, "text-[11px] font-semibold uppercase tracking-wide text-primary-content", "span"))]
+                  : [])
+              ),
+              box(
+                "flex flex-col gap-1",
+                ...(pr.meta ? [p(pr.meta, "text-[11px] uppercase tracking-[0.14em] text-base-content/45", "span")] : []),
+                h(pr.name, "3", `font-display text-base font-semibold ${ink}`),
+                box(
+                  "flex items-baseline gap-2",
+                  p(pr.price, `font-display text-lg font-bold ${ink}`, "span"),
+                  ...(pr.was ? [p(pr.was, "text-sm text-base-content/40 line-through", "span")] : [])
+                )
+              )
+            )
+          )
+        ),
+        box("flex", a("Shop everything", ghostBtn))
+      ),
+
+    // Ways in. Full-bleed tiles with the label ON the image: a category is a
+    // door, and a door does not need a card around it.
+    "category-tiles": () =>
+      band(
+        false,
+        bandHead("Departments", "Where would you like to start?"),
+        el(
+          "box",
+          { classes: `grid gap-4 ${cols(Math.min((c.categories ?? []).length, 6))}`, anim: { effect: "fade-up", trigger: "scroll", scroll: { stagger: 90 } } },
+          ...(c.categories ?? []).slice(0, 6).map((cat) =>
+            el(
+              "link",
+              { props: { text: "", href: "#" }, classes: `group relative block overflow-hidden ${cardMedia} bg-base-200 no-underline` },
+              shot(cat.image, "aspect-[3/4] w-full object-cover md:aspect-square"),
+              // Type ON a photograph cannot use the theme's ink: half the
+              // catalogue is a pale garment against a pale wall, and dark-green
+              // "Cloth by the yard" simply vanished into it. A scrim and white,
+              // every time, whatever the theme is doing elsewhere.
+              box("absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/75 via-black/35 to-transparent"),
+              box(
+                "absolute inset-x-0 bottom-0 flex flex-col gap-0.5 p-5",
+                h(cat.title, "3", `${display} text-2xl text-white`),
+                ...(cat.count ? [p(cat.count, "text-xs uppercase tracking-[0.14em] text-white/75", "span")] : [])
+              )
+            )
+          )
+        )
+      ),
+
+    // The promises a shop lives on: delivery, returns, payment. A quiet strip,
+    // never a card grid — this is reassurance, not a feature list.
+    "assurance-bar": () =>
+      el(
+        "section",
+        { classes: `w-full border-y border-base-300 py-10 ${dark ? "" : "bg-base-200"}` },
+        el(
+          "box",
+          { classes: `${shell} grid gap-8 ${cols(Math.min((c.assurances ?? []).length, 4))}`, anim: { effect: "fade", trigger: "scroll", scroll: { stagger: 70 } } },
+          ...(c.assurances ?? []).slice(0, 4).map((as) =>
+            box(
+              "flex items-start gap-3",
+              ico(as.icon ?? "check", "inline-block w-5 h-5 shrink-0 text-primary"),
+              box(
+                "flex flex-col gap-0.5",
+                h(as.title, "3", `font-display text-sm font-semibold ${ink}`),
+                p(as.body, `text-sm leading-snug ${muted}`)
+              )
+            )
+          )
+        )
+      ),
+
     "logo-row": () =>
       el(
         "section",
@@ -456,7 +657,7 @@ export function composePage(input: ComposeInput): ComposedPage {
     "feature-grid": (ac) =>
       band(
         ac,
-        box("flex flex-col gap-3", eyebrow("What you get"), title("Built around what matters")),
+        bandHead("What you get", "Built around what matters"),
         el(
           "box",
           // Column count from the count of features, so four never lands as
@@ -518,7 +719,7 @@ export function composePage(input: ComposeInput): ComposedPage {
     "gallery-grid": () =>
       band(
         false,
-        box("flex flex-col gap-3", eyebrow("Selected work"), title("A look at what we make")),
+        bandHead("Selected work", "A look at what we make"),
         el(
           "box",
           { classes: `grid grid-cols-2 items-start gap-4 ${cols(Math.min(pics.length, 8))}`, anim: { effect: "zoom", trigger: "scroll", scroll: { stagger: 80 } } },
@@ -588,7 +789,7 @@ export function composePage(input: ComposeInput): ComposedPage {
     "quote-columns": () =>
       band(
         false,
-        box("flex flex-col gap-3", eyebrow("In their words"), title("What people say")),
+        bandHead("In their words", "What people say"),
         el(
           "box",
           { classes: "grid gap-6 md:grid-cols-2", anim: { effect: "fade-up", trigger: "scroll", scroll: { stagger: 120 } } },
@@ -601,7 +802,7 @@ export function composePage(input: ComposeInput): ComposedPage {
     "price-grid": (ac) =>
       band(
         ac,
-        box("flex flex-col gap-3", eyebrow("Pricing"), title("Simple, and the same for everyone")),
+        bandHead("Pricing", "Simple, and the same for everyone"),
         box(
           "grid gap-6 md:grid-cols-3",
           ...(c.prices ?? []).slice(0, 3).map((pl, i) =>
@@ -620,7 +821,7 @@ export function composePage(input: ComposeInput): ComposedPage {
     "faq-list": () =>
       band(
         false,
-        box("flex flex-col gap-3", eyebrow("Questions"), title("Before you ask")),
+        bandHead("Questions", "Before you ask"),
         el(
           "accordion",
           { classes: "flex w-full max-w-3xl flex-col gap-3" },
@@ -666,13 +867,15 @@ export function composePage(input: ComposeInput): ComposedPage {
    */
   const groupHead = (g: ContentGroup, ac: boolean): NodeSpec[] =>
     g.title || g.eyebrow
-      ? [
-          box(
-            "flex flex-col gap-3",
-            ...(g.eyebrow ? [p(g.eyebrow, `text-xs font-semibold uppercase tracking-[0.16em] ${ac ? "text-primary-content/70" : "text-base-content/45"}`, "span")] : []),
-            ...(g.title ? [h(g.title, "2", `${display} text-4xl md:text-5xl ${onAccent(ac)}`)] : [])
-          ),
-        ]
+      ? ac
+        ? [
+            box(
+              "flex flex-col gap-3",
+              ...(g.eyebrow ? [p(g.eyebrow, "text-xs font-semibold uppercase tracking-[0.16em] text-primary-content/70", "span")] : []),
+              ...(g.title ? [h(g.title, "2", `${display} text-4xl md:text-5xl ${onAccent(ac)}`)] : [])
+            ),
+          ]
+        : [bandHead(g.eyebrow ?? null, g.title ?? "")]
       : []
 
   const renderGroup = (shape: GroupShape, g: ContentGroup, ac: boolean, i: number): NodeSpec => {
