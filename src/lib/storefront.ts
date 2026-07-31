@@ -379,6 +379,9 @@ export const STOREFRONT_DOC = buildDoc(
       },
       fonts: { display: "Poppins", body: "Inter" },
       radius: {},
+      // A shop, not a showreel: bands arrive and imagery drifts, and nothing on
+      // the page had to be annotated for that to be true.
+      scale: { density: 1, radius: 1, typeScale: 1, motion: 1, choreography: "subtle", smoothScroll: false },
       breakpoints: [
         { id: "tablet", label: "Tablet", maxWidth: 1023 },
         { id: "mobile", label: "Mobile", maxWidth: 767 },

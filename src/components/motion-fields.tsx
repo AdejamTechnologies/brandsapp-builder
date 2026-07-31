@@ -30,6 +30,11 @@ const ROWS: Array<{
   { key: "rotate", label: "Rotate", hint: "Degrees across the pass.", min: -30, max: 30, step: 1, unit: "°" },
   { key: "stagger", label: "Stagger", hint: "Delay between each child's entrance.", min: 0, max: 300, step: 20, unit: "ms" },
   { key: "pin", label: "Pin", hint: "Hold still for N extra screens while contents advance.", min: 0, max: 3, step: 0.5, unit: "screens" },
+  // Real 3D. These carry their own perspective, so they read as depth rather
+  // than as a flat scale — which is the difference the eye actually notices.
+  { key: "tilt", label: "Tilt", hint: "Leans toward you, passes through flat, leans away. Real 3D.", min: -20, max: 20, step: 1, unit: "°" },
+  { key: "depth", label: "Depth", hint: "Pushes along Z. Negative sits it behind the page.", min: -400, max: 400, step: 20, unit: "px" },
+  { key: "pointer", label: "Follow cursor", hint: "Drifts with the pointer. Ignored on touch.", min: -80, max: 80, step: 5, unit: "px" },
 ]
 
 export function MotionFields({
@@ -69,7 +74,13 @@ export function MotionFields({
         {active && (
           <button
             type="button"
-            onClick={() => setScroll({ parallax: undefined, zoom: undefined, rotate: undefined, stagger: undefined, pin: undefined, fade: undefined }, "motion:clear")}
+            onClick={() =>
+              setScroll(
+                { parallax: undefined, zoom: undefined, rotate: undefined, stagger: undefined, pin: undefined,
+                  tilt: undefined, depth: undefined, pointer: undefined, fade: undefined, horizontal: undefined, driver: undefined, text: undefined } as Partial<Scroll>,
+                "motion:clear"
+              )
+            }
             className="cursor-pointer rounded px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted"
           >
             Clear
@@ -101,6 +112,44 @@ export function MotionFields({
           </label>
         )
       })}
+
+      {/* Inside a pinned section an element does not move, so its own viewport
+          progress is frozen — anything scrubbing across the hold has to say so. */}
+      <label className="flex cursor-pointer items-center justify-between text-xs text-foreground" title="Measure against a pinned ancestor's hold instead of this element's own pass.">
+        Driven by the pin
+        <input
+          type="checkbox"
+          checked={scroll.driver === "pin"}
+          onChange={(e) => setScroll({ driver: e.target.checked ? "pin" : undefined } as Partial<Scroll>, "motion:driver")}
+          className="size-3.5 cursor-pointer accent-primary"
+        />
+      </label>
+
+      <label className="flex cursor-pointer items-center justify-between text-xs text-foreground" title="Travel sideways across a pinned ancestor's hold.">
+        Travel sideways
+        <input
+          type="checkbox"
+          checked={!!scroll.horizontal}
+          onChange={(e) => setScroll({ horizontal: e.target.checked || undefined } as Partial<Scroll>, "motion:horizontal")}
+          className="size-3.5 cursor-pointer accent-primary"
+        />
+      </label>
+
+      <label className="flex cursor-pointer items-center justify-between text-xs text-foreground" title="Reveal this element's text one word at a time, from behind a mask.">
+        Reveal word by word
+        <input
+          type="checkbox"
+          checked={anim?.text === "words"}
+          onChange={(e) =>
+            onChange(
+              { anim: { effect: anim?.effect ?? "fade", trigger: anim?.trigger ?? "scroll", duration: anim?.duration, delay: anim?.delay,
+                        ...(Object.keys(scroll).length ? { scroll } : {}), ...(e.target.checked ? { text: "words" as const } : {}) } },
+              "motion:text"
+            )
+          }
+          className="size-3.5 cursor-pointer accent-primary"
+        />
+      </label>
 
       <label className="flex cursor-pointer items-center justify-between text-xs text-foreground" title="Fade in as it enters.">
         Fade with scroll

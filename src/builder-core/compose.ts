@@ -493,14 +493,14 @@ export function composePage(input: ComposeInput): ComposedPage {
           "horizontal",
           { props: { hold: Math.min(3, 1 + pics.length * 0.25), gap: "1.5rem" }, classes: "relative w-full" },
           box(
-            "flex w-[24vw] shrink-0 flex-col justify-end gap-3 pr-6",
+            "flex w-[24vw] shrink-0 flex-col justify-center gap-3 pr-6",
             eyebrow("Selected work"),
             h("A look at what we make", "2", `${display} text-4xl ${ink}`)
           ),
           ...pics.slice(0, 8).map((id, n) =>
             el(
               "box",
-              { classes: "h-[52vh] w-[34vw] shrink-0 overflow-hidden rounded-2xl bg-base-200", anim: { effect: "fade", trigger: "load", scroll: { parallax: n % 2 ? 18 : -18 } } },
+              { classes: "h-[64vh] w-[34vw] shrink-0 overflow-hidden rounded-2xl bg-base-200", anim: { effect: "fade", trigger: "load", scroll: { parallax: n % 2 ? 18 : -18 } } },
               shot(id, "h-full w-full object-cover")
             )
           )
