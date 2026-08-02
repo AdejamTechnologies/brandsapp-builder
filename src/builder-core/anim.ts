@@ -86,7 +86,7 @@ export function animCss(id: string, anim: NodeAnim): string {
   // A split heading is NOT hidden as a block: the words carry the reveal, and
   // fading the container as well would just cross-fade the whole line back in.
   const entrance = anim.text
-    ? textCss(sel, dur, delay)
+    ? textCss(sel, dur, delay, anim.trigger === "scroll")
     : anim.trigger === "scroll"
       ? `${sel}{opacity:0}${sel}.bapp-in{animation:${a}}`
       : `${sel}{animation:${a}}`
@@ -99,12 +99,19 @@ export function animCss(id: string, anim: NodeAnim): string {
  * line rather than fading on top of it — the difference between type that
  * arrives and type that appears.
  */
-function textCss(sel: string, dur: number, delay: number): string {
+function textCss(sel: string, dur: number, delay: number, onScroll: boolean): string {
   const step = 42
+  // The play selector has to match the TRIGGER. `.bapp-in` is added by the reveal
+  // observer, which only watches elements marked `trigger: "scroll"` — so gating
+  // the words on it unconditionally meant a headline set to play on LOAD had its
+  // words masked at opacity 0 with nothing that would ever unmask them. A hero
+  // that never appears, and silent: the element itself was visible, so every
+  // "nothing is left invisible" check passed while the words were not there.
+  const play = onScroll ? `${sel}.bapp-in .bapp-w>span` : `${sel} .bapp-w>span`
   return (
     `${sel} .bapp-w{display:inline-block;overflow:hidden;vertical-align:bottom}` +
     `${sel} .bapp-w>span{display:inline-block;opacity:0;transform:translateY(110%)}` +
-    `${sel}.bapp-in .bapp-w>span{animation:bapp-word ${dur}ms cubic-bezier(.16,1,.3,1) ` +
+    `${play}{animation:bapp-word ${dur}ms cubic-bezier(.16,1,.3,1) ` +
     `calc(${delay}ms + var(--bapp-i,0) * ${step}ms) both}`
   )
 }

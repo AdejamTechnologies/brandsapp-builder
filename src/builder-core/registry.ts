@@ -150,6 +150,10 @@ export class ModuleRegistry {
   names(): string[] {
     return [...this.map.keys()]
   }
+  /** Every registered definition — used to DERIVE the AI vocabulary from code. */
+  all(): ModuleDefinition[] {
+    return [...this.map.values()]
+  }
   controlFor(moduleName: string, prop: string): ControlType | undefined {
     return this.map.get(moduleName)?.schema[prop]?.type
   }

@@ -416,6 +416,25 @@ export const BUILDER_RUNTIME = `(function(){
     if(!pins.length)return;
     pins.forEach(function(el){
       if(el.__bappPin)return; el.__bappPin=1;
+      /* A pin is position:sticky, and sticky is DEAD under any ancestor whose
+         overflow is not visible. The section then scrolls away while its spacer
+         still consumes three viewports, which reads as a page that has fallen
+         apart: a screen of nothing, and the contents gone before they revealed.
+         It is also the easiest mistake to make, because every atmosphere layer
+         on the page wants "relative overflow-hidden" on its parent — so the
+         wrapper that makes a scene render is the wrapper that kills the pin
+         inside it. Repaired here rather than forbidden upstream, because a
+         hand-written page, an imported one and a generated one all reach it.
+         overflow:clip keeps the author's clipping and does NOT create a scroll
+         container, which is exactly the difference sticky cares about. Values
+         of auto and scroll are left alone: those are real scrollers, meant. */
+      for(var a=el.parentNode;a&&a.nodeType===1&&a!==DOC.body;a=a.parentNode){
+        var oc=getComputedStyle(a);
+        if(oc.overflowX==='hidden'||oc.overflowY==='hidden'){
+          if(oc.overflowX==='hidden')a.style.overflowX='clip';
+          if(oc.overflowY==='hidden')a.style.overflowY='clip';
+        }
+      }
       var hold=parseFloat(getComputedStyle(el).getPropertyValue('--bapp-hold'))||1;
       /* The spacer is what actually consumes scroll; the sticky child rides it. */
       var spacer=DOC.createElement('div');
