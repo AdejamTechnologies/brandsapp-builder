@@ -505,7 +505,7 @@ export const BUILDER_RUNTIME = `(function(){
         io.unobserve(en.target);
       });
     },{threshold:[0,0.12],rootMargin:'0px 0px -8% 0px'});
-    els.forEach(function(e){ if(e.__bapp)return; e.__bapp=1; io.observe(e) });
+    els.forEach(function(e){ if(e.__bappRev)return; e.__bappRev=1; io.observe(e) });
   }
 
 
@@ -686,12 +686,21 @@ export const BUILDER_RUNTIME = `(function(){
   function init(scope){
     var d=scope||DOC;
     injectCss();
-    d.querySelectorAll('[data-bapp-tabs]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initTabs(el) });
-    d.querySelectorAll('[data-bapp-accordion]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initAccordion(el) });
-    d.querySelectorAll('[data-bapp-dropdown]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initDropdown(el) });
-    d.querySelectorAll('[data-bapp-form]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initForm(el) });
-    d.querySelectorAll('[data-bapp-bgvideo]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initBgVideo(el) });
-    d.querySelectorAll('[data-bapp-navbar]').forEach(function(el){ if(el.__bapp)return; el.__bapp=1; initNavbar(el) });
+    /* ONE FLAG PER INITIALISER, and never a shared one.
+       These all used to guard on the same el.__bapp, which made them mutually
+       exclusive by accident: whichever ran first claimed the element and every
+       later pass skipped it. Since initReveal runs last, ANY element that was
+       both a runtime module and animated -- an accordion of questions, a navbar,
+       a set of tabs -- was never observed, and sat at opacity 0 for the life of
+       the page. It is invisible in the worst way, because the markup is present
+       and correct and the content is simply never shown. Found on a generated
+       restaurant page whose entire FAQ had vanished. */
+    d.querySelectorAll('[data-bapp-tabs]').forEach(function(el){ if(el.__bappTabs)return; el.__bappTabs=1; initTabs(el) });
+    d.querySelectorAll('[data-bapp-accordion]').forEach(function(el){ if(el.__bappAcc)return; el.__bappAcc=1; initAccordion(el) });
+    d.querySelectorAll('[data-bapp-dropdown]').forEach(function(el){ if(el.__bappDrop)return; el.__bappDrop=1; initDropdown(el) });
+    d.querySelectorAll('[data-bapp-form]').forEach(function(el){ if(el.__bappForm)return; el.__bappForm=1; initForm(el) });
+    d.querySelectorAll('[data-bapp-bgvideo]').forEach(function(el){ if(el.__bappBg)return; el.__bappBg=1; initBgVideo(el) });
+    d.querySelectorAll('[data-bapp-navbar]').forEach(function(el){ if(el.__bappNav)return; el.__bappNav=1; initNavbar(el) });
     tier();
     initSplit(d);
     initReveal(d);
