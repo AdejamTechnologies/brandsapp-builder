@@ -32,6 +32,16 @@ export const FONTS: Record<string, FontDef> = {
   Sora: { family: "Sora", google: "Sora:wght@400;500;600;700;800" },
   Figtree: { family: "Figtree", google: "Figtree:wght@400;500;600;700;800" },
   "Work Sans": { family: "Work Sans", google: "Work+Sans:wght@400;500;600;700;800" },
+  // display — heavy and condensed.
+  //
+  // The registry had none of these, which meant the only "display" choices were
+  // five serifs. A property brand, a gym, a festival, a streetwear label — any
+  // brand whose headline wants to be a poster rather than an editorial — had
+  // nothing to pick, and naming a real face like Anton fell through to Georgia.
+  Anton: { family: "Anton", google: "Anton" },
+  "Archivo Black": { family: "Archivo Black", google: "Archivo+Black" },
+  "Bebas Neue": { family: "Bebas Neue", google: "Bebas+Neue" },
+  Oswald: { family: "Oswald", google: "Oswald:wght@400;500;600;700" },
   // serif / display
   "Playfair Display": { family: "Playfair Display", serif: true, google: "Playfair+Display:wght@500;600;700;800" },
   Lora: { family: "Lora", serif: true, google: "Lora:wght@400;500;600;700" },
@@ -45,11 +55,25 @@ export const FONT_OPTIONS: string[] = Object.keys(FONTS)
 
 const def = (name?: string | null): FontDef | undefined => (name ? FONTS[name.trim()] : undefined)
 
-/** A name → full CSS font-family stack (clean system fallback if unknown). */
+/**
+ * A name → full CSS font-family stack (clean system fallback if unknown).
+ *
+ * An UNKNOWN name is the dangerous case, and it is silent: the page renders in
+ * the fallback with nothing logged, so a generated page that asked for a heavy
+ * condensed face comes out in Georgia and reads as bad taste rather than a
+ * missing font. Callers that accept a font name from a model should validate it
+ * against FONT_OPTIONS first — see the Typography section of the authoring
+ * prompt, which lists these names so the model can only pick real ones.
+ */
 export function fontStack(name?: string | null, serifFallback = false): string {
   const d = def(name)
   if (!d) return serifFallback ? SYSTEM_SERIF : SYSTEM_SANS
   return `'${d.family}', ${d.serif ? SYSTEM_SERIF : SYSTEM_SANS}`
+}
+
+/** Is this a face the renderer can actually load? */
+export function isKnownFont(name?: string | null): boolean {
+  return !!def(name)
 }
 
 /** Resolved display/body stacks for the theme (display falls back to serif). */
