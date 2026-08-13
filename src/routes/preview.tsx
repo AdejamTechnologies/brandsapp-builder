@@ -3,7 +3,7 @@ import { useParams, useSearch } from "@tanstack/react-router"
 
 import { ANIMATION_LOADER,
   LIGHTBOX_RUNTIME,
-  RECAPTCHA_LOADER,
+  CHALLENGE_LOADER,
   BUILDER_RUNTIME, SCENE_LOADER, SHADER_LOADER, generateUtilityCss, parseDoc, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
 import { registry } from "../lib/registry"
 
@@ -58,7 +58,7 @@ export function PreviewPage() {
     s.textContent =
       BUILDER_RUNTIME +
       (/data-bapp-(lottie|spline|rive)/.test(document.body.innerHTML) ? "\n" + ANIMATION_LOADER : "") +
-      (/data-bapp-recaptcha/.test(document.body.innerHTML) ? "\n" + RECAPTCHA_LOADER : "") +
+      (/data-bapp-(challenge|form)/.test(document.body.innerHTML) ? "\n" + CHALLENGE_LOADER : "") +
       (/data-bapp-lightbox/.test(document.body.innerHTML) ? "\n" + LIGHTBOX_RUNTIME : "") +
       (/data-bapp-aurora/.test(document.body.innerHTML) ? "\n" + SHADER_LOADER : "") +
       (/data-bapp-scene/.test(document.body.innerHTML) ? "\n" + SCENE_LOADER : "")

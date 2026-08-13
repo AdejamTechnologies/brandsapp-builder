@@ -39,7 +39,8 @@ export {
   createDefaultRegistry,
   LIGHTBOX_RUNTIME,
   PRIMITIVES,
-  RECAPTCHA_LOADER,
+  CHALLENGE_LOADER,
+  CHALLENGE_KEY_META,
   SCENE_LOADER,
   SHADER_LOADER,
 } from "./modules"

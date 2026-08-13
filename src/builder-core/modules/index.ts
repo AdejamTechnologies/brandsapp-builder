@@ -98,7 +98,7 @@ export function createDefaultRegistry(): ModuleRegistry {
 // The lazy third-party player loader — hosts inject it only when a page
 // actually contains a lottie/spline/rive element.
 export { ANIMATION_LOADER } from "./animation"
-export { RECAPTCHA_LOADER } from "./captcha"
+export { CHALLENGE_LOADER, CHALLENGE_KEY_META } from "./captcha"
 export { LIGHTBOX_RUNTIME } from "./lightbox"
 // Real 3D, gated: hosts inject it only when the page contains a scene.
 export { SCENE_LOADER } from "./scene"
