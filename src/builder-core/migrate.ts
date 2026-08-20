@@ -7,6 +7,17 @@
 
 import { CORE_DOC_VERSION, type Doc, type ThemeTokens } from "./schema"
 
+/**
+ * The legacy page-builder had a SECTION called "text"; builder-core has a
+ * PRIMITIVE called "text" whose entire job is rendering props.text. Registering
+ * the section overwrote the primitive, so every paragraph the generator emitted
+ * rendered as an empty <p>. Only headings and buttons survived, which is why
+ * whole bands of a generated page came out blank while others looked fine.
+ *
+ * The section keeps its behaviour under a name that cannot collide.
+ */
+export const LEGACY_TEXT_SECTION = "legacy-text-section"
+
 export const DEFAULT_BREAKPOINTS = [
   { id: "tablet", label: "Tablet", maxWidth: 991 },
   { id: "mobile", label: "Mobile", maxWidth: 767 },
@@ -56,7 +67,14 @@ export function migrateLegacyDefinition(def: LegacyDef): Doc {
     if (!s || !s.id || !s.type) continue
     nodes[s.id] = {
       id: s.id,
-      module: s.type,
+      /**
+       * `text` is the one legacy section name that collides with a core
+       * primitive, and the collision silently blanked every paragraph on every
+       * generated page: the legacy module is registered after the primitives
+       * and overwrote `text`, whose whole job is rendering `props.text`. A
+       * legacy section keeps its behaviour under an unambiguous name instead.
+       */
+      module: s.type === "text" ? LEGACY_TEXT_SECTION : s.type,
       props: { ...(s.props ?? {}), theme: legacyTheme },
       styleIds: [],
       children: [],

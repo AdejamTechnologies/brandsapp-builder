@@ -110,7 +110,7 @@ const Stack: ModuleDefinition = {
   defaultClasses: "p-6 rounded-2xl border border-base-300 bg-base-100 min-h-24",
   Component: (p: ModuleRenderProps) => {
     const style: CSSProperties = {
-      display: "flex",
+      ...(classDecides(p.className, DISPLAY_CLASS) ? {} : { display: "flex" }),
       flexDirection: str(p.props.direction, "column") === "row" ? "row" : "column",
       gap: p.props.gap != null ? str(p.props.gap) : undefined,
       alignItems: p.props.align != null ? str(p.props.align) : undefined,
@@ -119,6 +119,26 @@ const Stack: ModuleDefinition = {
     return createElement("div", { className: p.className, style, ...rootAttrs(p) }, p.children)
   },
 }
+
+/**
+ * Does this node's own class list already decide the property?
+ *
+ * `stack` and `grid` write `display` and `grid-template-columns` as INLINE
+ * styles, and an inline style beats every class. The generator is told to lay
+ * pages out with utility classes — `hidden md:flex`, `grid-cols-1
+ * md:grid-cols-12` — and those silently lost every time, so a twelve-column
+ * editorial grid stayed twelve columns on a 390px phone (each one about thirty
+ * pixels, one word per line) and a nav told to hide on mobile never hid.
+ *
+ * When the author has said it in classes, the module stops saying it in style.
+ */
+function classDecides(className: string | undefined, patterns: RegExp[]): boolean {
+  if (!className) return false
+  return patterns.some((re) => re.test(className))
+}
+
+const DISPLAY_CLASS = [/(^|\s)(hidden|block|inline-flex|inline-grid|flex|grid|contents)(\s|$)/, /(^|\s)(sm|md|lg|xl|2xl):(hidden|flex|grid|block|inline-flex|inline-grid)(\s|$)/]
+const COLS_CLASS = [/(^|\s)(sm:|md:|lg:|xl:|2xl:)?grid-cols-/]
 
 const Grid: ModuleDefinition = {
   name: "grid",
@@ -130,9 +150,11 @@ const Grid: ModuleDefinition = {
   Component: (p: ModuleRenderProps) => {
     const cols = Math.min(Math.max(num(p.props.columns, 3), 1), 12)
     const rows = Math.min(Math.max(num(p.props.rows, 1), 1), 12)
+    const ownsCols = classDecides(p.className, COLS_CLASS)
+    const ownsDisplay = classDecides(p.className, DISPLAY_CLASS)
     const style: CSSProperties = {
-      display: "grid",
-      gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+      ...(ownsDisplay ? {} : { display: "grid" }),
+      ...(ownsCols ? {} : { gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }),
       // Only pin row tracks when more than one is asked for — an implicit single
       // row lets content size itself, which is what most grids want.
       ...(rows > 1 ? { gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` } : {}),
