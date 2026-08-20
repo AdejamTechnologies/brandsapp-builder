@@ -7,6 +7,7 @@
  */
 
 import { DEFAULT_BREAKPOINTS } from "./migrate"
+import { applyStylesheetToDoc } from "./import-css"
 import { CORE_DOC_VERSION, type Doc, type Node } from "./schema"
 
 const TAG_MODULE: Record<string, string> = {
@@ -97,6 +98,22 @@ function parseStyleAttr(s: string): Record<string, string> {
   return out
 }
 
+/**
+ * The stylesheet the tokenizer walks past.
+ *
+ * `<style>` is in SKIP_TAGS because its contents are CSS, not markup — but
+ * skipping the TAG should not mean throwing away the DESIGN. Every generated
+ * template hangs its entire look off one of these blocks, so it is collected
+ * here and resolved onto the nodes afterwards by import-css.ts.
+ */
+export function extractStylesheets(html: string): string {
+  const out: string[] = []
+  const re = /<style[^>]*>([\s\S]*?)<\/style>/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(html))) out.push(m[1])
+  return out.join("\n")
+}
+
 function tokenize(html: string): El[] {
   const root: El = { tag: "#root", attrs: {}, children: [] }
   const stack: El[] = [root]
@@ -139,6 +156,8 @@ function tokenize(html: string): El[] {
 
 export function htmlToDoc(html: string): Doc {
   const nodes: Record<string, Node> = {}
+  /** id → original tag, so `body`/`h2`/`li` selectors can be resolved. */
+  const tags: Record<string, string> = {}
   let counter = 0
   const nextId = () => `i${(counter++).toString(36)}`
 
@@ -183,6 +202,7 @@ export function htmlToDoc(html: string): Doc {
       if (typeof c !== "string") children.push(walk(c))
     }
     nodes[id] = { id, module, props, styleIds: [], children, ...(style ? { style } : {}), ...(classes ? { classes } : {}) }
+    tags[id] = el.tag
     return id
   }
 
@@ -190,7 +210,7 @@ export function htmlToDoc(html: string): Doc {
   const rootChildren = tokenize(html).map(walk)
   nodes[rootId] = { id: rootId, module: "page-root", props: {}, styleIds: [], children: rootChildren }
 
-  return {
+  const doc: Doc = {
     version: CORE_DOC_VERSION,
     rootId,
     nodes,
@@ -198,4 +218,28 @@ export function htmlToDoc(html: string): Doc {
     theme: { colors: {}, fonts: {}, radius: {}, breakpoints: DEFAULT_BREAKPOINTS },
     meta: {},
   }
+
+  // The design, not just the structure. Failure here must not lose the import:
+  // an unstyled but correct tree is a usable starting point, a thrown parser
+  // is not.
+  const css = extractStylesheets(html)
+  if (css.trim()) {
+    try {
+      const result = applyStylesheetToDoc(doc, css, tags, (px) => {
+        // Widest breakpoint at or under the query, so `max-width: 880px` lands
+        // on the tablet slot rather than inventing one.
+        const candidates = DEFAULT_BREAKPOINTS.filter(
+          (b) => typeof b.maxWidth === "number" && b.maxWidth <= px
+        )
+        return candidates.sort((a, b) => (b.maxWidth ?? 0) - (a.maxWidth ?? 0))[0]?.id
+      })
+      if (result.residual.trim()) {
+        doc.meta = { ...(doc.meta ?? {}), residualCss: result.residual }
+      }
+    } catch {
+      // keep the structural import
+    }
+  }
+
+  return doc
 }

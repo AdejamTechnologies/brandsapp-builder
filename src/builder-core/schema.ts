@@ -175,6 +175,14 @@ export const docMeta = z.object({
   // it renders once per published row at /<collection>/<rowSlug>, with the row's
   // cells exposed to bindings via the `page` data frame. See render-page.tsx.
   collection: z.string().optional(),
+  /**
+   * CSS an import could not turn into node styles — pseudo-elements, keyframes,
+   * combinator selectors — kept verbatim so a design imported from HTML loses
+   * nothing VISUALLY even where it cannot be made editable. Optional and
+   * additive: no existing Doc needs migrating, and a Doc without it renders
+   * exactly as before.
+   */
+  residualCss: z.string().optional(),
 })
 
 // A linked component ("symbol"): a named, reusable subtree. Its nodes live in the

@@ -1,6 +1,10 @@
 import { createElement } from "react"
 
-import { ModuleRegistry, type ModuleDefinition, type ModuleRenderProps } from "../registry"
+import {
+  ModuleRegistry,
+  type ModuleDefinition,
+  type ModuleRenderProps,
+} from "../registry"
 import { FORM_MODULES } from "./forms"
 import { ATMOSPHERE_MODULES } from "./atmosphere"
 export { SHADER_LOADER, ATMOSPHERE_KEYFRAMES } from "./atmosphere"
