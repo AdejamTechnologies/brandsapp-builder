@@ -67,7 +67,23 @@ const Container: ModuleDefinition = {
   defaultClasses: "w-full max-w-6xl mx-auto px-6 min-h-24",
   Component: (p: ModuleRenderProps) => {
     const mw = p.props.maxWidth != null ? MAX_WIDTH_STYLE[str(p.props.maxWidth)] : undefined
-    const style: CSSProperties | undefined = mw ? { maxWidth: mw } : undefined
+    /**
+     * A max-width that is not centred is never what anyone meant.
+     *
+     * The centring lives in `mx-auto` on defaultClasses, and an author's own
+     * classes REPLACE defaults rather than merging with them — so any container
+     * given both a maxWidth prop and a class list lost its centring while
+     * keeping its width. The result is a page whose centred headlines sit left
+     * of the middle of the screen, which reads as a broken layout and is
+     * invisible in markup.
+     *
+     * The margin travels with the width now, and only yields if the author has
+     * explicitly said otherwise.
+     */
+    const ownsMargin = /(^|\s)(mx-|ml-|mr-|m-)/.test(p.className ?? "")
+    const style: CSSProperties | undefined = mw
+      ? { maxWidth: mw, ...(ownsMargin ? {} : { marginInline: "auto" }) }
+      : undefined
     return createElement("div", { className: p.className, style, ...rootAttrs(p) }, p.children)
   },
 }
