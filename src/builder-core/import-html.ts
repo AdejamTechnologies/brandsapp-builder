@@ -198,8 +198,39 @@ export function htmlToDoc(html: string): Doc {
       if (module === "button") props.label = text
       else props.text = text
     }
+    /**
+     * Children, in source order — and text among them.
+     *
+     * The loop used to keep only ELEMENT children, which quietly threw away
+     * every word held by a tag that maps to `box`. Importing a pricing block
+     * produced the section, the grid, the cards and their borders, with the
+     * prices and the feature lists gone: `<div class="price">$18</div>` became
+     * an empty box, and `<li>Custom domain</li>` became nothing at all. The
+     * markup rendered, so the audit called it clean.
+     *
+     * TEXTY modules already carry their words as a prop, so their strings are
+     * skipped here to avoid printing them twice. Everything else gets a real
+     * `text` child, in place, which also keeps mixed content ("Cancel
+     * <b>whenever</b> you like") in the order it was written.
+     */
     for (const c of el.children) {
-      if (typeof c !== "string") children.push(walk(c))
+      if (typeof c !== "string") {
+        children.push(walk(c))
+        continue
+      }
+      if (TEXTY.has(module)) continue
+      const chunk = decodeEntities(c).trim()
+      if (!chunk) continue
+      const textId = nextId()
+      nodes[textId] = {
+        id: textId,
+        module: "text",
+        props: { text: chunk },
+        styleIds: [],
+        children: [],
+      }
+      tags[textId] = "span"
+      children.push(textId)
     }
     nodes[id] = { id, module, props, styleIds: [], children, ...(style ? { style } : {}), ...(classes ? { classes } : {}) }
     tags[id] = el.tag
