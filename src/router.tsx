@@ -6,6 +6,7 @@ import {
   Outlet,
 } from "@tanstack/react-router"
 
+import { NetworkIndicator } from "./components/network-indicator"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { CuratePage } from "./routes/curate"
 import { EditorPage } from "./routes/editor"
@@ -15,6 +16,10 @@ import { PreviewPage } from "./routes/preview"
 const rootRoute = createRootRoute({
   component: () => (
     <TooltipProvider>
+      {/* Mounted here, inside the router: useRouterState reads the
+          router from context, and as a sibling of RouterProvider it
+          gets null and throws on `router.stores`. */}
+      <NetworkIndicator />
       <div className="app">
         <header className="flex items-center gap-2.5 h-12 px-4 border-b border-border bg-background shrink-0">
           <Link to="/" className="font-semibold tracking-tight text-foreground">
