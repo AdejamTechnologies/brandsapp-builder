@@ -5,6 +5,7 @@ import { ANIMATION_LOADER,
   LIGHTBOX_RUNTIME,
   CHALLENGE_LOADER,
   BUILDER_RUNTIME, SCENE_LOADER, SHADER_LOADER, generateUtilityCss, parseDoc, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
+import { docFor, isDemoPage } from "../lib/demo-docs"
 import { registry } from "../lib/registry"
 
 /**
@@ -20,6 +21,9 @@ export function PreviewPage() {
   const [err, setErr] = useState("")
 
   useEffect(() => {
+    // A local demo has no tenant to fetch from — render it straight, so
+    // /preview/<demo> shows exactly what publishes.
+    if (isDemoPage(pageId)) return setDoc(parseDoc(docFor(pageId)))
     if (!tenant) return setErr("Add ?tenant=<url> to preview this page.")
     fetch(`/api/pages/${encodeURIComponent(pageId)}?tenant=${encodeURIComponent(tenant)}`)
       .then((r) => (r.ok ? (r.json() as Promise<{ doc?: unknown }>) : Promise.reject(new Error(`load failed (${r.status})`))))

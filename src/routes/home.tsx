@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { ArrowRight, MousePointerClick } from "lucide-react"
+import { ArrowRight, Hammer, MousePointerClick } from "lucide-react"
 
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -41,6 +41,25 @@ export function HomePage() {
           <div>
             <div className="text-sm font-semibold text-foreground">Open the sample page</div>
             <div className="text-xs text-muted-foreground">A local playground — drag, edit, style. No sign-in.</div>
+          </div>
+        </div>
+        <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+      </Link>
+
+      <Link
+        to="/edit/$pageId"
+        params={{ pageId: "bolt" }}
+        className="group mt-3 flex items-center justify-between rounded-xl border border-border bg-background p-4 transition-colors hover:border-ring"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-accent text-foreground">
+            <Hammer className="size-4.5" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-foreground">Open the Bolt World trial page</div>
+            <div className="text-xs text-muted-foreground">
+              A real prospect: repairs and building supplies, two catalogues, WhatsApp ordering.
+            </div>
           </div>
         </div>
         <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />

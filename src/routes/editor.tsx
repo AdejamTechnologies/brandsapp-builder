@@ -207,10 +207,7 @@ import { useHistory } from "../lib/history"
 import { useDocRoom } from "../lib/realtime"
 import { moduleInfo, registry, type ModuleInfo } from "../lib/registry"
 import { entryMatches, paletteSections } from "../lib/palette"
-import { SAMPLE_DOC } from "../lib/sample"
-import { ADEJAM_DOC } from "../lib/adejam-sample"
-import { BLANK_DOC } from "../lib/blank"
-import { STOREFRONT_DOC } from "../lib/storefront"
+import { docFor, isDemoPage } from "../lib/demo-docs"
 
 /** Webflow's Convert-to / Wrap-in targets, mapped to our modules. */
 const CONVERT_TARGETS = ["box", "grid", "link", "stack", "section", "custom-element"]
@@ -251,25 +248,12 @@ export function EditorPage() {
   const tenant = search.tenant ?? ""
   const navigate = useNavigate()
 
-  // Only the two demo ids load a demo page. Everything else starts BLANK — that
-  // gives /edit/blank as a scratch canvas for trying components, and stops a real
-  // tenant page from briefly showing someone else's demo markup while its own
-  // definition is still being fetched below.
-  // `blank` is the scratch canvas and now opens on the storefront — a real page
-  // to build against rather than an empty box. Everything ELSE still starts
-  // empty: a tenant page must not flash someone else's markup while its own
-  // definition is still being fetched below.
-  const [initialDoc] = useState(() =>
-    parseDoc(
-      pageId === "adejam"
-        ? ADEJAM_DOC
-        : pageId === "sample"
-          ? SAMPLE_DOC
-          : pageId === "blank"
-            ? STOREFRONT_DOC
-            : BLANK_DOC
-    )
-  )
+  // Only a demo id loads a demo page (see lib/demo-docs). `blank` is the scratch
+  // canvas and opens on the storefront — a real page to build against rather
+  // than an empty box. Everything ELSE still starts empty: a tenant page must
+  // not flash someone else's markup while its own definition is still being
+  // fetched below.
+  const [initialDoc] = useState(() => parseDoc(docFor(pageId)))
   const sendRef = useRef<(s: string) => void>(() => {})
   const commit = useCallback((d: Doc) => sendRef.current(JSON.stringify(d)), [])
   const { doc, apply, undo, redo, canUndo, canRedo, reset } = useHistory(initialDoc, commit)
@@ -307,7 +291,7 @@ export function EditorPage() {
   const dropTargetRef = useRef<DropTarget | null>(null)
 
   useEffect(() => {
-    if (!tenant || pageId === "sample" || pageId === "adejam") return
+    if (!tenant || isDemoPage(pageId)) return
     fetch(`/api/pages/${encodeURIComponent(pageId)}?tenant=${encodeURIComponent(tenant)}`)
       .then((r) => (r.ok ? (r.json() as Promise<{ doc?: unknown; status?: string }>) : null))
       .then((d) => {
