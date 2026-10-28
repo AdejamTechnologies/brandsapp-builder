@@ -268,6 +268,12 @@ function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string, 
     return null
   }
   if (def.needsRuntime && !ctx.isEditor) ctx.usesRuntime = true
+  // Tokens the module's own markup emits (see ModuleDefinition.staticClasses).
+  // Collected here, where the module is known, so the utility generator emits
+  // rules for them on EVERY page that renders this module.
+  if (def.staticClasses) {
+    for (const c of def.staticClasses.split(/\s+/)) if (c) ctx.classes.add(c)
+  }
   const node = choreograph(effectiveNode(raw, ctx.previewBreakpoint), ctx, depth)
   const children = node.children.length
     ? createElement(

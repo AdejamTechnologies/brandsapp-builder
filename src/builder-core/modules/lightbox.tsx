@@ -67,6 +67,7 @@ const PLACEHOLDER_CLASSES =
 
 const Lightbox: ModuleDefinition = {
   name: "lightbox",
+  staticClasses: "absolute inset-0 h-full w-full object-cover",
   category: "media",
   schema: {
     thumbnailUrl: { type: "media", label: "thumbnail" },

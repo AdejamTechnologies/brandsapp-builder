@@ -76,6 +76,15 @@ function generator(): Promise<UnoGenerator> {
  */
 export const BUILDER_RESET = [
   ":where(.bapp-root,.bapp-root *,.bapp-root *::before,.bapp-root *::after){box-sizing:border-box}",
+  /* `border` is `border-width:1px` and NOTHING else — no style, no colour. The
+     initial border-style is `none`, so on everything except a form control
+     (which inherits a border-style from the UA sheet) that utility painted
+     nothing at all: `border border-base-300` on a card, a button or an imported
+     Tailwind block was silently inert, and the whole library of blocks is
+     authored assuming it works. This is Tailwind's own preflight line, scoped
+     and zero-specificity like the rest: declare the style up front and default
+     the width to 0, so `border`, `border-t`, `border-x` mean what they say. */
+  ":where(.bapp-root,.bapp-root *,.bapp-root *::before,.bapp-root *::after){border-width:0;border-style:solid;border-color:currentColor}",
   ":where(.bapp-root) :where(h1,h2,h3,h4,h5,h6,p,figure,blockquote,dl,dd,pre){margin:0}",
   ":where(.bapp-root) :where(img,svg,video,canvas,audio,iframe,embed,object){display:block;vertical-align:middle}",
   ":where(.bapp-root) :where(img,video){max-width:100%;height:auto}",

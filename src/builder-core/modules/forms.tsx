@@ -527,6 +527,7 @@ function resolveVideoEmbedSrc(raw: unknown): string | null {
 
 const Video: ModuleDefinition = {
   name: "video",
+  staticClasses: "relative w-full overflow-hidden bg-base-200 absolute inset-0 h-full w-full flex min-h-40 items-center justify-center px-4 text-center text-sm text-base-content/60",
   category: "media",
   schema: {
     url: { type: "url", label: "embed URL (YouTube or Vimeo)" },

@@ -80,6 +80,7 @@ function parseStartSeconds(raw: unknown): number {
 
 const Youtube: ModuleDefinition = {
   name: "youtube",
+  staticClasses: "flex min-h-40 items-center justify-center px-4 text-center text-sm text-base-content/60 h-full w-full rounded-2xl",
   category: "media",
   schema: {
     url: { type: "url" },
@@ -157,6 +158,7 @@ const Youtube: ModuleDefinition = {
 
 const BackgroundVideo: ModuleDefinition = {
   name: "background-video",
+  staticClasses: "absolute inset-0 h-full w-full object-cover bg-neutral relative z-10 w-full px-6 py-16",
   category: "media",
   schema: {
     src: { type: "url" },
@@ -290,6 +292,7 @@ function sanitizeParamName(raw: unknown): string {
 
 const Search: ModuleDefinition = {
   name: "search",
+  staticClasses: "text-sm font-medium text-base-content",
   category: "forms",
   schema: {
     label: { type: "plain" },
@@ -368,7 +371,42 @@ const MAP_TYPE_OPTIONS = [
  *     but the search page isn't a documented embed API with a guaranteed
  *     contract, so this is "give it a shot", not "verified to work forever".
  */
+/**
+ * Coordinates, when the author gives them — "4.4333, 7.1667" or "4.4333,7.1667".
+ * Latitude first, as every map UI writes it. Anything else (an address, a place
+ * name) is not coordinates and falls through to the search widget above.
+ */
+function parseLatLng(query: string): { lat: number; lon: number } | null {
+  const m = /^\s*(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/.exec(query)
+  if (!m) return null
+  const lat = Number(m[1])
+  const lon = Number(m[2])
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null
+  return { lat, lon }
+}
+
 function buildOsmSrc(query: string, zoom: number): string {
+  // An address can only be resolved by CALLING a geocoder, which SSR will not
+  // do, hence the search widget below. Coordinates need no lookup, so when the
+  // author has them we can embed openstreetmap.org's real, documented map
+  // frame instead — a map with a marker on it, rather than a search page with
+  // a map under it. Purely additive: an address behaves exactly as before.
+  const point = parseLatLng(query)
+  if (point) {
+    // The embed frame takes a bounding box, not a centre+zoom. Width in degrees
+    // halves per zoom level (360° across the world at z0); latitude gets a
+    // narrower span so a typical landscape frame isn't wildly letterboxed.
+    const span = 360 / Math.pow(2, Math.min(Math.max(zoom, 1), 19))
+    const r = (n: number) => Math.round(n * 1e6) / 1e6
+    const bbox = [r(point.lon - span / 2), r(point.lat - span / 4), r(point.lon + span / 2), r(point.lat + span / 4)]
+    const params = new URLSearchParams({
+      bbox: bbox.join(","),
+      layer: "mapnik",
+      marker: `${r(point.lat)},${r(point.lon)}`,
+    })
+    return `https://www.openstreetmap.org/export/embed.html?${params.toString()}`
+  }
   const params = new URLSearchParams({ q: query, zoom: String(zoom) })
   return `https://nominatim.openstreetmap.org/ui/search.html?${params.toString()}`
 }
@@ -396,13 +434,14 @@ function buildGoogleSrc(query: string, apiKey: string, zoom: number, mapType: st
 
 const Map: ModuleDefinition = {
   name: "map",
+  staticClasses: "flex items-center justify-center px-4 text-center text-sm text-base-content/60 h-full w-full rounded-2xl border-0",
   category: "media",
   schema: {
     provider: { type: "select", options: MAP_PROVIDER_OPTIONS },
     // Kept as `query` (not renamed to `address`) so nothing authored against
     // the old schema breaks — only the label changes to match how authors
     // actually think about this field.
-    query: { type: "plain", label: "address" },
+    query: { type: "plain", label: "address, or coordinates as lat, lng" },
     apiKey: { type: "plain", label: "Google Maps API key", showIf: { provider: ["google"] } },
     title: { type: "plain", label: "title (map frame name)" },
     tooltip: { type: "plain", label: "marker tooltip" },
@@ -523,6 +562,7 @@ const FACEBOOK_LOCALE_VALUES = FACEBOOK_LOCALE_OPTIONS.map((o) => o.value)
  */
 const Facebook: ModuleDefinition = {
   name: "facebook",
+  staticClasses: "flex min-h-9 min-w-[160px] items-center justify-center rounded bg-base-200 inline-block leading-none px-3 text-center text-xs text-base-content/60",
   category: "media",
   schema: {
     url: { type: "url", label: "page/URL to like" },
@@ -641,6 +681,7 @@ function xLogo(sizeClass: string) {
 
 const XTwitter: ModuleDefinition = {
   name: "x-twitter",
+  staticClasses: "inline-flex items-center justify-center rounded-full bg-base-200 px-4 py-2 text-xs text-base-content/60 bg-neutral-content/20 px-1.5 text-[10px] font-medium text-neutral-content",
   category: "media",
   schema: {
     mode: { type: "select", options: X_MODE_OPTIONS, segmented: true },

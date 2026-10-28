@@ -114,6 +114,23 @@ export interface ModuleDefinition {
    */
   defaultClasses?: string
   /**
+   * Utility classes this module's OWN markup emits, on elements the author never
+   * touches — a lightbox's absolutely-positioned `<img>`, a map's `<iframe>`, a
+   * video's poster layer.
+   *
+   * The atomic CSS is generated from the tokens the RENDERER collected, and it
+   * only ever saw `node.classes`. A class hardcoded inside a Component
+   * therefore got no rule generated unless some node on the same page happened
+   * to use the same token — so a lightbox thumbnail rendered unpositioned and a
+   * map iframe collapsed to its intrinsic height, on one page and not the next,
+   * which is the worst kind of bug to chase. Declaring them here is the fix: the
+   * renderer folds them into the collected set whenever the module renders.
+   *
+   * Only for classes NOT in `defaultClasses` — those live on the node, so the
+   * author's copy is collected the normal way.
+   */
+  staticClasses?: string
+  /**
    * A starter subtree inserted with the node, so a container arrives usable
    * rather than empty — a `form` drops in with real fields and a submit button.
    * Seeded once at insert time (like `defaults`/`defaultClasses`) and fully

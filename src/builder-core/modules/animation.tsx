@@ -198,6 +198,7 @@ const ALIGN_VALUES = ALIGN_OPTIONS.map((o) => o.value)
 
 const Rive: ModuleDefinition = {
   name: "rive",
+  staticClasses: "h-full w-full",
   category: "media",
   schema: {
     src: { type: "url", label: "file (.riv)" },
