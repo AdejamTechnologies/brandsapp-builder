@@ -68,6 +68,29 @@ export const BUILDER_RUNTIME = `(function(){
       +'.bapp-navtoggle[aria-expanded="true"] span:nth-child(2){opacity:0}'
       +'.bapp-navtoggle[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}'
       +'.bapp-navtoggle:focus-visible{outline:2px solid '+accent+';outline-offset:2px;border-radius:6px}'
+      /* ── carousel chrome ──────────────────────────────────────────────────
+         The TRACK's layout is authored utility classes (see carousel.tsx), not
+         here: this sheet is injected only when the runtime loads, and the
+         editor canvas never loads it -- a track styled from here would be a
+         column of stacked slides while somebody was building the page. What
+         lives here is only what CSS utilities cannot express: a hidden
+         scrollbar, and the controls the runtime itself creates. */
+      +'[data-bapp-carousel-track]{scrollbar-width:none;-ms-overflow-style:none}'
+      +'[data-bapp-carousel-track]::-webkit-scrollbar{display:none}'
+      +'.bapp-car-dots{display:flex;gap:8px;justify-content:center;align-items:center;padding:14px 0}'
+      +'.bapp-car-dot{width:9px;height:9px;padding:0;border:0;border-radius:999px;cursor:pointer;background:'+ink+';opacity:.22;transition:opacity .2s ease,transform .2s ease}'
+      +'.bapp-car-dot[aria-current="true"]{opacity:1;background:'+accent+';transform:scale(1.15)}'
+      +'.bapp-car-dot:focus-visible,.bapp-car-arrow:focus-visible,.bapp-car-pause:focus-visible{outline:2px solid '+accent+';outline-offset:3px}'
+      +'.bapp-car-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:2;display:flex;align-items:center;justify-content:center;width:40px;height:40px;border:1px solid '+line+';border-radius:999px;cursor:pointer;background:hsl(var(--b1, 0 0% 100%)/.9);color:'+ink+';font-size:18px;line-height:1}'
+      +'.bapp-car-arrow[data-prev]{left:12px}'
+      +'.bapp-car-arrow[data-next]{right:12px}'
+      +'.bapp-car-arrow[disabled]{opacity:.35;cursor:default}'
+      +'.bapp-car-pause{position:absolute;top:12px;right:12px;z-index:2;width:36px;height:36px;border:0;border-radius:999px;cursor:pointer;background:hsl(var(--b1, 0 0% 100%)/.75);color:'+ink+';font-size:12px;line-height:1}'
+      /* The heart, filled. The class the runtime toggles is an authored utility
+         (text-primary) so the colour follows the brand; this only animates it. */
+      +'[data-bapp-wishlist]{transition:color .15s ease,border-color .15s ease}'
+      +'[data-bapp-wishlist][aria-busy="true"]{opacity:.55}'
+      +'[data-bapp-wishlist][aria-pressed="true"] svg{fill:currentColor}'
       /* ── navbar behaviours ────────────────────────────────────────────────
          Driven by data attributes the navbar module emits, not classes: in the
          editor the utility CSS is a style tag in the BODY and outranks this
@@ -873,6 +896,162 @@ export const BUILDER_RUNTIME = `(function(){
     });
   }
 
+  /* ── carousel ───────────────────────────────────────────────────────────
+     The track is a native scroll-snap scroller, so swipe, trackpad and
+     keyboard already work with none of this. Everything below is the part CSS
+     cannot do, and every bit of it reads position from scrollLeft rather than
+     keeping an index of its own -- two sources of truth is how a carousel ends
+     up with the dots pointing at a slide nobody is looking at. */
+  function initCarousel(root){
+    var track=root.querySelector('[data-bapp-carousel-track]');
+    if(!track)return;
+    var slides=[].slice.call(track.children);
+    if(slides.length<2)return;
+
+    var wrap=root.hasAttribute('data-loop');
+    var delay=parseInt(root.getAttribute('data-autoplay')||'0',10);
+    var dots=null, prev=null, next=null, timer=null, stopped=false;
+
+    function current(){
+      var w=track.clientWidth||1;
+      return Math.round(track.scrollLeft/w);
+    }
+    function go(i,smooth){
+      var n=slides.length;
+      var target=wrap?((i%n)+n)%n:Math.max(0,Math.min(n-1,i));
+      try{ track.scrollTo({left:target*track.clientWidth,behavior:(smooth===false||reduced())?'auto':'smooth'}) }
+      catch(e){ track.scrollLeft=target*track.clientWidth }
+    }
+    function sync(){
+      var i=current();
+      if(dots)[].slice.call(dots.children).forEach(function(d,di){
+        d.setAttribute('aria-current',di===i?'true':'false');
+      });
+      if(prev&&!wrap)prev.disabled=i<=0;
+      if(next&&!wrap)next.disabled=i>=slides.length-1;
+    }
+
+    if(root.hasAttribute('data-arrows')){
+      prev=DOC.createElement('button');
+      prev.type='button'; prev.className='bapp-car-arrow'; prev.setAttribute('data-prev','');
+      prev.setAttribute('aria-label','Previous'); prev.innerHTML='&#8249;';
+      next=DOC.createElement('button');
+      next.type='button'; next.className='bapp-car-arrow'; next.setAttribute('data-next','');
+      next.setAttribute('aria-label','Next'); next.innerHTML='&#8250;';
+      prev.addEventListener('click',function(){ stop(); go(current()-1) });
+      next.addEventListener('click',function(){ stop(); go(current()+1) });
+      root.appendChild(prev); root.appendChild(next);
+    }
+
+    if(root.hasAttribute('data-dots')){
+      dots=DOC.createElement('div');
+      dots.className='bapp-car-dots'; dots.setAttribute('role','tablist');
+      slides.forEach(function(s,i){
+        var b=DOC.createElement('button');
+        b.type='button'; b.className='bapp-car-dot';
+        b.setAttribute('aria-label','Slide '+(i+1));
+        b.addEventListener('click',function(){ stop(); go(i) });
+        dots.appendChild(b);
+      });
+      root.appendChild(dots);
+    }
+
+    /* Autoplay never starts under reduced motion: a thing that moves by itself
+       is not a decoration for everybody. */
+    function tick(){ if(!stopped)go(current()+1) }
+    function start(){
+      if(!delay||reduced()||stopped||timer)return;
+      timer=setInterval(tick,Math.max(2000,delay));
+    }
+    function pause(){ if(timer){ clearInterval(timer); timer=null } }
+    function stop(){ stopped=true; pause(); if(btn)btn.remove() }
+
+    var btn=null;
+    if(delay&&root.hasAttribute('data-pause')&&!reduced()){
+      btn=DOC.createElement('button');
+      btn.type='button'; btn.className='bapp-car-pause';
+      btn.setAttribute('aria-label','Pause'); btn.innerHTML='&#10073;&#10073;';
+      btn.addEventListener('click',function(){
+        if(timer){ pause(); btn.setAttribute('aria-label','Play'); btn.innerHTML='&#9654;' }
+        else { start(); btn.setAttribute('aria-label','Pause'); btn.innerHTML='&#10073;&#10073;' }
+      });
+      root.appendChild(btn);
+    }
+
+    var raf=0;
+    track.addEventListener('scroll',function(){
+      if(raf)return; raf=requestAnimationFrame(function(){ raf=0; sync() });
+    },{passive:true});
+    /* A visitor who has taken hold of the carousel owns it from then on. */
+    track.addEventListener('pointerdown',stop);
+    track.addEventListener('wheel',stop,{passive:true});
+    root.addEventListener('mouseenter',pause);
+    root.addEventListener('mouseleave',start);
+    root.addEventListener('focusin',pause);
+    root.addEventListener('focusout',start);
+    DOC.addEventListener('visibilitychange',function(){ DOC.hidden?pause():start() });
+    window.addEventListener('resize',sync);
+
+    sync(); start();
+  }
+
+  /* ── wishlist ───────────────────────────────────────────────────────────
+     Hearts are rendered UNFILLED by the server, always: a published page is
+     cached and shared, so a state baked into the HTML would show one shopper
+     another's saved list. One request on load says which are this visitor's. */
+  function initWishlist(scope){
+    var buttons=[].slice.call(scope.querySelectorAll('[data-bapp-wishlist][data-product-id]'));
+    if(!buttons.length)return;
+
+    function token(){ try{ return localStorage.getItem('bapp_wish')||'' }catch(e){ return '' } }
+    function keep(t){ if(t)try{ localStorage.setItem('bapp_wish',t) }catch(e){} }
+    function paint(btn,on){
+      btn.setAttribute('aria-pressed',on?'true':'false');
+      btn.classList[on?'add':'remove']('text-primary');
+    }
+
+    var t=token();
+    fetch('/api/public/wishlist'+(t?'?token='+encodeURIComponent(t):''),{headers:{accept:'application/json'}})
+      .then(function(r){ return r.ok?r.json():null })
+      .then(function(d){
+        if(!d||!d.ids)return;
+        var saved={}; d.ids.forEach(function(id){ saved[id]=1 });
+        buttons.forEach(function(b){ if(saved[b.getAttribute('data-product-id')])paint(b,true) });
+      })
+      .catch(function(){});
+
+    buttons.forEach(function(btn){
+      if(btn.__bappWish)return; btn.__bappWish=1;
+      btn.addEventListener('click',function(e){
+        e.preventDefault(); e.stopPropagation();
+        if(btn.getAttribute('aria-busy')==='true')return;
+        var id=btn.getAttribute('data-product-id');
+        if(!id)return;
+        var was=btn.getAttribute('aria-pressed')==='true';
+        /* Optimistic, then corrected by the server's answer: on a slow
+           connection a heart that waits feels broken, and the only cost of
+           being wrong is one flick back. */
+        paint(btn,!was);
+        btn.setAttribute('aria-busy','true');
+        var payload={productId:id};
+        var tk=token(); if(tk)payload.token=tk;
+        fetch('/api/public/wishlist/toggle',{
+          method:'POST',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify(payload)
+        })
+          .then(function(r){ return r.ok?r.json():null })
+          .then(function(d){
+            btn.removeAttribute('aria-busy');
+            if(!d){ paint(btn,was); return }
+            keep(d.sessionToken);
+            paint(btn,!!d.wishlisted);
+          })
+          .catch(function(){ btn.removeAttribute('aria-busy'); paint(btn,was) });
+      });
+    });
+  }
+
   function init(scope){
     var d=scope||DOC;
     injectCss();
@@ -891,6 +1070,8 @@ export const BUILDER_RUNTIME = `(function(){
     d.querySelectorAll('[data-bapp-form]').forEach(function(el){ if(el.__bappForm)return; el.__bappForm=1; initForm(el) });
     d.querySelectorAll('[data-bapp-bgvideo]').forEach(function(el){ if(el.__bappBg)return; el.__bappBg=1; initBgVideo(el) });
     d.querySelectorAll('[data-bapp-navbar]').forEach(function(el){ if(el.__bappNav)return; el.__bappNav=1; initNavbar(el) });
+    d.querySelectorAll('[data-bapp-carousel]').forEach(function(el){ if(el.__bappCar)return; el.__bappCar=1; initCarousel(el) });
+    initWishlist(d);
     tier();
     initSplit(d);
     initReveal(d);

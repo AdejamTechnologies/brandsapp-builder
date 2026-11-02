@@ -18,6 +18,8 @@ import { EMBED_MODULES } from "./embeds"
 import { STRUCTURE_MODULES } from "./structure"
 import { BRAND_MODULES } from "./brand"
 import { CINEMA_MODULES } from "./cinema"
+import { CAROUSEL_MODULES } from "./carousel"
+import { COMMERCE_MODULES } from "./commerce"
 import { Scene } from "./scene"
 
 /**
@@ -42,6 +44,8 @@ const Loop: ModuleDefinition = {
         { label: "Courses · Newest", value: "courses.newest" },
         { label: "Courses · Popular", value: "courses.popular" },
         { label: "Courses · Featured", value: "courses.featured" },
+        { label: "Shop · Categories", value: "products.categories" },
+        { label: "Shop · Brands", value: "products.brands" },
         { label: "Blog · Newest", value: "blogs.newest" },
         { label: "Blog · Featured", value: "blogs.featured" },
         { label: "Events · Upcoming", value: "events.upcoming" },
@@ -93,6 +97,10 @@ export function createDefaultRegistry(): ModuleRegistry {
     ...COMPONENT_MODULES,
     ...ATMOSPHERE_MODULES,
     ...CINEMA_MODULES,
+    // A hero that swipes before the script loads, and the two controls a shop
+    // cannot build for itself: the heart and the WhatsApp button.
+    ...CAROUSEL_MODULES,
+    ...COMMERCE_MODULES,
     Scene,
     ...FORM_MODULES,
     Loop,

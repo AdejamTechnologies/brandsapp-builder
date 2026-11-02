@@ -7,6 +7,7 @@ import {
   AlertCircle, Aperture, Badge as BadgeIcon, ChevronsRight, ChevronsUpDown, CircleUser, CreditCard,
   Ellipsis, Grip, Sun, Waves, MoveHorizontal, Orbit,
   PanelBottom,
+  GalleryHorizontal, Heart, MessageCircle, RectangleHorizontal,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -158,6 +159,44 @@ export const PALETTE: PaletteSection[] = [
       { label: "Code Block", icon: Code, module: "code-block", keywords: "pre snippet syntax" },
       { label: "Facebook", icon: ThumbsUp, module: "facebook", keywords: "social like share" },
       { label: "X (Twitter)", icon: AtSign, module: "x-twitter", keywords: "social tweet follow" },
+    ],
+  },
+  {
+    /**
+     * Commerce — the controls a shop's page cannot be built out of boxes.
+     *
+     * Everything else in this panel is a shape. These three know something the
+     * author does not: the heart knows THIS visitor's saved list, the WhatsApp
+     * button knows the brand's own number, and the carousel is the one layout
+     * that has to keep working when the script does not load.
+     */
+    id: "commerce",
+    label: "Commerce",
+    entries: [
+      {
+        label: "Save button",
+        icon: Heart,
+        module: "wishlist-button",
+        keywords: "wishlist heart favourite saved like shop product",
+      },
+      {
+        label: "WhatsApp button",
+        icon: MessageCircle,
+        module: "whatsapp-button",
+        keywords: "chat message float bubble contact order shop",
+      },
+      {
+        label: "Carousel",
+        icon: GalleryHorizontal,
+        module: "carousel",
+        keywords: "slider slides swipe hero banner gallery rotate",
+      },
+      {
+        label: "Slide",
+        icon: RectangleHorizontal,
+        module: "slide",
+        keywords: "carousel panel banner",
+      },
     ],
   },
   {
