@@ -524,6 +524,52 @@ const CATALOG: NavbarVariant[] = [
  * a variant whose root isn't `relative` opens its sheet against some outer
  * ancestor — wrong width, wrong place, and indistinguishable from a dead toggle.
  */
+/**
+ * "Your apps" — the automatic nav, as something an author CHOOSES.
+ *
+ * The public header used to grow a link the moment an app was installed:
+ * twenty `installedApps.includes(...)` checks in customer-nav.tsx, with no way
+ * to reorder them, rename them, leave one out, or put them anywhere else. That
+ * is a layout decision the brand never got to make, which is exactly what a
+ * builder exists to give them.
+ *
+ * So the behaviour survives as a STARTING POINT. Applying this expands into
+ * ordinary `link` nodes — one per page this brand actually publishes, in the
+ * order the old nav used — and from that moment the author owns every one of
+ * them. Nothing here reaches the renderer and tenant SSR learns nothing new,
+ * the same contract every other variant keeps.
+ *
+ * Each link is a `linkType: "app"` with its path, so it survives a rename and
+ * reads in the settings panel as the page it points at rather than a raw href.
+ *
+ * Built from a list rather than reading the catalogue directly: builder-core is
+ * vendored into the editor, which has no database. The editor already fetches
+ * this list for the link picker (`SettingsCtx.endpoints`) and hands it in.
+ */
+export function appLinksVariant(
+  endpoints: ReadonlyArray<{ label: string; value: string }>
+): NavbarVariant | null {
+  // Nothing to offer: a brand with no apps installed, or a demo page with no
+  // tenant behind it. Returning null keeps it out of the picker entirely
+  // rather than offering an empty bar that looks broken.
+  if (endpoints.length === 0) return null
+
+  const links: DefaultChild[] = endpoints.map((e) => ({
+    module: "link",
+    props: { text: e.label, linkType: "app", appPath: e.value },
+    classes: LINK,
+  }))
+
+  return {
+    id: "app-links",
+    label: "Your apps",
+    group: "Features",
+    hint: `${links.length} ${links.length === 1 ? "page" : "pages"} this brand publishes — editable once applied.`,
+    classes: BAR,
+    children: [brand(), menu(links), toggle()],
+  }
+}
+
 export const NAVBAR_VARIANTS: NavbarVariant[] = CATALOG.map((v) => ({
   ...v,
   classes: /(^|\s)relative(\s|$)/.test(v.classes) ? v.classes : `relative ${v.classes}`,

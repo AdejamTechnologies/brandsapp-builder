@@ -131,9 +131,39 @@ const Navbar: ModuleDefinition = {
         { label: "Never", value: "never" },
       ],
     },
+    /**
+     * How the collapsed menu arrives. Each is a CLOSED-state position; the
+     * shared open rule resets transform and opacity, so adding one later means
+     * one CSS block and no JS.
+     */
+    mobileMenu: {
+      type: "select",
+      label: "mobile menu",
+      options: [
+        { label: "Sheet (drops down)", value: "sheet" },
+        { label: "Drawer, right", value: "drawer-right" },
+        { label: "Drawer, left", value: "drawer-left" },
+        { label: "Full screen", value: "fullscreen" },
+        { label: "Dropdown (compact)", value: "dropdown" },
+      ],
+    },
+    sticky: { type: "boolean", label: "stick to top" },
+    blur: { type: "boolean", label: "frosted background" },
+    shrink: { type: "boolean", label: "shrink on scroll" },
+    hideOnScroll: { type: "boolean", label: "hide on scroll down" },
     ...ADVANCED_SCHEMA,
   },
-  defaults: { collapse: "md", ...ADVANCED_DEFAULTS },
+  defaults: {
+    collapse: "md",
+    // `sheet` is what the authored classes already produce, so an existing
+    // navbar keeps behaving exactly as it did.
+    mobileMenu: "sheet",
+    sticky: false,
+    blur: false,
+    shrink: false,
+    hideOnScroll: false,
+    ...ADVANCED_DEFAULTS,
+  },
   contentModel: { children: "any" },
   needsRuntime: true,
   // `relative` is load-bearing, not decoration: the mobile panel is positioned
@@ -163,6 +193,24 @@ const Navbar: ModuleDefinition = {
         className: p.className,
         "data-bapp-navbar": "",
         "data-collapse": COLLAPSE_PX[str(p.props.collapse, "md")] ?? "768",
+        /**
+         * Behaviour as ATTRIBUTES, not classes.
+         *
+         * The runtime's own stylesheet keys off these, which keeps them
+         * working in the editor too: there the utility CSS is a style tag in
+         * the BODY and would outrank a stylesheet in the head, so a
+         * class-driven version would look right when published and wrong on
+         * the canvas. Attributes also leave an author free to restyle the bar
+         * without having to preserve a magic class name.
+         *
+         * Only emitted when ON, so the published HTML carries nothing for the
+         * defaults — and an existing navbar's markup is unchanged.
+         */
+        "data-nav-mobile": str(p.props.mobileMenu, "sheet"),
+        ...(bool(p.props.sticky) ? { "data-nav-sticky": "" } : {}),
+        ...(bool(p.props.blur) ? { "data-nav-blur": "" } : {}),
+        ...(bool(p.props.shrink) ? { "data-nav-shrink": "" } : {}),
+        ...(bool(p.props.hideOnScroll) ? { "data-nav-hide": "" } : {}),
         ...rootAttrs(p),
       },
       p.children

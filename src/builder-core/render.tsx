@@ -290,6 +290,9 @@ function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string, 
     theme: ctx.doc.theme,
     nodeId: node.id,
     isEditor: ctx.selectable,
+    // Brand settings, for the modules that are about the brand and not the
+    // page. Same frame bindings read as `source: "site"`.
+    site: data.site,
     keptHidden,
   })
 }

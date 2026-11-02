@@ -50,6 +50,22 @@ export interface ModuleRenderProps {
   nodeId: string
   isEditor: boolean
   /**
+   * The `site` data frame — brand settings the host resolved for this render.
+   *
+   * Read-only, and the ONLY host data a module sees. It exists for the handful
+   * of "advanced" modules that are about the brand rather than the page: the
+   * logo has to come from branding settings, not be re-uploaded into every
+   * navbar an author builds.
+   *
+   * Bindings already reach this frame (`source: "site"` in binding.ts), but a
+   * binding has to be authored per node and `DefaultChild` cannot declare one,
+   * so a module that is MEANT to read a brand value could not express it.
+   *
+   * Undefined in the editor and on any host that resolves no site frame, so
+   * every module reading it needs a fallback that still renders.
+   */
+  site?: Record<string, unknown>
+  /**
    * True only when this node is authored `hidden` but also has `keepInHtml`
    * set — the renderer mounts it instead of dropping it (so scripts/anchors
    * can still find it), but the module must render it INERT. `rootAttrs`

@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react"
 import { Menu, X } from "lucide-react"
-import { NAVBAR_VARIANTS, NAVBAR_VARIANT_GROUPS, type NavbarVariant } from "@brandsapp/builder-core"
+import {
+  NAVBAR_VARIANTS,
+  NAVBAR_VARIANT_GROUPS,
+  appLinksVariant,
+  type NavbarVariant,
+} from "@brandsapp/builder-core"
 
 import { cn } from "../lib/utils"
 
@@ -140,12 +145,18 @@ export function NavbarChip({ variant, onOpen }: { variant?: string; onOpen: () =
 export function NavbarVariants({
   variant,
   hasContent,
+  endpoints,
   onApply,
   onClose,
 }: {
   variant?: string
   /** True when the navbar holds anything the author could lose. */
   hasContent: boolean
+  /**
+   * Pages this brand's apps publish, for the "Your apps" preset. Same list the
+   * link picker uses. Empty (no tenant, no apps) simply omits that preset.
+   */
+  endpoints?: ReadonlyArray<{ label: string; value: string }>
   onApply: (v: NavbarVariant) => void
   onClose: () => void
 }) {
@@ -223,7 +234,17 @@ export function NavbarVariants({
         </div>
       ) : (
         NAVBAR_VARIANT_GROUPS.map((group) => {
-          const items = NAVBAR_VARIANTS.filter((v) => v.group === group)
+          /**
+           * The brand's own preset sits FIRST in Features — ahead of the
+           * generic arrangements, because it is the one built from pages this
+           * brand actually has. Omitted entirely when there are none, rather
+           * than offered as an empty bar.
+           */
+          const mine = group === "Features" ? appLinksVariant(endpoints ?? []) : null
+          const items = [
+            ...(mine ? [mine] : []),
+            ...NAVBAR_VARIANTS.filter((v) => v.group === group),
+          ]
           if (!items.length) return null
           return (
             <div key={group} className="mb-3 last:mb-0">

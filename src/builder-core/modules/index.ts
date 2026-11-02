@@ -16,6 +16,7 @@ import { CAPTCHA_MODULES } from "./captcha"
 import { LIGHTBOX_MODULES } from "./lightbox"
 import { EMBED_MODULES } from "./embeds"
 import { STRUCTURE_MODULES } from "./structure"
+import { BRAND_MODULES } from "./brand"
 import { CINEMA_MODULES } from "./cinema"
 import { Scene } from "./scene"
 
@@ -82,6 +83,8 @@ export function createDefaultRegistry(): ModuleRegistry {
   return new ModuleRegistry().registerAll([
     ...PRIMITIVES,
     ...STRUCTURE_MODULES,
+    // logo / cart / saved / account — the brand, not the page. See brand.tsx.
+    ...BRAND_MODULES,
     ...EMBED_MODULES,
     ...ANIMATION_MODULES,
     ...CAPTCHA_MODULES,

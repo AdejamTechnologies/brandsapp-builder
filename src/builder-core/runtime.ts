@@ -64,8 +64,38 @@ export const BUILDER_RUNTIME = `(function(){
       +'.bapp-navtoggle[aria-expanded="true"] span:nth-child(2){opacity:0}'
       +'.bapp-navtoggle[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}'
       +'.bapp-navtoggle:focus-visible{outline:2px solid '+accent+';outline-offset:2px;border-radius:6px}'
+      /* ── navbar behaviours ────────────────────────────────────────────────
+         Driven by data attributes the navbar module emits, not classes: in the
+         editor the utility CSS is a style tag in the BODY and outranks this
+         sheet in the head, so a class-driven version would look right
+         published and wrong on the canvas.
+         Each MOBILE MODE describes the CLOSED state only; one shared open rule
+         undoes it. Adding a sixth mode is then one block and no JS. The
+         'data-open' the rules key off is set by initNavbar below. */
+      +'[data-bapp-navbar][data-nav-sticky]{position:sticky;top:0;z-index:40}'
+      +'[data-bapp-navbar][data-nav-blur]{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}'
+      /* Shrink and hide both animate the bar itself, so they share a transition. */
+      +'[data-bapp-navbar][data-nav-shrink],[data-bapp-navbar][data-nav-hide]{transition:transform .25s ease,padding .2s ease,box-shadow .2s ease}'
+      +'[data-bapp-navbar][data-nav-shrink][data-scrolled]{padding-top:.4rem;padding-bottom:.4rem;box-shadow:0 1px 0 rgba(0,0,0,.08)}'
+      +'[data-bapp-navbar][data-nav-hide][data-hidden]{transform:translateY(-100%)}'
+      /* The panel slides, so it needs its own transition and an off-canvas size. */
+      +'[data-bapp-navbar]:not([data-nav-mobile=\"sheet\"]) [data-bapp-nav-menu]{transition:transform .25s ease,opacity .2s ease}'
+      +'[data-bapp-navbar][data-nav-mobile=\"drawer-right\"] [data-bapp-nav-menu],[data-bapp-navbar][data-nav-mobile=\"drawer-left\"] [data-bapp-nav-menu]{position:fixed;top:0;bottom:0;width:min(20rem,82vw);left:auto;right:0;overflow-y:auto}'
+      +'[data-bapp-navbar][data-nav-mobile=\"drawer-left\"] [data-bapp-nav-menu]{right:auto;left:0}'
+      +'[data-bapp-navbar][data-nav-mobile=\"drawer-right\"]:not([data-open]) [data-bapp-nav-menu]{transform:translateX(100%)}'
+      +'[data-bapp-navbar][data-nav-mobile=\"drawer-left\"]:not([data-open]) [data-bapp-nav-menu]{transform:translateX(-100%)}'
+      +'[data-bapp-navbar][data-nav-mobile=\"fullscreen\"] [data-bapp-nav-menu]{position:fixed;inset:0;overflow-y:auto}'
+      +'[data-bapp-navbar][data-nav-mobile=\"fullscreen\"]:not([data-open]) [data-bapp-nav-menu]{opacity:0}'
+      +'[data-bapp-navbar][data-nav-mobile=\"dropdown\"] [data-bapp-nav-menu]{left:auto;right:0;width:max-content;min-width:12rem}'
+      +'[data-bapp-navbar][data-nav-mobile=\"dropdown\"]:not([data-open]) [data-bapp-nav-menu]{opacity:0;transform:translateY(-.4rem)}'
+      /* The one rule that opens every mode. */
+      +'[data-bapp-navbar][data-open] [data-bapp-nav-menu]{transform:none;opacity:1}'
+      /* Past the breakpoint the bar is a row again and NO mode applies: a
+         desktop menu must never be a fixed drawer. Mirrors the resize reset in
+         initNavbar, which clears the inline display for the same reason. */
+      +'@media (min-width:1px){[data-bapp-navbar][data-desktop] [data-bapp-nav-menu]{position:static;inset:auto;width:auto;min-width:0;transform:none;opacity:1;overflow:visible}}'
       /* (No backticks anywhere in this file -- they end the template literal.) */
-      +'@media (prefers-reduced-motion: reduce){.bapp-acc-panel,.bapp-chev,.bapp-navtoggle span{transition:none!important}}';
+      +'@media (prefers-reduced-motion: reduce){.bapp-acc-panel,.bapp-chev,.bapp-navtoggle span,[data-bapp-navbar],[data-bapp-navbar] [data-bapp-nav-menu]{transition:none!important}}';
     var s=DOC.createElement('style'); s.id='bapp-runtime-css'; s.textContent=css;
     (DOC.head||DOC.documentElement).appendChild(s);
   }
@@ -352,6 +382,10 @@ export const BUILDER_RUNTIME = `(function(){
          the utility CSS is a style tag in the BODY and would outrank this
          stylesheet in the head -- the opposite of a published page. An inline
          style is the only thing that wins in both. */
+      /* On the ROOT, because every mobile-mode rule above is a descendant
+         selector off the navbar -- CSS cannot reach an ancestor from the
+         toggle's own aria-expanded. */
+      if(v)root.setAttribute('data-open','');else root.removeAttribute('data-open');
       if(v){ menu.style.display=menu.getAttribute('data-open-display')||'flex'; animateOpen(menu) }
       else animateClose(menu,function(){ menu.style.display='' });
     }
@@ -364,12 +398,54 @@ export const BUILDER_RUNTIME = `(function(){
     });
     DOC.addEventListener('click',function(e){ if(open&&!desktop()&&!root.contains(e.target))setOpen(false) });
     DOC.addEventListener('keydown',function(e){ if(e.key==='Escape'&&open){ setOpen(false); toggle.focus() } });
+    /* Tells the stylesheet the bar is a desktop row, so no mobile mode applies.
+       An attribute rather than a media query because the breakpoint is the
+       author's choice (data-collapse), and CSS cannot read it. */
+    function syncDesktop(){
+      if(desktop())root.setAttribute('data-desktop','');
+      else root.removeAttribute('data-desktop');
+    }
+    syncDesktop();
     window.addEventListener('resize',function(){
+      syncDesktop();
       if(!desktop())return;
       open=false;
+      root.removeAttribute('data-open');
       toggle.setAttribute('aria-expanded','false');
       menu.style.display=''; menu.style.height=''; menu.style.transition='';
     });
+
+    /* ── scroll state ───────────────────────────────────────────────────────
+       'shrink' and 'hide' are both just an attribute the CSS above reacts to,
+       set from ONE rAF-throttled listener -- and only when the author asked for
+       one of them, so a plain navbar adds no scroll listener at all.
+       'hide' never hides an OPEN menu: sliding the bar away with the panel
+       attached would take the navigation off screen mid-use. */
+    var wantsShrink=root.hasAttribute('data-nav-shrink');
+    var wantsHide=root.hasAttribute('data-nav-hide');
+    if(wantsShrink||wantsHide){
+      var lastY=window.pageYOffset||0, navTicking=false;
+      function navFrame(){
+        navTicking=false;
+        var y=window.pageYOffset||0;
+        if(wantsShrink){
+          if(y>8)root.setAttribute('data-scrolled','');
+          else root.removeAttribute('data-scrolled');
+        }
+        if(wantsHide){
+          /* Past the bar's own height, so a short page cannot hide it, and
+             never while the panel is open. */
+          var past=y>(root.offsetHeight||56);
+          if(!open&&past&&y>lastY)root.setAttribute('data-hidden','');
+          else if(y<lastY||!past||open)root.removeAttribute('data-hidden');
+        }
+        lastY=y;
+      }
+      window.addEventListener('scroll',function(){
+        if(navTicking)return; navTicking=true; requestAnimationFrame(navFrame);
+      },{passive:true});
+      navFrame();
+    }
   }
 
   /* ── Scroll-linked motion ──────────────────────────────────────────────────
