@@ -32,6 +32,10 @@ export const BUILDER_RUNTIME = `(function(){
   var DOC=document, uid=0;
   function nextId(){ uid++; return 'bapp-'+uid }
   function reduced(){ try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches }catch(e){ return false } }
+  /* '/shop' and '/shop/' are the same page. Written as a loop, not a regex: a
+     backslash in this file is a template-literal escape and would be eaten
+     before the browser ever saw it. */
+  function normPath(p){ if(!p)return '/'; while(p.length>1&&p.charAt(p.length-1)==='/')p=p.slice(0,-1); return p||'/' }
 
   /* One stylesheet, themed from the document's own daisyUI vars (with fallbacks). */
   function injectCss(){
@@ -88,6 +92,32 @@ export const BUILDER_RUNTIME = `(function(){
       +'[data-bapp-navbar][data-nav-mobile=\"fullscreen\"]:not([data-open]) [data-bapp-nav-menu]{opacity:0}'
       +'[data-bapp-navbar][data-nav-mobile=\"dropdown\"] [data-bapp-nav-menu]{left:auto;right:0;width:max-content;min-width:12rem}'
       +'[data-bapp-navbar][data-nav-mobile=\"dropdown\"]:not([data-open]) [data-bapp-nav-menu]{opacity:0;transform:translateY(-.4rem)}'
+      /* Where you are. ONE rule for both the current page and a link to the
+         section containing it, so they read alike; which of the two it is lives
+         in the attribute's value for anyone who wants to tell them apart.
+         Weight only -- no colour, which would fight an inverse or brand-colour
+         bar. The author outranks this: in the editor and on a published page
+         the utility sheet comes after this one, so a link classed font-normal
+         keeps its weight. */
+      +'[data-bapp-navbar] a[data-nav-current]{font-weight:600}'
+      /* SCROLL LOCK, in CSS, for the modes that cover the page. A fixed panel
+         over a page that still scrolls is the usual mobile-menu bug: the menu
+         stays put while the page slides away behind it.
+
+         Deliberately NOT JavaScript holding the old overflow and restoring it.
+         The editor runs this very runtime and REMOUNTS the canvas whenever
+         interact mode is toggled, so a navbar can be destroyed while its menu
+         is open -- and a JS lock then has nothing left to restore it, leaving
+         the editor itself unscrollable until reload. A selector cannot leak:
+         the moment the navbar or its data-open goes away, so does the lock.
+
+         Scoped by :not([data-desktop]) because a desktop row never covers
+         anything. Where :has() is unsupported the page simply scrolls behind
+         the menu, which is exactly what it did before. */
+      +'html:has([data-bapp-navbar][data-nav-mobile=\"drawer-right\"][data-open]:not([data-desktop])),'
+      +'html:has([data-bapp-navbar][data-nav-mobile=\"drawer-left\"][data-open]:not([data-desktop])),'
+      +'html:has([data-bapp-navbar][data-nav-mobile=\"fullscreen\"][data-open]:not([data-desktop]))'
+      +'{overflow:hidden}'
       /* The one rule that opens every mode. */
       +'[data-bapp-navbar][data-open] [data-bapp-nav-menu]{transform:none;opacity:1}'
       /* Past the breakpoint the bar is a row again and NO mode applies: a
@@ -355,7 +385,54 @@ export const BUILDER_RUNTIME = `(function(){
      CLEAR that inline value once the viewport passes the breakpoint. Skipping the
      clear is the classic bug: a menu opened on a phone keeps display:block, which
      beats md:flex, and the desktop bar renders as a vertical stack.             */
+  /* ── where you are ────────────────────────────────────────────────────────
+     The one thing every navigation has and this one did not: a visitor on
+     /shop/blue-shoes saw nothing marked anywhere in the bar.
+
+     EXACT match gets aria-current='page', which is what a screen reader
+     announces, and only one link may claim it. A link to an ANCESTOR section
+     gets data-nav-current='section' and NO aria-current, so /shop looks active
+     while you are on /shop/blue-shoes without two links both announcing
+     themselves as the page.
+
+     Runs on every navbar, collapsible or not. In the editor and in preview the
+     address bar is the builder's own, so nothing matches and nothing is marked
+     -- which is the right answer on a canvas.                                */
+  function markCurrent(root){
+    var here;
+    try{ here=normPath(location.pathname) }catch(e){ return }
+    var links=root.querySelectorAll('a[href]');
+    for(var i=0;i<links.length;i++){
+      var a=links[i], raw=a.getAttribute('href')||'';
+      /* Not a page: an in-page anchor, mailto:, tel:, a javascript: handler.
+         Resolving the href gives us those as a non-http protocol, and an
+         off-site link as a different origin. */
+      if(!raw||raw.charAt(0)==='#')continue;
+      var u; try{ u=new URL(a.href,location.href) }catch(e){ continue }
+      if(u.origin!==location.origin)continue;
+      var path=normPath(u.pathname);
+      if(path===here){ a.setAttribute('aria-current','page'); a.setAttribute('data-nav-current','page') }
+      /* '/' is an ancestor of every path, so home would be active everywhere.
+         A section match is a prefix on a SEGMENT boundary: /shop matches
+         /shop/blue-shoes and never /shopping-guide. */
+      else if(path!=='/'&&here.indexOf(path+'/')===0)a.setAttribute('data-nav-current','section');
+    }
+  }
+
+  /* Visible focusables, in document order. offsetWidth/Height and getClientRects
+     together are what rules out a link inside a closed panel -- it is still in
+     the DOM and still matches the selector. */
+  var FOCUSABLE='a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+  function visibleFocusables(el){
+    var out=[], all=el.querySelectorAll(FOCUSABLE);
+    for(var i=0;i<all.length;i++){ var n=all[i]; if(n.offsetWidth||n.offsetHeight||n.getClientRects().length)out.push(n) }
+    return out;
+  }
+
   function initNavbar(root){
+    /* Before the early return below: a bar with no collapsible menu still has
+       to say where you are. */
+    markCurrent(root);
     var menu=root.querySelector('[data-bapp-nav-menu]');
     var toggle=root.querySelector('[data-bapp-nav-toggle]');
     if(!menu||!toggle)return;
@@ -372,6 +449,13 @@ export const BUILDER_RUNTIME = `(function(){
 
     var open=false;
     function desktop(){ return window.innerWidth>=bp }
+
+    /* Which modes COVER the page. The scroll lock for these is pure CSS (see
+       injectCss); this flag is what the Tab trap below keys off, because a
+       sheet or a compact dropdown leaves the page visible and reachable on
+       purpose and must stay escapable. */
+    var mode=root.getAttribute('data-nav-mobile')||'sheet';
+    var covers=mode==='drawer-right'||mode==='drawer-left'||mode==='fullscreen';
     function setOpen(v){
       if(v===open)return;
       open=v;
@@ -388,7 +472,37 @@ export const BUILDER_RUNTIME = `(function(){
       if(v)root.setAttribute('data-open','');else root.removeAttribute('data-open');
       if(v){ menu.style.display=menu.getAttribute('data-open-display')||'flex'; animateOpen(menu) }
       else animateClose(menu,function(){ menu.style.display='' });
+      /* FOCUS MOVES IN. The menu comes BEFORE the toggle in the authored
+         markup, so tabbing on from the toggle walks straight past the open
+         panel into the page behind it. The panel itself is the fallback when an
+         author has put nothing focusable inside it.
+         On the way out, focus returns to the toggle -- but only if it is still
+         inside the panel, so a click elsewhere on the page is not yanked back. */
+      if(v){
+        var f=visibleFocusables(menu);
+        if(f.length)f[0].focus();
+        else { menu.setAttribute('tabindex','-1'); menu.focus() }
+      } else if(menu.contains(DOC.activeElement))toggle.focus();
     }
+
+    /* Tab must not walk out of a panel that covers the page: the content behind
+       it is still in the tab order, so a keyboard user ends up on links they
+       cannot see, in a page they cannot scroll. The toggle is part of the ring
+       because it is also the CLOSE button -- trapping without it would shut the
+       keyboard out of the one control that dismisses the menu.
+       The listener sits on the navbar, so it is live exactly while focus is
+       inside it, and adds no document-level handler. */
+    root.addEventListener('keydown',function(e){
+      if(e.key!=='Tab'||!open||desktop()||!covers)return;
+      var ring=visibleFocusables(menu);
+      if(!ring.length)return;
+      ring.push(toggle);
+      var i=ring.indexOf(DOC.activeElement);
+      if(i<0)return;
+      var next=e.shiftKey?(i===0?ring.length-1:i-1):(i===ring.length-1?0:i+1);
+      e.preventDefault();
+      ring[next].focus();
+    });
     toggle.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); setOpen(!open) });
     /* Following a link should dismiss the panel — an in-page anchor otherwise
        scrolls behind a menu that is still covering the page. */
