@@ -33,12 +33,21 @@ export function insertChild(
   parentId: string,
   module: string,
   defaults: Record<string, unknown> = {},
-  classes?: string
+  classes?: string,
+  /**
+   * Data bindings the node arrives with.
+   *
+   * Only a starter subtree uses this: a "featured products" band is a loop
+   * whose card reads `item.image`, `item.title`, `item.price` and `item.url`,
+   * and without them it drops in as a grid of identical placeholders that an
+   * author has to bind by hand four times before one real product shows.
+   */
+  bindings?: Node["bindings"]
 ): { doc: Doc; id: string } {
   const parent = doc.nodes[parentId]
   if (!parent) return { doc, id: "" }
   const id = newId()
-  const child: Node = { id, module, props: { ...defaults }, styleIds: [], children: [], ...(classes ? { classes } : {}) }
+  const child: Node = { id, module, props: { ...defaults }, styleIds: [], children: [], ...(classes ? { classes } : {}), ...(bindings ? { bindings } : {}) }
   return {
     doc: {
       ...doc,
@@ -89,7 +98,8 @@ export function seedChildren(
       parentId,
       kid.module,
       { ...(def?.defaults ?? {}), ...(kid.props ?? {}) },
-      kid.classes ?? def?.defaultClasses
+      kid.classes ?? def?.defaultClasses,
+      kid.bindings
     )
     next = withKid
     if (!id) continue

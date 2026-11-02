@@ -39,6 +39,8 @@ export {
   buttonClasses,
   createDefaultRegistry,
   LIGHTBOX_RUNTIME,
+  NAV_LINK_CLASSES,
+  NAV_MENU_CLASSES,
   PRIMITIVES,
   CHALLENGE_LOADER,
   CHALLENGE_KEY_META,

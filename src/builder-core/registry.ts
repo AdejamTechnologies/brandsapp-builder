@@ -9,7 +9,7 @@
 import type { ComponentType, ReactNode } from "react"
 
 import type { ControlType } from "./escape"
-import type { ThemeTokens } from "./schema"
+import type { PropBinding, ThemeTokens } from "./schema"
 
 export interface PropControl {
   type: ControlType
@@ -82,6 +82,16 @@ export interface DefaultChild {
   props?: Record<string, unknown>
   /** Overrides the child module's `defaultClasses` when given. */
   classes?: string
+  /**
+   * Data bindings the starter subtree arrives with.
+   *
+   * Needed by any starter tree that is a LOOP over a feed: the card inside it
+   * is only a card because its image, title, price and link read `item.*`.
+   * Without this a "featured products" element would drop in as a grid of
+   * identical placeholder cards and the author would have to bind four props
+   * by hand before it showed a single real product.
+   */
+  bindings?: Record<string, PropBinding>
   children?: DefaultChild[]
 }
 

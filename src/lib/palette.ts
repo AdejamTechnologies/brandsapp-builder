@@ -7,7 +7,7 @@ import {
   AlertCircle, Aperture, Badge as BadgeIcon, ChevronsRight, ChevronsUpDown, CircleUser, CreditCard,
   Ellipsis, Grip, Sun, Waves, MoveHorizontal, Orbit,
   PanelBottom,
-  GalleryHorizontal, Heart, MessageCircle, RectangleHorizontal,
+  GalleryHorizontal, Heart, MessageCircle, RectangleHorizontal, ShoppingBag,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -184,6 +184,12 @@ export const PALETTE: PaletteSection[] = [
         icon: MessageCircle,
         module: "whatsapp-button",
         keywords: "chat message float bubble contact order shop",
+      },
+      {
+        label: "Featured products",
+        icon: ShoppingBag,
+        module: "featured-products",
+        keywords: "shop products grid stock cards wall catalogue featured",
       },
       {
         label: "Carousel",

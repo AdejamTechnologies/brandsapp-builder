@@ -118,4 +118,8 @@ export { LIGHTBOX_RUNTIME } from "./lightbox"
 // Real 3D, gated: hosts inject it only when the page contains a scene.
 export { SCENE_LOADER } from "./scene"
 export { ALL_BUTTON_TOKENS, buttonClasses } from "./primitives"
+// The navbar's own class strings, so a template authoring a header gets the
+// desktop-row / mobile-panel duality the runtime expects rather than a
+// hand-copied approximation of it.
+export { NAV_LINK_CLASSES, NAV_MENU_CLASSES } from "./structure"
 export { PRIMITIVES }

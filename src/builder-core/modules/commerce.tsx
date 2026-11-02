@@ -172,7 +172,126 @@ const WhatsappButton: ModuleDefinition = {
   },
 }
 
+/**
+ * A wall of the shop's own stock, in one element.
+ *
+ * WHICH products appear is not set here and deliberately cannot be: it is
+ * decided in the Products admin, by ticking Featured — or by the shop's own
+ * sales, for the best-selling and trending feeds. An author choosing products
+ * inside a page would mean a homepage that goes stale the week something sells
+ * out, maintained in a place nobody thinks to look.
+ *
+ * What this element owns is the SHAPE: how many, how wide, and that each card
+ * carries a picture, a name, a price and a heart. It arrives as ordinary nodes
+ * (see `defaultChildren`) rather than a fixed component, so an author can
+ * restyle the card, drop the price, or add a badge — a band you cannot take
+ * apart is a band every shop has to live with exactly as we drew it.
+ *
+ * `requireFeed` is on the wrapper: a shop with nothing featured gets no band
+ * at all rather than a heading over an empty grid.
+ */
+const CARD = "relative flex flex-col gap-3 rounded-2xl border border-base-300 bg-base-100 p-3"
+
+const FeaturedProducts: ModuleDefinition = {
+  name: "featured-products",
+  category: "commerce",
+  schema: {
+    requireFeed: {
+      type: "select",
+      label: "show",
+      options: [
+        { label: "Featured products (ticked in Products)", value: "products.featured" },
+        { label: "Newest products", value: "products.newest" },
+        { label: "Best-selling", value: "products.bestselling" },
+        { label: "Trending (last 30 days)", value: "products.trending" },
+      ],
+    },
+    ...ADVANCED_SCHEMA,
+  },
+  defaults: {
+    // Read by the renderer on ANY node: when this feed has no rows the whole
+    // section is dropped, heading included.
+    requireFeed: "products.featured",
+    ...ADVANCED_DEFAULTS,
+  },
+  contentModel: { children: "any" },
+  defaultClasses: "w-full px-4 py-10 md:px-6 md:py-14",
+  defaultChildren: [
+    {
+      module: "container",
+      classes: "mx-auto flex w-full max-w-7xl flex-col gap-5",
+      children: [
+        {
+          module: "heading",
+          props: { text: "Featured", level: "2" },
+          classes:
+            "font-display text-xl font-bold tracking-tight text-base-content md:text-2xl",
+        },
+        {
+          module: "loop",
+          props: { source: "products.featured", limit: 8, tag: "div" },
+          classes: "grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-5",
+          children: [
+            {
+              module: "box",
+              classes: CARD,
+              children: [
+                {
+                  module: "link",
+                  classes: "flex flex-col gap-3 no-underline",
+                  props: { text: "", href: "/shop" },
+                  bindings: { href: { source: "item", field: "url" } },
+                  children: [
+                    {
+                      module: "image",
+                      classes: "aspect-square w-full rounded-xl object-contain",
+                      props: {
+                        altMode: "custom",
+                        alt: "",
+                        src: "https://placehold.co/600x600/f1f5f9/94a3b8?text=%20",
+                      },
+                      bindings: { src: { source: "item", field: "image" } },
+                    },
+                    {
+                      module: "text",
+                      classes:
+                        "line-clamp-2 min-h-[2.5rem] text-sm leading-snug text-base-content",
+                      props: { text: "Product name" },
+                      bindings: { text: { source: "item", field: "title" } },
+                    },
+                    {
+                      module: "text",
+                      classes: "text-sm font-semibold text-base-content",
+                      props: { text: "" },
+                      bindings: { text: { source: "item", field: "price" } },
+                    },
+                  ],
+                },
+                {
+                  module: "wishlist-button",
+                  classes:
+                    "absolute right-4 top-4 inline-flex items-center justify-center w-8 h-8 rounded-full border border-base-300 bg-base-100 text-base-content/50 transition-colors hover:text-base-content",
+                  props: { label: "Save for later" },
+                  bindings: { productId: { source: "item", field: "id" } },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  Component: (p: ModuleRenderProps) =>
+    createElement(
+      "section",
+      { className: p.className, ...rootAttrs(p) },
+      p.children
+    ),
+}
+
 export const COMMERCE_MODULES: ModuleDefinition[] = [
   WishlistButton,
   WhatsappButton,
+  FeaturedProducts,
 ]
+export { CARD as PRODUCT_CARD_CLASSES }

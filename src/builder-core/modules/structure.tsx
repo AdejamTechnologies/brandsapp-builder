@@ -90,7 +90,7 @@ const Container: ModuleDefinition = {
 
 // ── nav ──────────────────────────────────────────────────────────────────────
 
-const NAV_LINK_CLASSES = "text-sm text-base-content/70 hover:text-base-content no-underline"
+export const NAV_LINK_CLASSES = "text-sm text-base-content/70 hover:text-base-content no-underline"
 
 /**
  * The desktop row / mobile panel duality in one class string. Below the breakpoint
@@ -98,7 +98,7 @@ const NAV_LINK_CLASSES = "text-sm text-base-content/70 hover:text-base-content n
  * positioned sheet; at `md` and up the positioning resets and it is an ordinary
  * inline row. Both states are class-driven so an author can restyle either.
  */
-const NAV_MENU_CLASSES =
+export const NAV_MENU_CLASSES =
   "hidden absolute left-0 right-0 top-full z-40 flex-col items-stretch gap-1 border-t border-base-300 bg-base-100 p-4 shadow-lg " +
   "md:static md:z-auto md:flex md:flex-row md:items-center md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none"
 
