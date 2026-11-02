@@ -276,6 +276,14 @@ export function EditorPage() {
   const clipboard = useRef<Fragment | null>(null)
   const [status, setStatus] = useState("")
   const [pageStatus, setPageStatus] = useState<string>("draft")
+  /**
+   * Are there saved changes the public has not been shown?
+   *
+   * Saving writes a DRAFT — it has done since the tenant split the two — so
+   * "Saved ✓" on its own is a half-truth that reads as "customers can see it".
+   * This is what turns the primary button into "Publish changes".
+   */
+  const [unpublished, setUnpublished] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState("")
   const [exportJson, setExportJson] = useState<string | null>(null)
@@ -293,9 +301,20 @@ export function EditorPage() {
   useEffect(() => {
     if (!tenant || isDemoPage(pageId)) return
     fetch(`/api/pages/${encodeURIComponent(pageId)}?tenant=${encodeURIComponent(tenant)}`)
-      .then((r) => (r.ok ? (r.json() as Promise<{ doc?: unknown; status?: string }>) : null))
+      .then((r) =>
+        r.ok
+          ? (r.json() as Promise<{
+              doc?: unknown
+              status?: string
+              unpublishedChanges?: boolean
+            }>)
+          : null
+      )
       .then((d) => {
         if (d?.status) setPageStatus(d.status)
+        if (typeof d?.unpublishedChanges === "boolean") {
+          setUnpublished(d.unpublishedChanges)
+        }
         if (d?.doc) {
           try {
             reset(parseDoc(d.doc))
@@ -967,25 +986,45 @@ export function EditorPage() {
       () => setStatus(url)
     )
   }
-  const publish = async () => {
+  /**
+   * Publishing and taking a page down are TWO actions, not one toggle.
+   *
+   * They were one: the button read "Unpublish" as soon as a page was live. That
+   * was harmless while saving published as a side effect, and became a dead end
+   * the moment it stopped — an author could edit a live page, save, and have no
+   * way at all to put the change in front of customers short of taking the page
+   * down and putting it back up.
+   */
+  const sendPublish = async (goLive: boolean) => {
     if (!tenant) return setStatus("Add ?tenant=<url> to publish.")
-    const goLive = pageStatus !== "published"
-    setStatus(goLive ? "Publishing…" : "Unpublishing…")
+    setStatus(goLive ? "Publishing…" : "Taking down…")
     try {
       const res = await fetch(`/api/pages/${encodeURIComponent(pageId)}/publish?tenant=${encodeURIComponent(tenant)}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ publish: goLive }),
       })
-      const d = (await res.json().catch(() => null)) as { status?: string } | null
+      const d = (await res.json().catch(() => null)) as
+        | { status?: string; error?: string }
+        | null
       if (res.ok && d?.status) {
         setPageStatus(d.status)
-        setStatus(d.status === "published" ? "Published ✓" : "Unpublished")
-      } else setStatus(`Publish failed (${res.status})`)
+        // Only a successful publish clears it; taking a page down leaves the
+        // draft exactly as unpublished as it was.
+        if (goLive) setUnpublished(false)
+        setStatus(goLive ? "Published ✓" : "Taken down")
+      } else {
+        // The tenant answers 409 with a sentence an author can act on — "there
+        // is nothing on this page to publish yet". Showing the number instead
+        // of the sentence is how a clear refusal reads as a broken button.
+        setStatus(d?.error ?? `Publish failed (${res.status})`)
+      }
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "publish failed")
     }
   }
+  const publish = () => sendPublish(true)
+  const takeDown = () => sendPublish(false)
 
   const save = async () => {
     if (!tenant) return setStatus("Add ?tenant=<url> to save.")
@@ -996,7 +1035,9 @@ export function EditorPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ doc }),
       })
-      setStatus(res.ok ? "Saved ✓" : `Save failed (${res.status})`)
+      // "Saved" means saved as a DRAFT. Saying so is the point.
+      if (res.ok) setUnpublished(true)
+      setStatus(res.ok ? "Saved as draft ✓" : `Save failed (${res.status})`)
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "save failed")
     }
@@ -1154,9 +1195,27 @@ export function EditorPage() {
           </div>
           <div className="flex shrink-0 items-center gap-1 pl-2">
           {status && <span className="mr-1 text-xs text-muted-foreground">{status}</span>}
-          {pageStatus === "published" && (
-            <span className="mr-1 inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-emerald-600">
-              Live
+          {/* Three states, not two: a page can be live AND hold changes nobody
+              has seen, which is precisely the state an author needs told. */}
+          {pageStatus === "published" ? (
+            unpublished ? (
+              <span
+                className="mr-1 inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-amber-600"
+                title="Your saved changes are not on the site yet. Publish to put them live."
+              >
+                Live · changes not published
+              </span>
+            ) : (
+              <span className="mr-1 inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-emerald-600">
+                Live
+              </span>
+            )
+          ) : (
+            <span
+              className="mr-1 inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase text-muted-foreground"
+              title="Nobody can see this page yet."
+            >
+              Draft
             </span>
           )}
           <Button variant="ghost" size="sm" onClick={() => setCommentsOpen(true)}>
@@ -1178,9 +1237,23 @@ export function EditorPage() {
             <Save className="size-4" />
             Save
           </Button>
-          <Button size="sm" onClick={publish}>
+          {pageStatus === "published" && (
+            <IconButton tip="Take this page off the site (it keeps what it was serving)" onClick={takeDown}>
+              <EyeOff className="size-4" />
+            </IconButton>
+          )}
+          <Button
+            size="sm"
+            onClick={publish}
+            // Nothing to publish is not an error worth a round trip.
+            disabled={pageStatus === "published" && !unpublished}
+          >
             <Rocket className="size-4" />
-            {pageStatus === "published" ? "Unpublish" : "Publish"}
+            {pageStatus === "published"
+              ? unpublished
+                ? "Publish changes"
+                : "Published"
+              : "Publish"}
           </Button>
           </div>
         </div>
