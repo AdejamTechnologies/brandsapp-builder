@@ -307,6 +307,92 @@ export function EditorPage() {
       .catch(() => {})
   }, [tenant, pageId, reset])
 
+  /**
+   * The destinations the link settings can offer, from the tenant.
+   *
+   * Fetched ONCE per tenant rather than per selected node: it changes only
+   * when an app is installed or removed, and refetching it on every selection
+   * would put a request behind every click in the canvas.
+   *
+   * Failure is silent and leaves the list empty, which makes the App page
+   * field fall back to a plain text box — see settings-fields.tsx. A demo page
+   * with no tenant takes the same path.
+   */
+  const [endpoints, setEndpoints] = useState<
+    Array<{ label: string; value: string }>
+  >([])
+  useEffect(() => {
+    if (!tenant) return
+    let cancelled = false
+    fetch(`/api/endpoints?tenant=${encodeURIComponent(tenant)}`)
+      .then((r) =>
+        r.ok ? (r.json() as Promise<{ endpoints?: Array<{ label: string; value: string }> }>) : null
+      )
+      .then((d) => {
+        if (!cancelled && Array.isArray(d?.endpoints)) setEndpoints(d.endpoints)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [tenant])
+
+  /**
+   * The resource TYPES this brand publishes, for the resource link picker.
+   *
+   * Fetched once per tenant like the endpoints above, and for the same reason:
+   * it changes only when an app is installed. The resources themselves are NOT
+   * fetched — a brand can have thousands, so the picker searches on demand
+   * through `search` below.
+   */
+  const [entityKinds, setEntityKinds] = useState<
+    Array<{ kind: string; label: string; plural: string }>
+  >([])
+  useEffect(() => {
+    if (!tenant) return
+    let cancelled = false
+    fetch(`/api/entities?tenant=${encodeURIComponent(tenant)}`)
+      .then((r) =>
+        r.ok
+          ? (r.json() as Promise<{
+              kinds?: Array<{ kind: string; label: string; plural: string }>
+            }>)
+          : null
+      )
+      .then((d) => {
+        if (!cancelled && Array.isArray(d?.kinds)) setEntityKinds(d.kinds)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [tenant])
+
+  /**
+   * One page of matches. Returns [] on any failure, which the picker shows as
+   * "Nothing found" — the same degradation every other field here takes rather
+   * than putting an error in front of someone mid-edit.
+   */
+  const searchEntities = useCallback(
+    async (kind: string, q: string) => {
+      if (!tenant || !kind) return []
+      try {
+        const url =
+          `/api/entities?tenant=${encodeURIComponent(tenant)}` +
+          `&kind=${encodeURIComponent(kind)}&q=${encodeURIComponent(q)}`
+        const r = await fetch(url)
+        if (!r.ok) return []
+        const d = (await r.json()) as {
+          items?: Array<{ label: string; value: string; sub: string }>
+        }
+        return Array.isArray(d.items) ? d.items : []
+      } catch {
+        return []
+      }
+    },
+    [tenant]
+  )
+
   const room = `${tenant || "local"}:${pageId}`
   const { send } = useDocRoom(room, (data) => {
     try {
@@ -408,6 +494,13 @@ export function EditorPage() {
   const settingsCtx = {
     pages: pages.map((pg) => ({ id: pg.id, title: pg.title, slug: pg.slug })),
     sections: linkableSections,
+    endpoints,
+    // Absent when the brand has nothing linkable, so the field falls back to a
+    // text box instead of offering an empty type selector.
+    entities:
+      entityKinds.length > 0
+        ? { kinds: entityKinds, search: searchEntities }
+        : undefined,
   }
 
   const settingsTitle = selNode ? (selNode.label ?? LABEL_OF[selNode.module] ?? selNode.module) : ""
@@ -459,6 +552,7 @@ export function EditorPage() {
             <NavbarVariants
               variant={selNode.props?.variant as string | undefined}
               hasContent={selNode.children.length > 0}
+              endpoints={endpoints}
               onApply={(v) => apply(applyVariant(docRef.current, selectedId, v, (n) => registry.get(n)))}
               onClose={() => setPresetsOpen(false)}
             />

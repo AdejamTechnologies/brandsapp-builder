@@ -37,6 +37,63 @@ function authHeaders(env: Env): HeadersInit {
     : {}
 }
 
+/**
+ * The destinations the link settings can offer, from the tenant.
+ *
+ * Per brand, not hard-coded: `/shop` exists only where Commerce is installed,
+ * so the picker is built from what this brand actually has and cannot offer a
+ * 404. The tenant builds the list from lib/public-endpoints.ts, the same
+ * catalogue its public nav reads.
+ */
+app.get("/api/endpoints", async (c) => {
+  const base = tenantBase(c)
+  // Not a 400: a builder opened with no tenant (the demo pages) still has to
+  // work, and the settings panel already falls back to a plain text box when
+  // it has no list. An error here would make the field unusable instead.
+  if (!base) return c.json({ endpoints: [] })
+  try {
+    const res = await fetch(`${base}/api/builder/endpoints`, {
+      headers: authHeaders(c.env),
+    })
+    if (!res.ok) return c.json({ endpoints: [] })
+    return new Response(res.body, {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })
+  } catch {
+    // Same reasoning: a picker that degrades to a text box beats a dead field.
+    return c.json({ endpoints: [] })
+  }
+})
+
+/**
+ * Search the tenant's resources for the link picker, or list the resource
+ * TYPES it has when no `kind` is given.
+ *
+ * Query is forwarded verbatim rather than rebuilt: the tenant owns what the
+ * parameters mean, and a proxy that reinterprets them is a second place to get
+ * them wrong. Degrades to an empty result for the same reason /api/endpoints
+ * does — the panel falls back to a plain text box, which beats a dead field.
+ */
+app.get("/api/entities", async (c) => {
+  const base = tenantBase(c)
+  const empty = c.req.query("kind") ? { items: [] } : { kinds: [] }
+  if (!base) return c.json(empty)
+  try {
+    const qs = new URL(c.req.url).search
+    const res = await fetch(`${base}/api/builder/entities${qs}`, {
+      headers: authHeaders(c.env),
+    })
+    if (!res.ok) return c.json(empty)
+    return new Response(res.body, {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })
+  } catch {
+    return c.json(empty)
+  }
+})
+
 /** List the tenant's pages (multi-page project switcher). */
 app.get("/api/pages", async (c) => {
   const base = tenantBase(c)

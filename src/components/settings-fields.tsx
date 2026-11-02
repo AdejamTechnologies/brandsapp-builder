@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Popover as P } from "@base-ui/react/popover"
 import { Check, ChevronDown, Search } from "lucide-react"
 
@@ -375,6 +375,37 @@ export interface SettingsCtx {
   pages?: Array<{ id: string; title: string; slug: string }>
   /** Linkable sections on the CURRENT page, for the Section picker. May be empty. */
   sections?: Array<{ id: string; label: string }>
+  /**
+   * Pages this brand's installed apps publish, for the App page picker.
+   *
+   * Per brand, because `/shop` exists only where Commerce is installed — so
+   * the picker can never offer a destination that would 404. Fetched from the
+   * tenant (`/api/endpoints`); empty when the builder has no tenant, in which
+   * case the field falls back to a plain text box.
+   */
+  endpoints?: Array<{ label: string; value: string }>
+  /**
+   * ONE resource — this post, that product — rather than a fixed page.
+   *
+   * Searched instead of listed, which is why this is a function and not an
+   * array: a brand can have thousands of products, so there is no list to
+   * hand over. `kinds` is what the brand's installed apps publish, so the type
+   * selector offers "Blog post / Product / Course" and nothing it has not got.
+   *
+   * Absent when the builder has no tenant (the demo pages), in which case the
+   * field falls back to a plain text box like every other picker here.
+   */
+  entities?: {
+    kinds: Array<{ kind: string; label: string; plural: string }>
+    search: (kind: string, q: string) => Promise<EntityOption[]>
+  }
+}
+
+export interface EntityOption {
+  label: string
+  value: string
+  /** The path it resolves to, shown under the name. */
+  sub: string
 }
 
 interface SettingsFieldsProps {
@@ -399,29 +430,60 @@ function PickerField({
   items,
   placeholder,
   searchPlaceholder,
+  onQuery,
+  currentLabel,
+  empty,
 }: {
   value: string
   onValueChange: (v: string) => void
   items: PickerItem[]
   placeholder: string
   searchPlaceholder: string
+  /**
+   * Hand the typing to the CALLER instead of filtering `items` here.
+   *
+   * The pages and endpoints pickers are handed every option up front, so they
+   * filter locally. A resource picker cannot be: there may be thousands, so
+   * the caller fetches a page of matches per query. When this is set, `items`
+   * is already the answer and must not be filtered again — doing both would
+   * hide rows the server deliberately returned.
+   */
+  onQuery?: (q: string) => void
+  /**
+   * What to show on the trigger when the chosen value is not in `items`.
+   *
+   * In remote mode it usually is not: the author picked a product, the list
+   * has since been replaced by someone else's search, and the trigger would
+   * fall back to the placeholder — reading as though nothing were chosen.
+   */
+  currentLabel?: string
+  /** Shown in place of "No matches"; lets a caller say "Searching…". */
+  empty?: string
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const searchRef = useRef<HTMLInputElement | null>(null)
-  const current = items.find((i) => i.value === value)
+  const current =
+    items.find((i) => i.value === value) ??
+    (value && currentLabel ? { value, label: currentLabel } : undefined)
   const filtered = useMemo(() => {
+    if (onQuery) return items
     const q = query.trim().toLowerCase()
     if (!q) return items
     return items.filter((i) => i.label.toLowerCase().includes(q) || i.value.toLowerCase().includes(q))
-  }, [items, query])
+  }, [items, query, onQuery])
 
   return (
     <P.Root
       open={open}
       onOpenChange={(next) => {
         setOpen(next)
-        if (next) setQuery("")
+        if (next) {
+          setQuery("")
+          // An empty query, so a freshly opened picker shows something rather
+          // than whatever the last search happened to leave behind.
+          onQuery?.("")
+        }
       }}
       onOpenChangeComplete={(next) => {
         if (next) searchRef.current?.focus()
@@ -449,7 +511,10 @@ function PickerField({
               <input
                 ref={searchRef}
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  onQuery?.(e.target.value)
+                }}
                 placeholder={searchPlaceholder}
                 className="h-6 w-full border-0 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
                 onKeyDown={(e) => {
@@ -462,7 +527,9 @@ function PickerField({
             </div>
             <div className="max-h-56 overflow-y-auto p-1">
               {filtered.length === 0 && (
-                <div className="px-2 py-3 text-center text-xs text-muted-foreground">No matches</div>
+                <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                  {empty ?? "No matches"}
+                </div>
               )}
               {filtered.map((i) => (
                 <button
@@ -507,6 +574,150 @@ function PagePicker({
       placeholder="Choose a page…"
       searchPlaceholder="Search pages…"
     />
+  )
+}
+
+function EndpointPicker({
+  value,
+  onChange,
+  endpoints,
+}: {
+  value: string
+  onChange: (v: string) => void
+  endpoints: NonNullable<SettingsCtx["endpoints"]>
+}) {
+  // `sub` is the path, exactly as PagePicker shows a slug: an author choosing a
+  // destination is choosing a URL and should see which.
+  const items: PickerItem[] = endpoints.map((e) => ({
+    value: e.value,
+    label: e.label,
+    sub: e.value,
+  }))
+  return (
+    <PickerField
+      value={value}
+      onValueChange={onChange}
+      items={items}
+      placeholder="Choose a page…"
+      searchPlaceholder="Search pages…"
+    />
+  )
+}
+
+/**
+ * Pick ONE resource: a type, then the resource itself.
+ *
+ * Two controls rather than one flat list. A brand with Commerce, Blog and
+ * Courses has thousands of linkable things and no useful ordering across them,
+ * so "which kind" comes first and narrows the search to something a person can
+ * read.
+ *
+ * It writes FOUR props in a single edit, and the split is the design:
+ *
+ *   entityPath   what renders. builder-core cannot import the resource
+ *                catalogue (it is vendored into this app), so the path is
+ *                resolved once, here, and stored.
+ *   entityKind   which catalogue entry it came from.
+ *   entityRef    the slug or id. With the kind, it is what a broken-link
+ *                report would need to say what a link MEANT.
+ *   entityLabel  the resource's name, so this trigger can show "Blue Suede
+ *                Shoes" rather than an opaque id after a reload — there is no
+ *                list to look it up in.
+ */
+function EntityPicker({
+  kind,
+  ref,
+  label,
+  entities,
+  onPick,
+}: {
+  kind: string
+  ref: string
+  label: string
+  entities: NonNullable<SettingsCtx["entities"]>
+  onPick: (next: { kind: string; ref: string; path: string; label: string }) => void
+}) {
+  const [items, setItems] = useState<EntityOption[]>([])
+  const [busy, setBusy] = useState(false)
+  // Which request's answer we still want. A slow early query must not land on
+  // top of a later one and show results for a word the author has moved past.
+  const latest = useRef(0)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const run = (k: string, q: string) => {
+    if (!k) {
+      setItems([])
+      return
+    }
+    const mine = ++latest.current
+    setBusy(true)
+    entities
+      .search(k, q)
+      .then((rows) => {
+        if (mine !== latest.current) return
+        setItems(rows)
+      })
+      .catch(() => {
+        if (mine === latest.current) setItems([])
+      })
+      .finally(() => {
+        if (mine === latest.current) setBusy(false)
+      })
+  }
+
+  /** Debounced: a keystroke is not a reason to query a tenant. */
+  const onQuery = (q: string) => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => run(kind, q), 200)
+  }
+
+  useEffect(() => {
+    // Clear on unmount so a pending answer cannot arrive into a gone picker.
+    return () => {
+      latest.current++
+      if (timer.current) clearTimeout(timer.current)
+    }
+  }, [])
+
+  return (
+    <div className="flex flex-col gap-1">
+      <select
+        value={kind}
+        onChange={(e) => {
+          const k = e.target.value
+          // Changing the type clears the choice: a product id is not a post
+          // slug, and keeping it would leave a link pointing nowhere while
+          // looking filled in.
+          onPick({ kind: k, ref: "", path: "", label: "" })
+          setItems([])
+          run(k, "")
+        }}
+      >
+        <option value="">Choose a type…</option>
+        {entities.kinds.map((k) => (
+          <option key={k.kind} value={k.kind}>
+            {k.plural}
+          </option>
+        ))}
+      </select>
+      {kind && (
+        <PickerField
+          value={ref}
+          currentLabel={label}
+          onValueChange={(v) => {
+            const hit = items.find((i) => i.value === v)
+            // Only ever from a row we were handed: `sub` is the resolved path,
+            // and this editor must not try to build one itself.
+            if (hit) onPick({ kind, ref: hit.value, path: hit.sub, label: hit.label })
+          }}
+          items={items}
+          onQuery={onQuery}
+          empty={busy ? "Searching…" : "Nothing found"}
+          placeholder="Choose one…"
+          searchPlaceholder="Search by name…"
+        />
+      )}
+    </div>
   )
 }
 
@@ -579,6 +790,19 @@ export function SettingsFields({ doc, node, onChange, ctx }: SettingsFieldsProps
         </div>
       </>
     )
+  }
+
+  /**
+   * Several props as ONE edit.
+   *
+   * `setProp` is the common case and stays as it is. A control that chooses a
+   * compound value — the resource picker writes a kind, a ref, a path and a
+   * label together — must not do it with four calls: each derives its `next`
+   * from the same `doc`, so the later ones would discard the earlier, and even
+   * if they did not, the author would need four undos to take back one choice.
+   */
+  const setProps = (patch: Record<string, unknown>) => {
+    onChange(updateProps(doc, node.id, patch), `prop:${node.id}:${Object.keys(patch).join(",")}`)
   }
 
   const setProp = (key: string, value: unknown) => {
@@ -700,6 +924,71 @@ export function SettingsFields({ doc, node, onChange, ctx }: SettingsFieldsProps
               {ctx?.pages && ctx.pages.length > 0 ? (
                 <PagePicker value={strVal} onChange={(v) => setProp(key, v)} pages={ctx.pages} />
               ) : (
+                <input value={strVal} onChange={(e) => setProp(key, e.target.value)} />
+              )}
+            </div>
+            {bindable && bindingUI(key)}
+          </div>
+        )
+      }
+      if (key === "entityRef") {
+        const strVal = value == null ? "" : String(value)
+        return (
+          <div key={key}>
+            <div className="field">
+              <span>{label}</span>
+              {ctx?.entities && ctx.entities.kinds.length > 0 ? (
+                <EntityPicker
+                  kind={String(node.props.entityKind ?? "")}
+                  ref={strVal}
+                  label={String(node.props.entityLabel ?? "")}
+                  entities={ctx.entities}
+                  onPick={(n) =>
+                    // ONE edit, not four. Written separately they would be four
+                    // undo steps, and a failure between them would leave a ref
+                    // with no path — a link that looks set and goes nowhere.
+                    setProps({
+                      entityKind: n.kind,
+                      entityRef: n.ref,
+                      entityPath: n.path,
+                      entityLabel: n.label,
+                    })
+                  }
+                />
+              ) : (
+                /**
+                 * No tenant to search, or no app installed that publishes
+                 * anything linkable. A path typed by hand still works, so the
+                 * author is not stuck — but `entityPath` is what renders, so
+                 * that is the prop this writes.
+                 */
+                <input
+                  value={String(node.props.entityPath ?? "")}
+                  onChange={(e) =>
+                    setProps({ entityPath: e.target.value, entityRef: e.target.value })
+                  }
+                />
+              )}
+            </div>
+          </div>
+        )
+      }
+      if (key === "appPath") {
+        const strVal = value == null ? "" : String(value)
+        return (
+          <div key={key}>
+            <div className="field">
+              <span>{label}</span>
+              {ctx?.endpoints && ctx.endpoints.length > 0 ? (
+                <EndpointPicker
+                  value={strVal}
+                  onChange={(v) => setProp(key, v)}
+                  endpoints={ctx.endpoints}
+                />
+              ) : (
+                // No list to offer — a brand with no apps installed, or a demo
+                // page with no tenant. A text box still lets the author type a
+                // path, which is strictly better than a dead dropdown.
                 <input value={strVal} onChange={(e) => setProp(key, e.target.value)} />
               )}
             </div>
