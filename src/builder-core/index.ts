@@ -31,6 +31,7 @@ export * from "./compose"
 export * from "./moods"
 export * from "./choreography"
 export * from "./icons"
+export * from "./phone"
 export * from "./slots"
 export {
   ALL_BUTTON_TOKENS,

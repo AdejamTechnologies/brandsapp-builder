@@ -17,6 +17,7 @@ import { createElement } from "react"
 
 import { ADVANCED_DEFAULTS, ADVANCED_SCHEMA, rootAttrs } from "../advanced"
 import { iconSvg } from "../icons"
+import { whatsappHref, whatsappNumber } from "../phone"
 import type { ModuleDefinition, ModuleRenderProps } from "../registry"
 
 const str = (v: unknown, d = "") => (v == null ? d : String(v))
@@ -124,10 +125,15 @@ const WhatsappButton: ModuleDefinition = {
   Component: (p: ModuleRenderProps) => {
     const site = p.site as { whatsapp?: unknown } | undefined
     const raw = str(p.props.number) || str(site?.whatsapp)
-    // Only the digits survive. A number written "+234 801 234 5678" is how a
-    // brand types it and not how wa.me accepts it.
-    const digits = raw.replace(/[^0-9]/g, "")
-    if (digits.length < 8) {
+    /**
+     * Normalised, not merely stripped of punctuation.
+     *
+     * "0809 777 7952" is how a Nigerian brand writes its number and
+     * `wa.me/08097777952` resolves to nothing — the button looks right and the
+     * link is dead. See phone.ts.
+     */
+    const number = whatsappNumber(raw)
+    if (!number) {
       // In the editor the author still needs to see and select it; on a
       // published page it is simply not there.
       return p.isEditor
@@ -144,8 +150,7 @@ const WhatsappButton: ModuleDefinition = {
         : null
     }
 
-    const message = str(p.props.message)
-    const href = `https://wa.me/${digits}${message ? `?text=${encodeURIComponent(message)}` : ""}`
+    const href = whatsappHref(raw, { message: str(p.props.message) })!
     const label = str(p.props.label)
     const floating = bool(p.props.float)
 
