@@ -274,6 +274,18 @@ function renderNode(id: string, ctx: RenderCtx, data: DataContext, key: string, 
   if (def.staticClasses) {
     for (const c of def.staticClasses.split(/\s+/)) if (c) ctx.classes.add(c)
   }
+  // The same collection, for the classes an AUTHOR passed in as a prop — a
+  // module's inner panel or pill, which `staticClasses` cannot name because
+  // each design supplies its own. Read off `raw.props` rather than the
+  // resolved ones: this runs before `resolveProps`, and a default declared on
+  // the module is already in `defaults` where the generator's own pass finds it.
+  if (def.classProps) {
+    for (const prop of def.classProps) {
+      const value = raw.props?.[prop] ?? def.defaults?.[prop]
+      if (typeof value !== "string") continue
+      for (const c of value.split(/\s+/)) if (c) ctx.classes.add(c)
+    }
+  }
   const node = choreograph(effectiveNode(raw, ctx.previewBreakpoint), ctx, depth)
   const children = node.children.length
     ? createElement(

@@ -8,6 +8,7 @@ import {
   Ellipsis, Grip, Sun, Waves, MoveHorizontal, Orbit,
   PanelBottom,
   GalleryHorizontal, GalleryHorizontalEnd, Heart, MessageCircle, RectangleHorizontal, ShoppingBag,
+  ShoppingCart, UserCircle, Store,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -208,6 +209,46 @@ export const PALETTE: PaletteSection[] = [
         icon: RectangleHorizontal,
         module: "slide",
         keywords: "carousel panel banner",
+      },
+    ],
+  },
+  {
+    /**
+     * The header's own controls, which know something the author does not.
+     *
+     * All four were registered and none was offered here, so a brand building
+     * its own header out of boxes and links could not put a cart icon or an
+     * account menu in it — the two things every shopper looks for in the
+     * top-right corner. They were also, until recently, filled by nothing: the
+     * badge and the avatar shipped as placeholders with no endpoint behind
+     * them. Both halves are live now, which is what makes them worth offering.
+     */
+    id: "header",
+    label: "Header",
+    entries: [
+      {
+        label: "Logo",
+        icon: Store,
+        module: "logo",
+        keywords: "brand mark wordmark identity header masthead",
+      },
+      {
+        label: "Account menu",
+        icon: UserCircle,
+        module: "account-menu",
+        keywords: "sign in account avatar profile user dropdown orders",
+      },
+      {
+        label: "Cart icon",
+        icon: ShoppingCart,
+        module: "cart-icon",
+        keywords: "basket bag cart count badge shop checkout",
+      },
+      {
+        label: "Saved items",
+        icon: Heart,
+        module: "saved-icon",
+        keywords: "wishlist saved favourites hearts count badge",
       },
     ],
   },

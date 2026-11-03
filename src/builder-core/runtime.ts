@@ -1056,6 +1056,145 @@ export const BUILDER_RUNTIME = `(function(){
     });
   }
 
+  /* ── who is reading this page ──────────────────────────────────────────
+     The account pill, the cart and saved counters and the currency chips all
+     need the same answer -- who this visitor is, what is in their basket, and
+     which currencies this brand prices in -- so they share ONE request.
+
+     None of it may be server-rendered. A published page is cached and served
+     from the edge to everybody, so a count or a name baked into the HTML is
+     another visitor's. Everything here is drawn unfilled and hidden, and this
+     fills it in. */
+  function initVisitor(scope){
+    var accounts=[].slice.call(scope.querySelectorAll('[data-bapp-account]'));
+    var counters=[].slice.call(scope.querySelectorAll('[data-bapp-cart],[data-bapp-saved]'));
+    var monies=[].slice.call(scope.querySelectorAll('[data-bapp-currency]'));
+    if(!accounts.length&&!counters.length&&!monies.length)return;
+    if(DOC.__bappVisitor)return; DOC.__bappVisitor=1;
+
+    function store(k){ try{ return localStorage.getItem(k)||'' }catch(e){ return '' } }
+    var q=[];
+    var cartTok=store('cartSessionToken'); if(cartTok)q.push('cart='+encodeURIComponent(cartTok));
+    var wishTok=store('bapp_wish'); if(wishTok)q.push('saved='+encodeURIComponent(wishTok));
+
+    /* The currency chips do not wait for the network: the choice is already in
+       this browser, and a chip that lights up a second late looks broken. */
+    paintMoney(store('brandsapp:visitorCurrency'),null);
+    monies.forEach(function(el){
+      if(el.__bappCur)return; el.__bappCur=1;
+      el.addEventListener('click',function(e){
+        e.preventDefault();
+        var code=(el.getAttribute('data-bapp-currency')||'').toUpperCase();
+        if(!code)return;
+        try{ localStorage.setItem('brandsapp:visitorCurrency',code) }catch(err){}
+        /* Prices are rendered server-side, so the page has to be asked again
+           rather than re-labelled in place. */
+        window.location.reload();
+      });
+    });
+
+    function paintMoney(chosen,offered){
+      monies.forEach(function(el){
+        var code=(el.getAttribute('data-bapp-currency')||'').toUpperCase();
+        /* A currency this brand does not price in has nothing behind it, so it
+           is not offered -- the same rule the storefront's own picker follows,
+           which hides itself when there is nothing to choose between. */
+        if(offered&&offered.indexOf(code)<0){ el.hidden=true; return }
+        el.hidden=false;
+        var on=chosen?chosen.toUpperCase()===code:el===monies[0];
+        el.setAttribute('aria-current',on?'true':'false');
+        /* The design's own two looks, which travel on the chip -- without the
+           swap the preference changes and the row looks as if it had not. */
+        var look=el.getAttribute(on?'data-on-class':'data-off-class');
+        if(look)el.className=look;
+      });
+    }
+
+    function count(el,n){
+      var badge=el.querySelector('[data-bapp-count]');
+      if(!badge)return;
+      if(!n||n<1){ badge.hidden=true; badge.textContent=''; return }
+      badge.textContent=n>99?'99+':String(n);
+      badge.hidden=false;
+    }
+
+    function row(menu,text,href){
+      var cls=menu.getAttribute('data-item-class')||'';
+      var a=DOC.createElement('a');
+      a.setAttribute('href',href);
+      if(cls)a.className=cls;
+      a.setAttribute('role','menuitem');
+      a.textContent=text;
+      menu.appendChild(a);
+      return a;
+    }
+
+    function fillAccount(root,d){
+      var signin=root.querySelector('[data-bapp-account-signin]');
+      var trigger=root.querySelector('[data-bapp-account-trigger]');
+      var menu=root.querySelector('[data-bapp-account-menu]');
+      if(!d.user){ if(signin)signin.hidden=false; return }
+      if(signin)signin.hidden=true;
+      if(!trigger||!menu)return;
+      trigger.hidden=false;
+      /* The dropdown initialiser already keeps the panel closed with its own
+         display:none, so the hidden attribute here would only lie to a screen
+         reader once the panel is open. */
+      menu.hidden=false;
+      var initials=trigger.querySelector('[data-bapp-account-initials]');
+      if(initials)initials.textContent=d.user.initials||'U';
+      trigger.setAttribute('aria-label',d.user.name||d.user.email||'Account');
+      if(menu.__bappFilled)return; menu.__bappFilled=1;
+      menu.setAttribute('role','menu');
+
+      var head=DOC.createElement('div');
+      var hcls=menu.getAttribute('data-head-class')||'';
+      if(hcls)head.className=hcls;
+      head.textContent=d.user.name||d.user.email||'';
+      menu.appendChild(head);
+
+      var apps=d.apps||[];
+      function has(a){ return apps.indexOf(a)>=0 }
+      /* The same destinations the app's own account menu offers, in the same
+         order -- a visitor who signs in on a builder-built page and on the shop
+         must not find two different menus. */
+      if(d.user.staff&&has('admin'))row(menu,'Dashboard','/admin/dashboard');
+      row(menu,'My Account','/account');
+      if(has('commerce'))row(menu,'My Orders','/account/orders');
+      if(has('commerce'))row(menu,'Saved items','/account/wishlist');
+      if(has('messaging')&&!d.user.staff)row(menu,'Support chat','/account/messages');
+      if(has('school'))row(menu,'School Portal','/portal');
+
+      var out=DOC.createElement('button');
+      out.setAttribute('type','button');
+      var icls=menu.getAttribute('data-item-class')||'';
+      if(icls)out.className=icls;
+      out.setAttribute('role','menuitem');
+      out.textContent='Sign out';
+      out.addEventListener('click',function(){
+        out.disabled=true;
+        fetch('/api/auth/sign-out',{method:'POST',headers:{'content-type':'application/json'},body:'{}'})
+          .catch(function(){})
+          .then(function(){ window.location.assign('/') });
+      });
+      menu.appendChild(out);
+    }
+
+    fetch('/api/public/visitor'+(q.length?'?'+q.join('&'):''),{headers:{accept:'application/json'}})
+      .then(function(r){ return r.ok?r.json():null })
+      .then(function(d){
+        if(!d)return;
+        accounts.forEach(function(el){ fillAccount(el,d) });
+        counters.forEach(function(el){
+          count(el,el.hasAttribute('data-bapp-cart')?d.cart:d.saved);
+        });
+        paintMoney(d.currency,d.currencies||null);
+      })
+      /* A failed read leaves the page exactly as it was served: the sign-in
+         link, no counts, every currency offered. Nothing here is load-bearing. */
+      .catch(function(){});
+  }
+
   /* ── a row that pages sideways ─────────────────────────────────────────
      The row already scrolls and snaps with no script at all; this adds the
      two arrows and keeps them disabled at the ends. They are placed in the
@@ -1124,6 +1263,7 @@ export const BUILDER_RUNTIME = `(function(){
     d.querySelectorAll('[data-bapp-carousel]').forEach(function(el){ if(el.__bappCar)return; el.__bappCar=1; initCarousel(el) });
     d.querySelectorAll('[data-bapp-scroller]').forEach(function(el){ if(el.__bappScr)return; el.__bappScr=1; initScroller(el) });
     initWishlist(d);
+    initVisitor(d);
     tier();
     initSplit(d);
     initReveal(d);

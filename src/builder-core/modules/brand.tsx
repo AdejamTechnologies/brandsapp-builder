@@ -22,7 +22,7 @@
  * and spreads `...rootAttrs(p)` so the canvas can select it.
  */
 
-import { createElement } from "react"
+import { createElement, Fragment as RFragment } from "react"
 
 import { ADVANCED_DEFAULTS, ADVANCED_SCHEMA, rootAttrs } from "../advanced"
 import { iconSvg } from "../icons"
@@ -115,6 +115,18 @@ const Logo: ModuleDefinition = {
 // ── per-visitor counters ─────────────────────────────────────────────────────
 
 /**
+ * The badge's own classes.
+ *
+ * Declared as `staticClasses` and not merely written in the markup below: the
+ * utility generator only ever sees `node.classes`, so a class hardcoded in a
+ * Component gets NO rule unless some other node on the same page happens to
+ * use the same token. This badge was in that state — a count with no
+ * background, no radius and no size, sitting wherever the flow put it.
+ */
+const BADGE =
+  "absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-primary text-primary-content text-[10px] font-semibold leading-4 text-center"
+
+/**
  * One shape for both counters.
  *
  * The badge is rendered but EMPTY and hidden, not omitted: the runtime only has
@@ -136,13 +148,22 @@ function counter(
       ...ADVANCED_SCHEMA,
     },
     defaults: {
-      href: name === "cart-icon" ? "/cart" : "/account/saved",
+      // `/account/saved` is the address this used to carry and no route has
+      // ever answered it: the saved list lives at `/account/wishlist`. A
+      // header icon landing on the catch-all's "Page not found" is the kind of
+      // dead link that reads as a broken account area.
+      href: name === "cart-icon" ? "/cart" : "/account/wishlist",
       showCount: true,
       ...ADVANCED_DEFAULTS,
     },
     contentModel: { children: "none" },
     defaultClasses:
       "relative inline-flex items-center justify-center w-10 h-10 no-underline text-base-content",
+    staticClasses: BADGE,
+    // The number is per-visitor, so it arrives from the runtime; without this
+    // the script is not injected on a page whose only interactive element is
+    // the cart icon, and the badge stays hidden for ever.
+    needsRuntime: true,
     Component: (p: ModuleRenderProps) =>
       createElement(
         "a",
@@ -160,8 +181,7 @@ function counter(
               // Hidden until the runtime has a real number. `hidden` rather
               // than absent so filling it causes no reflow.
               hidden: true,
-              className:
-                "absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-primary text-primary-content text-[10px] font-semibold leading-4 text-center",
+              className: BADGE,
             })
           : null
       ),
@@ -172,6 +192,16 @@ const CartIcon = counter("cart-icon", "shopping-cart2", "Cart", "data-bapp-cart"
 const SavedIcon = counter("saved-icon", "heart", "Saved items", "data-bapp-saved")
 
 // ── account menu ─────────────────────────────────────────────────────────────
+
+const ACCOUNT_SIGNED_OUT =
+  "inline-flex items-center gap-1.5 text-sm no-underline text-base-content"
+const ACCOUNT_TRIGGER =
+  "inline-flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-content text-xs font-bold"
+const ACCOUNT_MENU =
+  "absolute right-0 top-full z-40 mt-1 min-w-56 rounded-md border border-base-300 bg-base-100 p-1 shadow-lg"
+const ACCOUNT_ITEM =
+  "flex w-full items-center rounded px-3 py-2 text-left text-sm no-underline text-base-content transition-colors hover:bg-base-200"
+const ACCOUNT_HEAD = "px-3 py-2 text-xs text-base-content/60"
 
 /**
  * The signed-in visitor's menu.
@@ -185,17 +215,55 @@ const SavedIcon = counter("saved-icon", "heart", "Saved items", "data-bapp-saved
  * Signed out, the runtime swaps the trigger for a sign-in link — which is why
  * both are rendered and one is hidden, rather than the server guessing from a
  * cached page which visitor is reading it.
+ *
+ * ── Why the inner classes are props ────────────────────────────────────────
+ *
+ * A template that puts this in a storefront strip has already decided what a
+ * control there looks like: the height of the pill, its radius, its hover. The
+ * module cannot know those, and a module-owned pill dropped into a design is
+ * the one visible seam between "the brand built this page" and "we did". So
+ * each is a prop with the sensible default above, and `classProps` makes the
+ * utility generator emit CSS for whatever a design passes — without it the
+ * class lands on the element and nothing styles it.
+ *
+ * `children`, when a template supplies any, are the signed-out pill's contents
+ * — an icon and the word, authored as ordinary nodes, so a design keeps its
+ * own glyph instead of ours.
  */
 const AccountMenu: ModuleDefinition = {
   name: "account-menu",
   category: "advanced",
   schema: {
     signedOutLabel: { type: "plain", label: "signed-out label" },
+    signedOutHref: { type: "url", label: "sign-in page" },
+    signedOutClasses: { type: "plain", label: "signed-out classes" },
+    triggerClasses: { type: "plain", label: "avatar classes" },
+    menuClasses: { type: "plain", label: "menu classes" },
+    menuItemClasses: { type: "plain", label: "menu item classes" },
+    menuHeadClasses: { type: "plain", label: "menu heading classes" },
     ...ADVANCED_SCHEMA,
   },
-  defaults: { signedOutLabel: "Sign in", ...ADVANCED_DEFAULTS },
-  contentModel: { children: "none" },
+  defaults: {
+    signedOutLabel: "Sign in",
+    signedOutHref: "/sign-in",
+    signedOutClasses: ACCOUNT_SIGNED_OUT,
+    triggerClasses: ACCOUNT_TRIGGER,
+    menuClasses: ACCOUNT_MENU,
+    menuItemClasses: ACCOUNT_ITEM,
+    menuHeadClasses: ACCOUNT_HEAD,
+    ...ADVANCED_DEFAULTS,
+  },
+  classProps: [
+    "signedOutClasses",
+    "triggerClasses",
+    "menuClasses",
+    "menuItemClasses",
+    "menuHeadClasses",
+  ],
+  contentModel: { children: "any" },
   defaultClasses: "relative inline-flex items-center",
+  // Who is reading this page is per-visitor, so the swap is the runtime's job.
+  needsRuntime: true,
   Component: (p: ModuleRenderProps) =>
     createElement(
       "div",
@@ -211,13 +279,20 @@ const AccountMenu: ModuleDefinition = {
         "a",
         {
           "data-bapp-account-signin": "",
-          href: "/sign-in",
-          className: "inline-flex items-center gap-1.5 text-sm no-underline text-base-content",
+          href: str(p.props.signedOutHref, "/sign-in"),
+          className: str(p.props.signedOutClasses, ACCOUNT_SIGNED_OUT),
         },
-        glyph("account-circle", "inline-block w-5 h-5"),
-        str(p.props.signedOutLabel, "Sign in")
+        p.children ??
+          createElement(
+            RFragment,
+            null,
+            glyph("account-circle", "inline-block w-5 h-5"),
+            str(p.props.signedOutLabel, "Sign in")
+          )
       ),
-      // Signed IN: the trigger and its menu, unhidden by the runtime.
+      // Signed IN: the trigger and its menu, unhidden by the runtime. The
+      // initials go in a child span so the runtime writes text without
+      // touching the button's own attributes.
       createElement(
         "button",
         {
@@ -226,16 +301,20 @@ const AccountMenu: ModuleDefinition = {
           "data-bapp-account-trigger": "",
           hidden: true,
           "aria-label": "Account",
-          className: "inline-flex items-center justify-center w-9 h-9 rounded-full bg-base-200",
+          className: str(p.props.triggerClasses, ACCOUNT_TRIGGER),
         },
-        glyph("account-circle", "inline-block w-5 h-5")
+        createElement("span", { "data-bapp-account-initials": "" })
       ),
       createElement("div", {
         "data-bapp-dropdown-menu": "",
         "data-bapp-account-menu": "",
         hidden: true,
-        className:
-          "absolute right-0 top-full z-40 mt-1 min-w-44 rounded-md border border-base-300 bg-base-100 p-1 shadow-lg",
+        // The runtime builds the rows and needs the design's own classes for
+        // them; carried as data rather than looked up, because the script has
+        // no access to the document's props.
+        "data-item-class": str(p.props.menuItemClasses, ACCOUNT_ITEM),
+        "data-head-class": str(p.props.menuHeadClasses, ACCOUNT_HEAD),
+        className: str(p.props.menuClasses, ACCOUNT_MENU),
       })
     ),
 }

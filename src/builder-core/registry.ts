@@ -157,6 +157,19 @@ export interface ModuleDefinition {
    */
   staticClasses?: string
   /**
+   * Props whose VALUE is a list of utility classes, for the inner elements a
+   * module draws but an author still wants to style — an account menu's panel,
+   * the pill it shows when nobody is signed in.
+   *
+   * `staticClasses` cannot cover these: it is a constant, and the whole point
+   * of the prop is that each design passes its own. Without this they fail in
+   * exactly the way `staticClasses` was added to stop — the class reaches the
+   * element, the generator never sees it, and the element renders with no CSS
+   * at all on one page and correctly on the next, depending on whether some
+   * other node happened to use the same token.
+   */
+  classProps?: string[]
+  /**
    * A starter subtree inserted with the node, so a container arrives usable
    * rather than empty — a `form` drops in with real fields and a submit button.
    * Seeded once at insert time (like `defaults`/`defaultClasses`) and fully
