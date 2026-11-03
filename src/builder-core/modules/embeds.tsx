@@ -10,6 +10,7 @@
 import { createElement, type CSSProperties } from "react"
 
 import { rootAttrs } from "../advanced"
+import { iconSvg } from "../icons"
 import type { ModuleDefinition, ModuleRenderProps } from "../registry"
 
 const str = (v: unknown, d = "") => (v == null ? d : String(v))
@@ -274,6 +275,16 @@ const SEARCH_INPUT_CLASSES =
 const SEARCH_BUTTON_CLASSES =
   "inline-flex items-center justify-center px-6 py-3 rounded-full bg-primary text-primary-content text-sm font-medium transition-colors hover:bg-primary/90"
 
+/**
+ * The icon-only button, for a search box that lives in a navbar.
+ *
+ * A word next to a field that already says "Search phones, laptops…" is the
+ * same word twice, and it is what makes a shop's bar look like a form. Every
+ * storefront bar worth copying uses a square or round glyph button.
+ */
+const SEARCH_ICON_BUTTON_CLASSES =
+  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-base-300 bg-base-100 text-base-content transition-colors hover:bg-base-200"
+
 // Input + button live in their own row so an optional label can sit above them
 // without fighting the form's own layout — the row keeps exactly the old
 // "flex items-center gap-2" arrangement.
@@ -292,7 +303,24 @@ function sanitizeParamName(raw: unknown): string {
 
 const Search: ModuleDefinition = {
   name: "search",
-  staticClasses: "text-sm font-medium text-base-content",
+  /**
+   * EVERY class this module's own markup emits, declared.
+   *
+   * The utility CSS is generated from the tokens the renderer collected, and
+   * it only ever sees `node.classes` — so a class hardcoded inside a Component
+   * gets NO rule unless some other node on the page happens to use the same
+   * token. This module declared three tokens and emitted about thirty: the
+   * input's border, radius, padding and focus ring were all silently absent,
+   * which is why a search box in a navbar rendered as naked text with a pill
+   * beside it. Nothing warns; it just looks unstyled.
+   */
+  staticClasses: [
+    SEARCH_ROW_CLASSES,
+    SEARCH_INPUT_CLASSES,
+    SEARCH_BUTTON_CLASSES,
+    SEARCH_ICON_BUTTON_CLASSES,
+    "text-sm font-medium text-base-content",
+  ].join(" "),
   category: "forms",
   schema: {
     label: { type: "plain" },
@@ -332,7 +360,22 @@ const Search: ModuleDefinition = {
           name: paramName,
           placeholder: str(p.props.placeholder, "Search…"),
         }),
-        createElement("button", { className: SEARCH_BUTTON_CLASSES, type: "submit" }, str(p.props.buttonLabel, "Search"))
+        /**
+         * A blank label means the GLYPH, not a button with no words on it.
+         * In a navbar the field already says what it is for.
+         */
+        str(p.props.buttonLabel).trim()
+          ? createElement(
+              "button",
+              { className: SEARCH_BUTTON_CLASSES, type: "submit" },
+              str(p.props.buttonLabel)
+            )
+          : createElement("button", {
+              className: SEARCH_ICON_BUTTON_CLASSES,
+              type: "submit",
+              "aria-label": "Search",
+              dangerouslySetInnerHTML: { __html: iconSvg("search") ?? "" },
+            })
       )
     )
   },

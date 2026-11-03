@@ -7,7 +7,7 @@ import {
   AlertCircle, Aperture, Badge as BadgeIcon, ChevronsRight, ChevronsUpDown, CircleUser, CreditCard,
   Ellipsis, Grip, Sun, Waves, MoveHorizontal, Orbit,
   PanelBottom,
-  GalleryHorizontal, Heart, MessageCircle, RectangleHorizontal, ShoppingBag,
+  GalleryHorizontal, GalleryHorizontalEnd, Heart, MessageCircle, RectangleHorizontal, ShoppingBag,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -196,6 +196,12 @@ export const PALETTE: PaletteSection[] = [
         icon: GalleryHorizontal,
         module: "carousel",
         keywords: "slider slides swipe hero banner gallery rotate",
+      },
+      {
+        label: "Sliding row",
+        icon: GalleryHorizontalEnd,
+        module: "scroller",
+        keywords: "row scroll sideways categories icons shelf snap arrows",
       },
       {
         label: "Slide",

@@ -123,5 +123,38 @@ const Slide: ModuleDefinition = {
     ),
 }
 
-export const CAROUSEL_MODULES: ModuleDefinition[] = [Carousel, Slide]
+/**
+ * A row that slides sideways, with the two arrows a shop expects.
+ *
+ * Not a carousel: a carousel shows ONE slide at a time and a row of category
+ * doorways shows as many as fit. Built on the same native scroll-snap scroller
+ * so it works with the script absent, and the arrows — which the runtime puts
+ * wherever the author left `[data-bapp-scroller-prev]` / `-next`, or appends
+ * itself — page it by a screenful.
+ *
+ * The scrollbar is hidden. A visible one under a row of icons is the single
+ * detail that makes a hand-built row look unfinished next to a designed one.
+ */
+const Scroller: ModuleDefinition = {
+  name: "scroller",
+  category: "layout",
+  schema: { ...ADVANCED_SCHEMA },
+  defaults: { ...ADVANCED_DEFAULTS },
+  contentModel: { children: "any" },
+  defaultClasses: "flex w-full gap-8 overflow-x-auto snap-x",
+  staticClasses: "flex w-full gap-8 overflow-x-auto snap-x shrink-0 snap-start",
+  needsRuntime: true,
+  Component: (p: ModuleRenderProps) =>
+    createElement(
+      "div",
+      {
+        className: p.className,
+        "data-bapp-scroller": "",
+        ...rootAttrs(p),
+      },
+      p.children
+    ),
+}
+
+export const CAROUSEL_MODULES: ModuleDefinition[] = [Carousel, Slide, Scroller]
 export { TRACK as CAROUSEL_TRACK_CLASSES, SLIDE as CAROUSEL_SLIDE_CLASSES }

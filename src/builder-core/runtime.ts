@@ -75,8 +75,12 @@ export const BUILDER_RUNTIME = `(function(){
          column of stacked slides while somebody was building the page. What
          lives here is only what CSS utilities cannot express: a hidden
          scrollbar, and the controls the runtime itself creates. */
-      +'[data-bapp-carousel-track]{scrollbar-width:none;-ms-overflow-style:none}'
-      +'[data-bapp-carousel-track]::-webkit-scrollbar{display:none}'
+      +'[data-bapp-carousel-track],[data-bapp-scroller]{scrollbar-width:none;-ms-overflow-style:none}'
+      +'[data-bapp-carousel-track]::-webkit-scrollbar,[data-bapp-scroller]::-webkit-scrollbar{display:none}'
+      +'.bapp-scroll-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid '+line+';border-radius:999px;background:transparent;color:'+ink+';cursor:pointer;font-size:15px;line-height:1;transition:opacity .15s ease,border-color .15s ease}'
+      +'.bapp-scroll-btn[disabled]{opacity:.3;cursor:default}'
+      +'.bapp-scroll-btn:not([disabled]):hover{border-color:'+accent+';color:'+accent+'}'
+      +'.bapp-scroll-btn:focus-visible{outline:2px solid '+accent+';outline-offset:2px}'
       +'.bapp-car-dots{display:flex;gap:8px;justify-content:center;align-items:center;padding:14px 0}'
       +'.bapp-car-dot{width:9px;height:9px;padding:0;border:0;border-radius:999px;cursor:pointer;background:'+ink+';opacity:.22;transition:opacity .2s ease,transform .2s ease}'
       +'.bapp-car-dot[aria-current="true"]{opacity:1;background:'+accent+';transform:scale(1.15)}'
@@ -1052,6 +1056,53 @@ export const BUILDER_RUNTIME = `(function(){
     });
   }
 
+  /* ── a row that pages sideways ─────────────────────────────────────────
+     The row already scrolls and snaps with no script at all; this adds the
+     two arrows and keeps them disabled at the ends. They are placed in the
+     element the author marked [data-bapp-scroller-controls] -- normally beside
+     the heading -- so the design decides where they sit. */
+  function initScroller(root){
+    var controls=null, id=root.getAttribute('data-controls');
+    if(id)controls=DOC.getElementById(id);
+    if(!controls){
+      var near=root.previousElementSibling;
+      while(near&&!controls){
+        controls=near.querySelector?near.querySelector('[data-bapp-scroller-controls]'):null;
+        near=near.previousElementSibling;
+      }
+    }
+    if(!controls)return;
+
+    function make(dir,label,glyph){
+      var b=DOC.createElement('button');
+      b.type='button'; b.className='bapp-scroll-btn';
+      b.setAttribute('aria-label',label); b.innerHTML=glyph;
+      b.addEventListener('click',function(){
+        var by=Math.max(160,Math.round(root.clientWidth*0.8))*dir;
+        try{ root.scrollBy({left:by,behavior:reduced()?'auto':'smooth'}) }
+        catch(e){ root.scrollLeft+=by }
+      });
+      return b;
+    }
+    var prev=make(-1,'Previous','&#8249;'), next=make(1,'Next','&#8250;');
+    controls.appendChild(prev); controls.appendChild(next);
+
+    function sync(){
+      var max=root.scrollWidth-root.clientWidth-1;
+      prev.disabled=root.scrollLeft<=0;
+      next.disabled=root.scrollLeft>=max;
+      /* Nothing to page: a pair of dead arrows is worse than none. */
+      var fits=root.scrollWidth<=root.clientWidth+1;
+      controls.hidden=fits;
+    }
+    var raf=0;
+    root.addEventListener('scroll',function(){
+      if(raf)return; raf=requestAnimationFrame(function(){ raf=0; sync() });
+    },{passive:true});
+    window.addEventListener('resize',sync);
+    sync();
+  }
+
   function init(scope){
     var d=scope||DOC;
     injectCss();
@@ -1071,6 +1122,7 @@ export const BUILDER_RUNTIME = `(function(){
     d.querySelectorAll('[data-bapp-bgvideo]').forEach(function(el){ if(el.__bappBg)return; el.__bappBg=1; initBgVideo(el) });
     d.querySelectorAll('[data-bapp-navbar]').forEach(function(el){ if(el.__bappNav)return; el.__bappNav=1; initNavbar(el) });
     d.querySelectorAll('[data-bapp-carousel]').forEach(function(el){ if(el.__bappCar)return; el.__bappCar=1; initCarousel(el) });
+    d.querySelectorAll('[data-bapp-scroller]').forEach(function(el){ if(el.__bappScr)return; el.__bappScr=1; initScroller(el) });
     initWishlist(d);
     tier();
     initSplit(d);
