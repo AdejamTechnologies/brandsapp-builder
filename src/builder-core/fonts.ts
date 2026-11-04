@@ -11,12 +11,27 @@ import type { ThemeTokens } from "./schema"
 const SYSTEM_SANS =
   "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 const SYSTEM_SERIF = "ui-serif, Georgia, Cambria, 'Times New Roman', serif"
+/**
+ * For a face that IS a system font, which Courier New is.
+ *
+ * A menu card typeset in Courier is a real art direction and not a mistake —
+ * it is the look of a printed carte — and there is nothing to download for it.
+ */
+const SYSTEM_MONO =
+  "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
 
 interface FontDef {
   family: string
   serif?: boolean
-  /** Google Fonts `family+weights` spec, e.g. "Inter:wght@400;500;600;700". */
-  google: string
+  /** Falls back to the system MONO stack rather than sans or serif. */
+  mono?: boolean
+  /**
+   * Google Fonts `family+weights` spec, e.g. "Inter:wght@400;500;600;700".
+   *
+   * Absent for a face that is already on the device — there is no stylesheet
+   * to load for Courier New, and asking Google for one gets a 400.
+   */
+  google?: string
 }
 
 /** Curated, tasteful set — sans for body/UI, serif/display for headings. */
@@ -42,6 +57,20 @@ export const FONTS: Record<string, FontDef> = {
   "Archivo Black": { family: "Archivo Black", google: "Archivo+Black" },
   "Bebas Neue": { family: "Bebas Neue", google: "Bebas+Neue" },
   Oswald: { family: "Oswald", google: "Oswald:wght@400;500;600;700" },
+  /**
+   * The faces the restaurant designs are drawn in.
+   *
+   * Added because naming a face the registry does not know fails SILENTLY —
+   * `fontStack` returns the system stack and nothing is logged — so a design
+   * typeset in Forum and DM Sans came out in system sans, which reads as a
+   * careless page rather than a missing font. Four of the five load from
+   * Google; Courier New is already on the device.
+   */
+  Forum: { family: "Forum", serif: true, google: "Forum" },
+  "Alfa Slab One": { family: "Alfa Slab One", serif: true, google: "Alfa+Slab+One" },
+  "Playwrite CU": { family: "Playwrite CU", google: "Playwrite+CU:wght@100..400" },
+  Lato: { family: "Lato", google: "Lato:wght@400;700;900" },
+  "Courier New": { family: "Courier New", mono: true },
   // serif / display
   "Playfair Display": { family: "Playfair Display", serif: true, google: "Playfair+Display:wght@500;600;700;800" },
   Lora: { family: "Lora", serif: true, google: "Lora:wght@400;500;600;700" },
@@ -68,7 +97,8 @@ const def = (name?: string | null): FontDef | undefined => (name ? FONTS[name.tr
 export function fontStack(name?: string | null, serifFallback = false): string {
   const d = def(name)
   if (!d) return serifFallback ? SYSTEM_SERIF : SYSTEM_SANS
-  return `'${d.family}', ${d.serif ? SYSTEM_SERIF : SYSTEM_SANS}`
+  const fallback = d.mono ? SYSTEM_MONO : d.serif ? SYSTEM_SERIF : SYSTEM_SANS
+  return `'${d.family}', ${fallback}`
 }
 
 /** Is this a face the renderer can actually load? */
@@ -90,7 +120,9 @@ export function themeFontHref(theme: ThemeTokens): string | null {
   const specs = new Set<string>()
   for (const name of [theme.fonts?.display, theme.fonts?.body]) {
     const d = def(name)
-    if (d) specs.add(d.google)
+    // A system face has no spec: asking Google for `family=Courier+New` is a
+    // 400, which would take the OTHER face's stylesheet down with it.
+    if (d?.google) specs.add(d.google)
   }
   if (specs.size === 0) return null
   const families = [...specs].map((s) => `family=${s}`).join("&")
