@@ -156,6 +156,7 @@ import { Textarea } from "../components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip"
 import { cn } from "../lib/utils"
 import { SECTIONS, type Template } from "../lib/templates"
+import { landingCategory, landingIndex } from "../lib/landing-blocks"
 
 import {
   componentVariants,
@@ -173,7 +174,7 @@ import { QuickStackChip, QuickStackPresets } from "../components/quick-stack-pre
 import { NavbarChip, NavbarVariants } from "../components/navbar-variants"
 import { DropdownChip, DropdownVariants } from "../components/dropdown-variants"
 import { ElementVariants, ElementVariantsChip } from "../components/element-variants"
-import { SectionGallery } from "../components/section-gallery"
+import { SectionGallery, type LazyCategory } from "../components/section-gallery"
 import { ElementSettings, ElementSettingsChip } from "../components/element-settings"
 import { SettingsFields } from "../components/settings-fields"
 import { Inspector } from "../components/inspector"
@@ -254,6 +255,35 @@ export function EditorPage() {
   // not flash someone else's markup while its own definition is still being
   // fetched below.
   const [initialDoc] = useState(() => parseDoc(docFor(pageId)))
+
+  /**
+   * The landing-page library's table of contents.
+   *
+   * 21 rows naming an industry and how many bands it has. The bands themselves
+   * are 7.8MB and are fetched one industry at a time, when somebody opens that
+   * row — see lib/landing-blocks.ts. The index failing is not worth telling
+   * anybody about: the panel simply shows the bundled sections, which is what
+   * it showed before this existed.
+   */
+  const [landingBlocks, setLandingBlocks] = useState<LazyCategory[]>([])
+  useEffect(() => {
+    let live = true
+    landingIndex()
+      .then((rows) => {
+        if (!live) return
+        setLandingBlocks(
+          rows.map((row) => ({
+            label: row.label,
+            count: row.count,
+            load: () => landingCategory(row.slug),
+          }))
+        )
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [])
   const sendRef = useRef<(s: string) => void>(() => {})
   const commit = useCallback((d: Doc) => sendRef.current(JSON.stringify(d)), [])
   const { doc, apply, undo, redo, canUndo, canRedo, reset } = useHistory(initialDoc, commit)
@@ -1067,7 +1097,11 @@ export function EditorPage() {
             <Palette onDragStart={startModuleDrag} />
           </TabsPanel>
           <TabsPanel value="sections">
-            <SectionGallery items={SECTIONS} onDragStart={startSectionDrag} />
+            <SectionGallery
+              items={SECTIONS}
+              lazy={landingBlocks}
+              onDragStart={startSectionDrag}
+            />
           </TabsPanel>
           <TabsPanel value="components">
             <ComponentsPanel

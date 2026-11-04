@@ -22,6 +22,13 @@ export * from "./anim"
 export * from "./runtime"
 export * from "./unocss"
 export * from "./import-html"
+/**
+ * Also the CSS half of it: `scopeCss` is what the renderer uses to emit an
+ * import's residual rules without letting them escape the page, and
+ * `parseStylesheet` is how a tool inspects what an import could and could not
+ * model.
+ */
+export * from "./import-css"
 export * from "./authoring"
 export * from "./navbar-variants"
 export * from "./dropdown-variants"

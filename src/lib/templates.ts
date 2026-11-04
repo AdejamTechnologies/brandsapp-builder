@@ -49,7 +49,13 @@ export function scrubBrands(html: string): string {
   return html.replace(BRAND_ASSET, NEUTRAL_ASSET).replace(BRAND_TEXT, "BrandsApp")
 }
 
-function fromHtml(category: string, name: string, html: string): Template {
+/**
+ * Exported for `landing-blocks.ts`, which fetches its blocks instead of
+ * bundling them — the landing library is 7.8MB and cannot ride along in the
+ * editor's JS. Same shape, same conversion, so a fetched block and a bundled
+ * one become the same thing.
+ */
+export function fromHtml(category: string, name: string, html: string): Template {
   return {
     category,
     name,

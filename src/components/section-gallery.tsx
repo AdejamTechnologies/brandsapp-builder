@@ -102,10 +102,21 @@ function Thumb({ doc }: { doc: Doc | null }) {
     return () => clearTimeout(t)
   }, [inView, doc, scale])
 
+  /**
+   * The node AND its CSS.
+   *
+   * `.css` used to be dropped here, which was invisible for the bundled blocks
+   * — those are pure Tailwind, and the category's utility pass covers them.
+   * An IMPORTED block is the opposite: its design lives in per-node style
+   * rules, which are exactly what this returns. Without them a landing block
+   * previewed as correct, unstyled markup, which reads as a broken block
+   * rather than a missing stylesheet.
+   */
   const rendered = useMemo(() => {
     if (!inView || !doc) return null
     try {
-      return renderDocToReact(doc, { registry, isEditor: false }).node
+      const { node, css } = renderDocToReact(doc, { registry, isEditor: false })
+      return { node, css }
     } catch {
       return null
     }
@@ -123,22 +134,46 @@ function Thumb({ doc }: { doc: Doc | null }) {
           className="bapp-root pointer-events-none absolute top-0 left-0 origin-top-left"
           style={{ width: PREVIEW_W, transform: `scale(${scale})` }}
         >
-          {rendered}
+          {/* Per card, not per category: the cards mount as they scroll into
+              view, and the rules are node-scoped (`.bapp-n-…`) so two cards
+              cannot reach each other. */}
+          <style>{rendered.css}</style>
+          {rendered.node}
         </div>
       )}
     </div>
   )
 }
 
+/**
+ * A category whose blocks are not here yet.
+ *
+ * The landing library is 7.8MB of JSON, so it cannot be bundled and cannot be
+ * fetched up front either. The panel lists these from a 21-row index and asks
+ * for one industry's blocks the first time somebody opens it — which is also
+ * how the previews already work (one category renders at a time).
+ */
+export interface LazyCategory {
+  /** The display name, already pretty. */
+  label: string
+  count: number
+  load: () => Promise<Template[]>
+}
+
 export function SectionGallery({
   items,
+  lazy = [],
   onDragStart,
 }: {
   items: Template[]
+  lazy?: LazyCategory[]
   onDragStart: (t: Template, e: React.PointerEvent) => void
 }) {
   const [q, setQ] = useState("")
   const [open, setOpen] = useState<string | null>(null)
+  /** What has been fetched, by label. `null` while a fetch is in flight. */
+  const [fetched, setFetched] = useState<Record<string, Template[] | null>>({})
+  const [failed, setFailed] = useState<Record<string, string>>({})
   const flyout = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const [anchor, setAnchor] = useState({ left: 0, top: 0, height: 0 })
@@ -199,7 +234,50 @@ export function SectionGallery({
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   }, [matched])
 
-  const shown = open ? (categories.find(([c]) => c === open)?.[1] ?? []) : []
+  /**
+   * The lazy rows, filtered by the same search box. Only their LABEL can be
+   * searched until they are loaded — there is nothing else here to match on,
+   * and downloading 7.8MB to answer a keystroke would be worse than the gap.
+   */
+  const lazyRows = useMemo(
+    () => (query ? lazy.filter((l) => l.label.toLowerCase().includes(query)) : lazy),
+    [lazy, query]
+  )
+
+  // Fetch when a lazy category is opened, once.
+  useEffect(() => {
+    if (!open) return
+    const row = lazy.find((l) => l.label === open)
+    if (!row || fetched[open] !== undefined) return
+    setFetched((prev) => ({ ...prev, [open]: null }))
+    let cancelled = false
+    row
+      .load()
+      .then((list) => {
+        if (!cancelled) setFetched((prev) => ({ ...prev, [open]: list }))
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return
+        // Cleared from `fetched` so opening it again tries again.
+        setFetched((prev) => {
+          const next = { ...prev }
+          delete next[open]
+          return next
+        })
+        setFailed((prev) => ({
+          ...prev,
+          [open]: e instanceof Error ? e.message : "could not be loaded",
+        }))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, lazy, fetched])
+
+  const loadingOpen = !!open && fetched[open] === null
+  const shown = open
+    ? (fetched[open] ?? categories.find(([c]) => c === open)?.[1] ?? [])
+    : []
 
   // Rendered lazily and cached per category: building 300 docs up front is work
   // nobody asked for, and only one category is ever on screen.
@@ -239,13 +317,13 @@ export function SectionGallery({
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={`Search ${items.length} blocks…`}
+          placeholder={`Search ${items.length + lazy.reduce((n, l) => n + l.count, 0)} blocks…`}
           className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20"
         />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-3">
-        {categories.length === 0 && (
+        {categories.length === 0 && lazyRows.length === 0 && (
           <p className="px-4 py-6 text-center text-xs text-muted-foreground">Nothing matches “{q}”.</p>
         )}
         {categories.map(([cat, list]) => (
@@ -262,6 +340,26 @@ export function SectionGallery({
             <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{list.length}</span>
             <ChevronRight
               className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", open === cat && "rotate-90")}
+            />
+          </button>
+        ))}
+        {lazyRows.map((l) => (
+          <button
+            key={l.label}
+            type="button"
+            onClick={() => setOpen((c) => (c === l.label ? null : l.label))}
+            className={cn(
+              "flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left text-[13px] transition-colors",
+              open === l.label ? "bg-muted font-medium text-foreground" : "text-foreground hover:bg-muted/60"
+            )}
+          >
+            <span className="min-w-0 flex-1 truncate">{l.label}</span>
+            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{l.count}</span>
+            <ChevronRight
+              className={cn(
+                "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                open === l.label && "rotate-90"
+              )}
             />
           </button>
         ))}
@@ -289,7 +387,9 @@ export function SectionGallery({
               </span>
               <div className="flex items-center gap-3">
                 <span className="text-[11px] text-muted-foreground">
-                  {shown.length} {shown.length === 1 ? "variation" : "variations"}
+                  {loadingOpen
+                    ? "loading…"
+                    : `${shown.length} ${shown.length === 1 ? "variation" : "variations"}`}
                 </span>
                 <button
                   type="button"
@@ -303,6 +403,17 @@ export function SectionGallery({
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
+              {loadingOpen && (
+                <p className="px-3 py-8 text-center text-[11px] text-muted-foreground">
+                  Loading {prettyCategory(open)}…
+                </p>
+              )}
+              {failed[open] && !loadingOpen && docs.length === 0 && (
+                <p className="px-3 py-8 text-center text-[11px] text-muted-foreground">
+                  Could not load these blocks ({failed[open]}). Close and open the
+                  category to try again.
+                </p>
+              )}
               {docs.map(({ t, doc }, i) => (
                 <button
                   key={`${t.category}:${t.name}:${i}`}

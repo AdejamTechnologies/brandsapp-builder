@@ -215,6 +215,102 @@ export interface ApplyResult {
   tokens: number
   /** CSS kept verbatim because it could not be modelled. */
   residual: string
+  /** `var()` references retargeted onto the theme's own names. */
+  retargeted: number
+  /** Class names dropped from nodes because this sheet defined them. */
+  classesDropped: number
+}
+
+/**
+ * Point every `var(--x)` at the name the THEME will actually emit.
+ *
+ * `:root{--rust:#c1512f}` is lifted into `theme.colors.rust` just above, and
+ * `themeToCss` writes that out as `--color-rust`. The declarations this module
+ * just copied onto the nodes still said `var(--rust)` — one prefix apart — so
+ * every colour, max-width and radius token in an imported page resolved to
+ * nothing. Measured over 200 real landing pages: 2,748 references, on every
+ * single page, silently voided. The markup rendered, so an audit called it
+ * clean; what shipped was the design with its palette taken out.
+ *
+ * Retargeting rather than ALSO emitting `--rust` at the root, because the bare
+ * names are a namespace we do not own: `--accent`, `--ink` and `--bg` are what
+ * the legacy page packs style themselves with. This way nothing new is claimed
+ * and the page follows the theme — change the colour in the builder and the
+ * imported design changes with it, which is the whole point of lifting the
+ * tokens in the first place.
+ *
+ * `tests/html-import.test.ts` asserts a rendered import declares every var it
+ * references, so the two names cannot drift apart again.
+ */
+function retargetVars(doc: Doc, lifted: Set<string>): number {
+  if (lifted.size === 0) return 0
+  let count = 0
+  // Keeps any fallback: `var(--rust, #000)` → `var(--color-rust, #000)`.
+  const rewrite = (value: string): string =>
+    value.replace(/var\(\s*--([a-zA-Z0-9_-]+)/g, (whole, name: string) => {
+      if (!lifted.has(name)) return whole
+      count++
+      return `var(--color-${name}`
+    })
+
+  const bag = (style: Record<string, string> | undefined) => {
+    if (!style) return
+    for (const [prop, value] of Object.entries(style)) {
+      if (typeof value === "string" && value.includes("var(--")) {
+        style[prop] = rewrite(value)
+      }
+    }
+  }
+
+  for (const node of Object.values(doc.nodes)) {
+    bag(node.style as Record<string, string> | undefined)
+    for (const ov of Object.values(node.responsive ?? {})) {
+      bag(ov.style as Record<string, string> | undefined)
+    }
+  }
+  // A shared style rule keeps its declarations in `base`, and its breakpoint
+  // overrides in `context` — not the `style`/`responsive` a NODE uses.
+  for (const rule of Object.values(doc.styles ?? {})) {
+    bag(rule.base)
+    for (const ov of Object.values(rule.context ?? {})) bag(ov)
+  }
+  return count
+}
+
+/**
+ * Forget a class name this sheet defined, now its rules are on the node.
+ *
+ * The importer keeps `class=""` because a source authored in Tailwind needs it
+ * — the generator turns those tokens into CSS at render time. But a class the
+ * page defined ITSELF is a different thing: its declarations have just been
+ * copied onto the node, and the only thing the bare name can still do is
+ * collide. The utility generator also answers to daisyUI's component names, so
+ * a hand-written `.hero` picked up `display:grid; place-items:center`, and the
+ * generated CSS is concatenated AFTER the node styles, so it won.
+ *
+ * Measured over the same 200 pages: `.hero` on all 200, plus `btn-ghost` (83),
+ * `stat-value` (44), `stats` (30), `stat` (28), `stat-title` (25), `tab` and
+ * `tab-active` (21 each), `steps` (19) and `badge` (12).
+ *
+ * Two names are left alone. One the sheet never defined is a real utility, and
+ * dropping it would unstyle every Tailwind-authored import. And one the
+ * RESIDUAL still mentions is load-bearing: `.card:first-child` could not be
+ * resolved onto a node, so it is emitted as a rule, and a rule needs its class
+ * on the element to match. Correct residual beats a tidier class list — on the
+ * 200-page corpus that holds back three names in total.
+ */
+function dropDefinedClasses(doc: Doc, defined: Set<string>): number {
+  if (defined.size === 0) return 0
+  let touched = 0
+  for (const node of Object.values(doc.nodes)) {
+    if (!node.classes) continue
+    const had = node.classes.split(/\s+/).filter(Boolean)
+    const keep = had.filter((c) => !defined.has(c))
+    if (keep.length === had.length) continue
+    node.classes = keep.join(" ") || undefined
+    touched++
+  }
+  return touched
 }
 
 /**
@@ -275,18 +371,121 @@ export function applyStylesheetToDoc(
   styledNodes = touched.size
 
   // `:root` custom properties are the imported design system's tokens.
+  const lifted = new Set<string>()
   if (Object.keys(rootVars).length) {
     const colors: Record<string, string> = { ...(doc.theme?.colors ?? {}) }
     for (const [name, value] of Object.entries(rootVars)) {
-      colors[name.replace(/^--/, "")] = value
+      const key = name.replace(/^--/, "")
+      colors[key] = value
+      lifted.add(key)
     }
     doc.theme = { ...doc.theme, colors } as Doc["theme"]
   }
+  const retargeted = retargetVars(doc, lifted)
+
+  /**
+   * Every class name this sheet defined — collected from the selectors, not
+   * from the nodes, so a name that matched nothing is still forgotten.
+   */
+  const defined = new Set<string>()
+  for (const rule of rules) {
+    for (const m of rule.selector.matchAll(/\.([a-zA-Z0-9_-]+)/g)) defined.add(m[1]!)
+  }
+  // …except the ones the residual still has to match on.
+  for (const m of residual.matchAll(/\.([a-zA-Z0-9_-]+)/g)) defined.delete(m[1]!)
+  const classesDropped = dropDefinedClasses(doc, defined)
 
   return {
     styledNodes,
     declarations,
     tokens: Object.keys(rootVars).length,
-    residual,
+    // Retargeted too: a `var()` in here is now pointing at the theme's name,
+    // so the residual works the day something renders it.
+    residual: residual.replace(/var\(\s*--([a-zA-Z0-9_-]+)/g, (whole, name: string) =>
+      lifted.has(name) ? `var(--color-${name}` : whole
+    ),
+    retargeted,
+    classesDropped,
   }
+}
+
+/**
+ * Prefix every selector in a stylesheet so it cannot reach outside the page.
+ *
+ * The companion to `residual`: the rules this module cannot model are kept
+ * verbatim, and until now nothing rendered them — `meta.residualCss` was
+ * stored and read by no one, so a `:hover`, a `@keyframes` or a
+ * `.card:first-child` override was silently lost. They cannot simply be
+ * emitted as written, either: a published page is one component inside an app
+ * shell, and an imported `*{box-sizing:inherit}` or `body{margin:0}` would
+ * reach the whole document.
+ *
+ * So each selector is scoped. `*` becomes `<scope> *`; `:root`, `html` and
+ * `body` become the scope itself, because in the source they WERE the page.
+ * `@media` and `@supports` keep their condition and have their contents
+ * scoped; `@keyframes`, `@font-face` and `@import` pass through untouched,
+ * since their insides are not selectors.
+ *
+ * Brace-matched rather than regexed, so a nested at-rule stays whole. The
+ * matcher counts braces without tracking strings, so a `}` inside a quoted
+ * value (`content:"}"`) would still fool it — the same best-effort bargain the
+ * rest of this module makes, and the residual it runs over is the handful of
+ * rules the parser already declined to model.
+ */
+export function scopeCss(css: string, scope: string): string {
+  const out: string[] = []
+  let i = 0
+
+  const body = (from: number): { text: string; end: number } => {
+    let depth = 0
+    for (let j = from; j < css.length; j++) {
+      if (css[j] === "{") depth++
+      else if (css[j] === "}") {
+        depth--
+        if (depth === 0) return { text: css.slice(from + 1, j), end: j + 1 }
+      }
+    }
+    return { text: css.slice(from + 1), end: css.length }
+  }
+
+  const scopeSelector = (raw: string): string =>
+    raw
+      .split(",")
+      .map((part) => {
+        const sel = part.trim()
+        if (!sel) return ""
+        if (sel === "*") return `${scope} *`
+        if (sel === ":root" || sel === "html" || sel === "body") return scope
+        // A selector that already starts at the scope is left alone, so
+        // scoping twice is a no-op.
+        if (sel === scope || sel.startsWith(`${scope} `)) return sel
+        return `${scope} ${sel}`
+      })
+      .filter(Boolean)
+      .join(",")
+
+  while (i < css.length) {
+    // Anything up to the next `{` is a selector or an at-rule prelude.
+    const brace = css.indexOf("{", i)
+    if (brace < 0) break
+    const prelude = css.slice(i, brace).trim()
+    const { text, end } = body(brace)
+    i = end
+
+    if (prelude.startsWith("@")) {
+      const name = /^@([a-zA-Z-]+)/.exec(prelude)?.[1]?.toLowerCase() ?? ""
+      if (name === "media" || name === "supports" || name === "layer") {
+        out.push(`${prelude}{${scopeCss(text, scope)}}`)
+      } else {
+        // @keyframes, @font-face, @page, @property — their bodies are not
+        // selectors, so scoping them would corrupt the rule.
+        out.push(`${prelude}{${text}}`)
+      }
+      continue
+    }
+    const sel = scopeSelector(prelude)
+    if (sel) out.push(`${sel}{${text}}`)
+  }
+
+  return out.join("")
 }

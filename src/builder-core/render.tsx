@@ -14,6 +14,7 @@ import { choreographFor } from "./choreography"
 import { truthyProp } from "./advanced"
 import { applyBindings, emptyDataContext, type DataContext } from "./binding"
 import { escapeByControl } from "./escape"
+import { scopeCss } from "./import-css"
 import { migrateDoc } from "./migrate"
 import type { ModuleDefinition, ModuleRegistry } from "./registry"
 import { parseDoc, type Doc, type Node } from "./schema"
@@ -367,7 +368,23 @@ export function renderDocToReact(input: unknown, opts: RenderOptions): ReactRend
   // attributes on <html>, and a tenant page is not the only host).
   const node = createElement("div", { className: ROOT_CLASS, ...rootMotionAttrs(parsed, ctx) }, rootEl)
   const themeCss = themeToCss(parsed.theme, `.${ROOT_CLASS}`)
-  const css = [themeCss, ctx.usesAnim ? ANIMATION_KEYFRAMES : "", ...ctx.cssParts].filter(Boolean).join("")
+  /**
+   * The rules an HTML import could not turn into node styles — a `:hover`, a
+   * `@keyframes`, a `.card:first-child` override.
+   *
+   * `meta.residualCss` was stored by the importer and rendered by nothing, so
+   * `import-css.ts`'s claim that an import "loses nothing visually" was true of
+   * the Doc and not of the page anyone was served. Scoped under the page's own
+   * root on the way out: a published Doc is one component inside an app shell,
+   * and an imported `*{box-sizing:inherit}` would otherwise reach the whole
+   * document. Last, so a more specific override lands after the base rule.
+   */
+  const residual = parsed.meta?.residualCss
+    ? scopeCss(parsed.meta.residualCss, `.${ROOT_CLASS}`)
+    : ""
+  const css = [themeCss, ctx.usesAnim ? ANIMATION_KEYFRAMES : "", ...ctx.cssParts, residual]
+    .filter(Boolean)
+    .join("")
   return { node, css, missing: ctx.missing, classes: [...ctx.classes], usesRuntime: ctx.usesRuntime }
 }
 
