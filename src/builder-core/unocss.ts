@@ -93,6 +93,22 @@ export const BUILDER_RESET = [
   ":where(.bapp-root) :where(button,[type=button],[type=submit]){background:none;border:0;cursor:pointer}",
   ":where(.bapp-root) :where(hr){height:0;color:inherit;border-top-width:1px}",
   ":where(.bapp-root) :where(table){border-collapse:collapse}",
+  /* The transform variables every `rotate-*`, `scale-*`, `translate-*` and
+     `skew-*` utility composes into one `transform`.
+
+     The generator emits the whole chain —
+     `transform:translateX(var(--un-translate-x)) … rotate(var(--un-rotate)) …
+     scaleZ(var(--un-scale-z))` — and a `transform` containing ONE undefined
+     var is invalid, so the entire declaration is thrown away by the browser.
+     `rotate-45` therefore did nothing at all: the gadget store's and the fine
+     dining template's 11px diamond separators rendered as upright squares,
+     and no test could see it (the class generates CSS, it just cannot apply).
+     This is UnoCSS's own preflight line, scoped and zero-specificity like the
+     rest of this reset. */
+  ":where(.bapp-root,.bapp-root *,.bapp-root *::before,.bapp-root *::after)" +
+    "{--un-rotate:0;--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;" +
+    "--un-translate-x:0;--un-translate-y:0;--un-translate-z:0;" +
+    "--un-skew-x:0;--un-skew-y:0;--un-scale-x:1;--un-scale-y:1;--un-scale-z:1}",
 ].join("")
 
 /**
