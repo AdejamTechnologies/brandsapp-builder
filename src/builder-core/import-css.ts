@@ -217,6 +217,8 @@ export interface ApplyResult {
   residual: string
   /** `var()` references retargeted onto the theme's own names. */
   retargeted: number
+  /** Nodes given back the margin the browser would have supplied. */
+  uaMargins: number
   /** Class names dropped from nodes because this sheet defined them. */
   classesDropped: number
 }
@@ -273,6 +275,48 @@ function retargetVars(doc: Doc, lifted: Set<string>): number {
   for (const rule of Object.values(doc.styles ?? {})) {
     bag(rule.base)
     for (const ov of Object.values(rule.context ?? {})) bag(ov)
+  }
+  return count
+}
+
+/**
+ * The margins the BROWSER would have given, where the sheet gave none.
+ *
+ * Our preflight zeroes them —
+ * `:where(.bapp-root) :where(h1..h6,p,figure,blockquote,dl,dd,pre){margin:0}` —
+ * and a page written against the browser's defaults never said so out loud. A
+ * `<figure>` and a `<blockquote>` carry a 40px SIDE margin by UA default, and
+ * losing it moves the element: measured over a 97-band sample, 13 of them had
+ * a figure or a quote sitting 40px further left and 80px wider than the source.
+ *
+ * Only those two, and only their horizontal margin. The vertical ones on
+ * headings and paragraphs are set deliberately by essentially every real
+ * design, so adding a UA fallback there would fight the author rather than
+ * restore them — the same reason the HTML importer only resets a `<ul>` whose
+ * author set no `list-style`.
+ */
+const UA_SIDE_MARGIN: Record<string, string> = {
+  figure: "40px",
+  blockquote: "40px",
+}
+
+function restoreUaMargins(doc: Doc, tags: Record<string, string>): number {
+  let count = 0
+  for (const [id, node] of Object.entries(doc.nodes)) {
+    const side = UA_SIDE_MARGIN[tags[id] ?? ""]
+    if (!side) continue
+    const style = node.style ?? {}
+    // The author said something about margins: theirs wins, whatever it is.
+    if (Object.keys(style).some((k) => k.startsWith("margin"))) continue
+    /**
+     * …including as a utility class. A page that mixes Tailwind with its own
+     * `<style>` block keeps its margins in `m-*`/`mx-*`, which never reach
+     * `node.style`, so without this a `<blockquote class="my-6">` would be
+     * handed a 40px side margin it was never meant to have.
+     */
+    if (/(^|\s)-?m[xylrtbse]?-/.test(node.classes ?? "")) continue
+    node.style = { ...style, "margin-left": side, "margin-right": side }
+    count++
   }
   return count
 }
@@ -394,6 +438,7 @@ export function applyStylesheetToDoc(
   // …except the ones the residual still has to match on.
   for (const m of residual.matchAll(/\.([a-zA-Z0-9_-]+)/g)) defined.delete(m[1]!)
   const classesDropped = dropDefinedClasses(doc, defined)
+  const uaMargins = restoreUaMargins(doc, tags)
 
   return {
     styledNodes,
@@ -406,6 +451,7 @@ export function applyStylesheetToDoc(
     ),
     retargeted,
     classesDropped,
+    uaMargins,
   }
 }
 

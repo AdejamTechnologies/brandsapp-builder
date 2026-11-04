@@ -21,6 +21,53 @@ const TAG_MODULE: Record<string, string> = {
 const VOID_TAGS = new Set(["img", "br", "hr", "input", "meta", "link", "source", "area"])
 const SKIP_TAGS = new Set(["script", "style", "head", "svg", "noscript", "template", "iframe"])
 const TEXTY = new Set(["heading", "text", "link", "button"])
+/**
+ * Tags that map to `text` and must KEEP being what they were.
+ *
+ * `text` defaults to `<p>`, a block element. An empty `<span class="spacer">`
+ * holding a flex row apart therefore came back as a paragraph and broke the
+ * row — and `<strong>`/`<em>` inside a sentence became paragraphs mid-line.
+ */
+const TEXT_TAGS = new Set([
+  "p",
+  "span",
+  "strong",
+  "em",
+  "small",
+  "label",
+  "figcaption",
+  "blockquote",
+])
+
+/**
+ * Elements that are the DOCUMENT, not content.
+ *
+ * A whole page arrives as `<html><body>…`, and `box` happily made real
+ * `<html>` and `<body>` elements nested inside the page's own div — invalid
+ * markup that browsers reparent, which is enough on its own to scatter a
+ * layout. Their children are walked in their place; the stylesheet's `body{}`
+ * rules are handled by `applyStylesheetToDoc`, which matches on the recorded
+ * tag and not on an element existing.
+ */
+const TRANSPARENT_TAGS = new Set(["html", "body"])
+
+/**
+ * Modules that render their PROP and ignore their children.
+ *
+ * `text`, `heading` and `button` all declare `children: "none"` and their
+ * Components return `str(props.text)` — so anything nested inside one is
+ * parsed, stored in the document, and never drawn. Across 200 real pages that
+ * silently swallowed 695 paragraphs, 423 images and 166 links: a heading with
+ * an `<em>` in it, a paragraph containing a link, a `<blockquote><p>`. The
+ * document looked right in the tree and the page was missing a third of
+ * itself.
+ *
+ * So an element whose module is one of these and which HAS element children
+ * becomes a `box` carrying its original tag instead. `<h2>` is still an
+ * `<h2>`; it is just one that can hold what was inside it. `link` is absent
+ * from this set deliberately — it renders `children ?? text` and can.
+ */
+const PROP_ONLY = new Set(["text", "heading", "button"])
 
 interface El {
   tag: string
@@ -56,6 +103,14 @@ const NAMED: Record<string, string> = {
   ldquo: "“",
   rdquo: "”",
   times: "×",
+  // The arrows a marketing page actually uses — "Learn more &rarr;" printed
+  // the entity itself, which is the failure this map exists to prevent and
+  // the only one the 200-page corpus still had.
+  rarr: "→",
+  larr: "←",
+  uarr: "↑",
+  darr: "↓",
+  harr: "↔",
   deg: "°",
   euro: "€",
   pound: "£",
@@ -159,10 +214,52 @@ export function htmlToDoc(html: string): Doc {
   /** id → original tag, so `body`/`h2`/`li` selectors can be resolved. */
   const tags: Record<string, string> = {}
   let counter = 0
-  const nextId = () => `i${(counter++).toString(36)}`
+  /**
+   * Ids unique to THIS import, not just within it.
+   *
+   * A node's style is emitted as `.n-<id>` (see `classForNode`), and the ids
+   * used to restart at `i0` for every document — so two imported blocks on one
+   * page both defined `.n-i4`, with different declarations, and the last one
+   * rendered won for both. In the Sections panel, where a dozen previews share
+   * a DOM, that is every block after the first wearing another block's layout:
+   * 26 of 49 generated classes were defined more than once, one of them 24
+   * times. It looks like the import is broken and is a name collision.
+   *
+   * A short random prefix per import costs nothing and ends the whole class of
+   * problem — previewing, inserting two blocks into one page, or inserting the
+   * same block twice.
+   */
+  const prefix = Math.random().toString(36).slice(2, 8)
+  const nextId = () => `${prefix}${(counter++).toString(36)}`
+
+  /**
+   * Walk an element into `out`.
+   *
+   * Returns ids rather than one id because `<html>` and `<body>` contribute
+   * their CHILDREN and no element of their own.
+   */
+  const walkInto = (el: El, out: string[]): void => {
+    if (TRANSPARENT_TAGS.has(el.tag)) {
+      for (const c of el.children) if (typeof c !== "string") walkInto(c, out)
+      return
+    }
+    out.push(walk(el))
+  }
 
   const walk = (el: El): string => {
-    const module = TAG_MODULE[el.tag] ?? "box"
+    /**
+     * Children that will actually be DRAWN — `<svg>`, `<script>` and the rest
+     * of SKIP_TAGS are parsed and thrown away, so an `<a><svg/>Label</a>` has
+     * no renderable element child and keeps its label on the prop.
+     */
+    const elementKids = el.children.filter(
+      (c): c is El => typeof c !== "string" && !SKIP_TAGS.has(c.tag)
+    )
+    const hasElementChildren = elementKids.length > 0
+
+    let module = TAG_MODULE[el.tag] ?? "box"
+    // See PROP_ONLY: a module that draws only its prop cannot hold children.
+    if (PROP_ONLY.has(module) && hasElementChildren) module = "box"
     const id = nextId()
     const props: Record<string, unknown> = {}
     const children: string[] = []
@@ -182,6 +279,8 @@ export function htmlToDoc(html: string): Doc {
       classes = `list-none m-0 p-0 ${classes ?? ""}`.trim()
     }
     if (module === "heading") props.level = el.tag.replace("h", "")
+    // See TEXT_TAGS: a `<span>` that comes back as a `<p>` is a broken row.
+    if (module === "text" && TEXT_TAGS.has(el.tag)) props.tag = el.tag
     if (module === "image") {
       props.src = el.attrs.src ?? ""
       props.alt = el.attrs.alt ?? ""
@@ -194,9 +293,24 @@ export function htmlToDoc(html: string): Doc {
         .join(" ")
         .trim()
     )
-    if (TEXTY.has(module) && text) {
-      if (module === "button") props.label = text
-      else props.text = text
+    /**
+     * Its own words — and the empty case, which is the one that bit.
+     *
+     * The prop was only set when there WERE words, and the renderer merges a
+     * module's defaults under the node's props: an empty `<span>` therefore
+     * rendered the word "Text", an empty `<a>` rendered "Link". Spacers,
+     * icon-only buttons and decorative rules all came back with a word in
+     * them. Set always, empty included.
+     *
+     * A TEXTY element that also has ELEMENT children keeps its words as a
+     * child instead, because `link` renders `children ?? text` — so a logo
+     * link (`<a><img>Backlot</a>`) silently lost the brand name, which is the
+     * sort of thing that reads as a design decision rather than a bug.
+     */
+    const textAsChild = TEXTY.has(module) && hasElementChildren && !!text
+    if (TEXTY.has(module)) {
+      if (module === "button") props.label = textAsChild ? "" : text
+      else props.text = textAsChild ? "" : text
     }
     /**
      * Children, in source order — and text among them.
@@ -215,17 +329,28 @@ export function htmlToDoc(html: string): Doc {
      */
     for (const c of el.children) {
       if (typeof c !== "string") {
-        children.push(walk(c))
+        walkInto(c, children)
         continue
       }
-      if (TEXTY.has(module)) continue
+      // Its words are on the prop, unless they had to become a child.
+      if (TEXTY.has(module) && !textAsChild) continue
       const chunk = decodeEntities(c).trim()
       if (!chunk) continue
       const textId = nextId()
       nodes[textId] = {
         id: textId,
         module: "text",
-        props: { text: chunk },
+        /**
+         * A `span`, not the module's default `p`.
+         *
+         * This node exists because a run of text sat BESIDE an element —
+         * "Cancel <b>whenever</b> you like", or a brand name next to its logo.
+         * A paragraph there breaks the line it belongs to, and inside an `<a>`
+         * it puts a block element inside an inline one. It was already
+         * recorded as a span for selector matching; this makes it render as
+         * one too.
+         */
+        props: { text: chunk, tag: "span" },
         styleIds: [],
         children: [],
       }
@@ -238,8 +363,19 @@ export function htmlToDoc(html: string): Doc {
   }
 
   const rootId = nextId()
-  const rootChildren = tokenize(html).map(walk)
+  const rootChildren: string[] = []
+  for (const el of tokenize(html)) walkInto(el, rootChildren)
   nodes[rootId] = { id: rootId, module: "page-root", props: {}, styleIds: [], children: rootChildren }
+  /**
+   * The page root IS the body, as far as the stylesheet is concerned.
+   *
+   * `<body>` no longer becomes an element (see TRANSPARENT_TAGS), so without
+   * this there is nothing for `body{background;color;font-family;line-height}`
+   * to resolve onto — and that rule is the ground every imported page is drawn
+   * on. Recording the tag here lets `applyStylesheetToDoc` match it the normal
+   * way and put the declarations on the root, which wraps everything.
+   */
+  tags[rootId] = "body"
 
   const doc: Doc = {
     version: CORE_DOC_VERSION,

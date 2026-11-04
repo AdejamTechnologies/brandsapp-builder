@@ -54,7 +54,24 @@ export function ruleToCss(
       const decls = cssBagToString(bag)
       if (!decls) continue
       const mq = mediaQueryFor(bpById.get(ctxId))
-      css += mq ? `${mq}{${selector}{${decls}}}` : `${selector}{${decls}}`
+      /**
+       * A breakpoint the document does not declare is DROPPED, not emitted
+       * bare.
+       *
+       * This used to fall through to `${selector}{${decls}}` — the phone
+       * override applied at every width. A document whose theme is missing a
+       * breakpoint (a fragment pasted into a page that declares fewer of them,
+       * or anything built on `themeTokens.parse({})`, whose list is empty)
+       * therefore wore its mobile layout on a 1280px screen: `flex-wrap:wrap`
+       * and a 14px gap where the design said `nowrap` and 36px, which reads as
+       * a scattered, broken page.
+       *
+       * One thing is certain about an override whose width is unknown: it must
+       * not apply everywhere. Dropping it leaves the base layout, which is the
+       * design as drawn; keeping it replaces the design with its phone version.
+       */
+      if (!mq) continue
+      css += `${mq}{${selector}{${decls}}}`
     }
   }
   return css

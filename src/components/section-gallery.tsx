@@ -8,6 +8,7 @@ import {
   renderDocToReact,
   themeToCss,
   themeTokens,
+  DEFAULT_BREAKPOINTS,
   type Doc,
 } from "@brandsapp/builder-core"
 
@@ -30,7 +31,16 @@ import { cn } from "../lib/utils"
  * category rather than once per card.
  */
 
-const DEFAULT_THEME = themeTokens.parse({})
+/**
+ * With the standard breakpoints, so a block's responsive layer works.
+ *
+ * `themeTokens.parse({})` has an EMPTY breakpoint list, and a responsive
+ * override whose breakpoint the document does not declare is dropped (it used
+ * to be emitted bare, which put every block's phone layout on the desktop
+ * preview). A block imported from real HTML carries its `@media` rules as
+ * overrides on tablet/mobile/sm, so the preview has to know those widths.
+ */
+const DEFAULT_THEME = themeTokens.parse({ breakpoints: DEFAULT_BREAKPOINTS })
 const THEME_CSS = themeToCss(DEFAULT_THEME, ".bapp-root")
 
 const PREVIEW_W = 1024 // authoring width; narrower than desktop so the

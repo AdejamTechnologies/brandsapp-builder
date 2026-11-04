@@ -12,7 +12,13 @@ import {
   X,
 } from "lucide-react"
 
-import { ANIMATION_KEYFRAMES, generateUtilityCss, themeToCss, themeTokens } from "@brandsapp/builder-core"
+import {
+  ANIMATION_KEYFRAMES,
+  DEFAULT_BREAKPOINTS,
+  generateUtilityCss,
+  themeToCss,
+  themeTokens,
+} from "@brandsapp/builder-core"
 import blocksData from "../lib/blocks-data.json"
 import type { CuratedRef } from "../lib/curated"
 import { Button } from "../components/ui/button"
@@ -37,7 +43,16 @@ const blockKey = (b: { category: string; name: string }) => `${b.category}␟${b
 
 // A neutral default theme so daisyUI's CSS vars (bg-primary, btn-primary, …) have
 // sane fallbacks even though these library blocks carry no doc theme of their own.
-const DEFAULT_THEME = themeTokens.parse({})
+/**
+ * With the standard breakpoints, so a block's responsive layer works.
+ *
+ * `themeTokens.parse({})` has an EMPTY breakpoint list, and a responsive
+ * override whose breakpoint the document does not declare is dropped (it used
+ * to be emitted bare, which put every block's phone layout on the desktop
+ * preview). A block imported from real HTML carries its `@media` rules as
+ * overrides on tablet/mobile/sm, so the preview has to know those widths.
+ */
+const DEFAULT_THEME = themeTokens.parse({ breakpoints: DEFAULT_BREAKPOINTS })
 const THEME_CSS = themeToCss(DEFAULT_THEME, ".bapp-root")
 
 // Every class token used across all 304 blocks, collected once at module load so
