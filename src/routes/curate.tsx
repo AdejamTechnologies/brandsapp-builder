@@ -20,6 +20,7 @@ import {
   themeTokens,
 } from "@brandsapp/builder-core"
 import blocksData from "../lib/blocks-data.json"
+import { landingCategoryRaw, landingIndex } from "../lib/landing-blocks"
 import type { CuratedRef } from "../lib/curated"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -31,7 +32,17 @@ interface Block {
   name: string
   html: string
 }
-const BLOCKS = blocksData as Block[]
+/**
+ * The blocks that ride along in this bundle. The other 2,212 are fetched.
+ *
+ * The screen used to be built on this constant alone, which meant curation
+ * governed 304 of the library's 2,516 blocks and had no say over the landing
+ * bands at all — an owner could rule on everything in front of them, export,
+ * and find the panel unchanged for the overwhelming majority of what it shows.
+ * A landing industry is loaded when it is selected, because 7.8MB is not a
+ * thing to download before anybody has asked for it.
+ */
+const BUNDLED = blocksData as Block[]
 
 const STORAGE_KEY = "bapp.curation.v1"
 type Decision = "keep" | "drop"
@@ -55,9 +66,9 @@ const blockKey = (b: { category: string; name: string }) => `${b.category}␟${b
 const DEFAULT_THEME = themeTokens.parse({ breakpoints: DEFAULT_BREAKPOINTS })
 const THEME_CSS = themeToCss(DEFAULT_THEME, ".bapp-root")
 
-// Every class token used across all 304 blocks, collected once at module load so
-// generateUtilityCss (the exact mechanism canvas.tsx uses) only has to run a single
-// pass covering every card, instead of once per card.
+// Every class token used across the loaded blocks, collected in one pass so
+// generateUtilityCss (the exact mechanism canvas.tsx uses) runs once covering
+// every card, instead of once per card.
 const CLASS_ATTR_RE = /\bclass\s*=\s*"([^"]*)"/g
 function extractClassTokens(html: string): string[] {
   const out: string[] = []
@@ -66,7 +77,7 @@ function extractClassTokens(html: string): string[] {
   while ((m = CLASS_ATTR_RE.exec(html))) out.push(m[1])
   return out
 }
-const ALL_CLASS_TOKENS = BLOCKS.flatMap((b) => extractClassTokens(b.html))
+
 
 function loadSelections(): Selections {
   try {
@@ -327,9 +338,46 @@ export function CuratePage() {
     }
   }, [selections])
 
-  // Scoped utility CSS (Tailwind utilities + daisyUI component classes), generated
-  // once for the union of every block's classes — same generateUtilityCss the
-  // canvas uses, injected under `@scope (.bapp-root)` so it can't touch the chrome.
+  /** Landing industries that have been fetched, keyed by slug. */
+  const [loaded, setLoaded] = useState<Record<string, Block[]>>({})
+  const [industries, setIndustries] = useState<
+    Array<{ slug: string; label: string; count: number }>
+  >([])
+  const [loadingSlug, setLoadingSlug] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  // The index is 21 rows, so the categories can all be listed having fetched
+  // almost nothing — the blocks themselves come one industry at a time.
+  useEffect(() => {
+    let cancelled = false
+    landingIndex()
+      .then((rows) => {
+        if (!cancelled) setIndustries(rows.map((r) => ({ slug: r.slug, label: r.label, count: r.count })))
+      })
+      .catch(() => {
+        // Not fatal: the bundled blocks are still curatable, and saying so is
+        // better than an empty category list with no explanation.
+        if (!cancelled) setLoadError("The landing library could not be reached; only the bundled blocks are shown.")
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const BLOCKS = useMemo(
+    () => [...BUNDLED, ...Object.values(loaded).flat()],
+    [loaded]
+  )
+  const ALL_CLASS_TOKENS = useMemo(
+    () => BLOCKS.flatMap((b) => extractClassTokens(b.html)),
+    [BLOCKS]
+  )
+
+  // Scoped utility CSS (Tailwind utilities + daisyUI component classes),
+  // generated for the union of every LOADED block's classes — the same
+  // generateUtilityCss the canvas uses, injected under `@scope (.bapp-root)`
+  // so it cannot touch the chrome. Regenerated when an industry arrives,
+  // because its bands bring class names the bundled set never used.
   const [utilCss, setUtilCss] = useState("")
   useEffect(() => {
     let cancelled = false
@@ -339,7 +387,7 @@ export function CuratePage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [ALL_CLASS_TOKENS])
 
   const [q, setQ] = useState("")
   const [category, setCategory] = useState("all")
@@ -348,16 +396,54 @@ export function CuratePage() {
   const searchRef = useRef<HTMLInputElement>(null)
 
   const categories = useMemo(() => {
-    const set = new Set(BLOCKS.map((b) => b.category))
-    return [{ value: "all", label: `All categories (${BLOCKS.length})` }, ...[...set].sort().map((c) => ({ value: c, label: c }))]
-  }, [])
+    const set = new Set(BUNDLED.map((b) => b.category))
+    const bundled = [...set].sort().map((c) => ({ value: c, label: c }))
+    // Prefixed, so choosing one is what triggers the fetch — and so an
+    // industry nobody has opened still appears, with its real count.
+    const landing = industries.map((i) => ({
+      value: `landing:${i.slug}`,
+      label: `${i.label} (${i.count})${loaded[i.slug] ? "" : " — not loaded"}`,
+    }))
+    return [
+      { value: "all", label: `All loaded categories (${BLOCKS.length})` },
+      ...bundled,
+      ...landing,
+    ]
+  }, [industries, loaded, BLOCKS.length])
+
+  /**
+   * Choosing an industry fetches it, once.
+   *
+   * `landingCategoryRaw`, not `landingCategory`: this screen has to show what
+   * curation has already dropped as well as what it kept, so it must see the
+   * list before the filter, not after.
+   */
+  const chooseCategory = (value: string) => {
+    setCategory(value)
+    const slug = value.startsWith("landing:") ? value.slice("landing:".length) : null
+    if (!slug || loaded[slug] || loadingSlug === slug) return
+    setLoadingSlug(slug)
+    setLoadError(null)
+    landingCategoryRaw(slug)
+      .then((rows) => setLoaded((prev) => ({ ...prev, [slug]: rows as Block[] })))
+      .catch(() => setLoadError(`Could not load ${slug}. Try choosing it again.`))
+      .finally(() => setLoadingSlug((cur) => (cur === slug ? null : cur)))
+  }
+
+  /** The category name the blocks themselves carry, for the chosen industry. */
+  const categoryNames = useMemo(() => {
+    if (category === "all") return null
+    if (!category.startsWith("landing:")) return new Set([category])
+    const slug = category.slice("landing:".length)
+    return new Set((loaded[slug] ?? []).map((b) => b.category))
+  }, [category, loaded])
 
   const decisionOf = useCallback((b: Block) => selections[blockKey(b)], [selections])
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase()
     return BLOCKS.filter((b) => {
-      if (category !== "all" && b.category !== category) return false
+      if (categoryNames && !categoryNames.has(b.category)) return false
       if (query && !`${b.name} ${b.category}`.toLowerCase().includes(query)) return false
       const d = decisionOf(b)
       if (view === "kept") return d === "keep"
@@ -365,10 +451,10 @@ export function CuratePage() {
       if (view === "undecided") return !d
       return true
     })
-  }, [q, category, view, decisionOf])
+  }, [q, categoryNames, view, decisionOf, BLOCKS])
 
-  const keptCount = useMemo(() => BLOCKS.reduce((n, b) => n + (decisionOf(b) === "keep" ? 1 : 0), 0), [decisionOf])
-  const droppedCount = useMemo(() => BLOCKS.reduce((n, b) => n + (decisionOf(b) === "drop" ? 1 : 0), 0), [decisionOf])
+  const keptCount = useMemo(() => BLOCKS.reduce((n, b) => n + (decisionOf(b) === "keep" ? 1 : 0), 0), [decisionOf, BLOCKS])
+  const droppedCount = useMemo(() => BLOCKS.reduce((n, b) => n + (decisionOf(b) === "drop" ? 1 : 0), 0), [decisionOf, BLOCKS])
   const undecidedCount = BLOCKS.length - keptCount - droppedCount
 
   const setDecision = (b: Block, d: Decision | undefined) => {
@@ -399,11 +485,30 @@ export function CuratePage() {
     }
   }
 
+  /**
+   * Only what is loaded can be exported, and that is the honest thing.
+   *
+   * A kept list is an allowlist, and `filterCurated` treats a category nobody
+   * ruled on as a category to leave whole — so exporting after ruling on three
+   * industries narrows those three and leaves the rest exactly as they are,
+   * rather than deleting 2,000 bands the owner was never shown.
+   */
   const doExport = () => {
-    const kept: CuratedRef[] = BLOCKS.filter((b) => decisionOf(b) === "keep").map((b) => ({
-      category: b.category,
-      name: b.name,
-    }))
+    /**
+     * Every kept key, including ones whose blocks are not loaded right now.
+     *
+     * `selections` is keyed by `category␟name` and survives an industry being
+     * closed again (and a reload, via localStorage), so exporting from the
+     * loaded blocks alone would quietly drop whatever was decided earlier in
+     * the session about an industry no longer on screen.
+     */
+    const kept: CuratedRef[] = Object.entries(selections)
+      .filter(([, d]) => d === "keep")
+      .map(([key]) => {
+        const [category = "", name = ""] = key.split("\u241f")
+        return { category, name }
+      })
+      .filter((r) => r.category && r.name)
     const blob = new Blob([JSON.stringify(kept, null, 2)], { type: "application/json" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -420,9 +525,18 @@ export function CuratePage() {
       .then((text) => {
         const list = JSON.parse(text) as CuratedRef[]
         if (!Array.isArray(list)) throw new Error("not an array")
-        const allow = new Set(list.map((r) => blockKey(r)))
+        /**
+         * Keyed from the FILE, not from the loaded blocks.
+         *
+         * The library is fetched one industry at a time, so "mark every loaded
+         * block the file mentions" would have silently thrown away every
+         * decision about an industry nobody had opened yet — and then
+         * re-exported the loss. A key needs only a category and a name, both
+         * of which the file carries, so the block itself does not have to be
+         * in memory for its decision to be remembered.
+         */
         const next: Selections = {}
-        for (const b of BLOCKS) if (allow.has(blockKey(b))) next[blockKey(b)] = "keep"
+        for (const ref of list) next[blockKey(ref)] = "keep"
         setSelections(next)
       })
       .catch(() => window.alert("That file doesn't look like a valid curated.json export — expected an array of {category, name}."))
@@ -453,7 +567,7 @@ export function CuratePage() {
         <div className="mx-1 h-5 w-px bg-border" />
         <h1 className="text-sm font-semibold text-foreground">Curate library blocks</h1>
         <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-          {keptCount} kept of {BLOCKS.length}
+          {keptCount} kept of {BLOCKS.length} loaded
         </span>
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={doExport}>
@@ -490,7 +604,7 @@ export function CuratePage() {
         </div>
         <Select
           value={category}
-          onValueChange={setCategory}
+          onValueChange={chooseCategory}
           options={categories}
           placeholder="Category"
           className="w-64"
@@ -512,6 +626,10 @@ export function CuratePage() {
             </button>
           ))}
         </div>
+        {loadingSlug && (
+          <span className="text-xs text-muted-foreground">Loading {loadingSlug}…</span>
+        )}
+        {loadError && <span className="text-xs text-destructive">{loadError}</span>}
         <div className="flex-1" />
         <span className="text-xs text-muted-foreground">{filtered.length} shown</span>
         <Button variant="outline" size="sm" onClick={() => bulkSet("keep")} disabled={filtered.length === 0}>

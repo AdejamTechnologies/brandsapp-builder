@@ -15,6 +15,7 @@
  * depending on a theme that does not travel with a fragment.
  */
 
+import { filterCurated } from "./curated"
 import { fromHtml, type Template } from "./templates"
 
 interface LandingCategory {
@@ -24,7 +25,8 @@ interface LandingCategory {
   bytes: number
 }
 
-interface RawBlock {
+/** A block as the generator writes it: self-contained HTML plus its name. */
+export interface LandingBlock {
   category: string
   name: string
   html: string
@@ -73,8 +75,25 @@ export function landingIndex(): Promise<LandingCategory[]> {
   return getJson<LandingCategory[]>("index.json")
 }
 
-/** One industry's blocks, as Templates. Fetched once, then cached. */
+/**
+ * One industry's blocks, exactly as generated — before curation.
+ *
+ * For the `/curate` screen, which has to show what has been dropped as well as
+ * what has been kept. Everything else wants `landingCategory` below.
+ */
+export function landingCategoryRaw(slug: string): Promise<LandingBlock[]> {
+  return getJson<LandingBlock[]>(`${slug}.json`)
+}
+
+/**
+ * One industry's blocks, as Templates. Fetched once, then cached.
+ *
+ * Curated like the bundled set. These used to bypass `filterCurated`
+ * altogether, which meant the `/curate` screen governed 304 of the library's
+ * 2,516 blocks and silently had no say over the other 2,212 — an owner could
+ * export a list and watch the panel ignore it.
+ */
 export async function landingCategory(slug: string): Promise<Template[]> {
-  const raw = await getJson<RawBlock[]>(`${slug}.json`)
-  return raw.map((b) => fromHtml(b.category, b.name, b.html))
+  const raw = await landingCategoryRaw(slug)
+  return filterCurated(raw).map((b) => fromHtml(b.category, b.name, b.html))
 }
