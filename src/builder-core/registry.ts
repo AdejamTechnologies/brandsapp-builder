@@ -30,6 +30,22 @@ export interface PropControl {
    */
   multiline?: boolean
   /**
+   * May a BRAND change this on a design it was given?
+   *
+   * A brand edits what its page says, never what it is: words, pictures, link
+   * destinations, colour. Not the grid's column count, not a flex direction,
+   * not whether a band is a `section` or an `aside` — those are the design,
+   * and a design a brand can break is a support ticket with a screenshot
+   * attached.
+   *
+   * Left unset, `isBrandEditable` decides from the control type and the prop's
+   * name, which is right for the overwhelming majority. Set it explicitly for
+   * the ones it would get wrong — and `tests/brand-editable.test.ts` lists
+   * every field the rule admits across every module, so a new field cannot
+   * quietly become something a brand may change.
+   */
+  brandEditable?: boolean
+  /**
    * Presentation hint only — the renderer is untouched by this flag. Use with
    * a SMALL `options` list (roughly <= 6 short values) that reads better as a
    * row of buttons than a dropdown — heading level 1–6, a Visible/Hidden pair.
@@ -246,4 +262,82 @@ export class ModuleRegistry {
   requiredAncestors(child: string): string[] | undefined {
     return this.map.get(child)?.allowedAncestors
   }
+}
+
+/**
+ * Prop names that are CONTENT whatever control they happen to use.
+ *
+ * `plain` is the problem this solves. It is the most-used control in the
+ * engine, and it carries both "the heading's words" and "the grid's gap" —
+ * so safety cannot be read off the type, and a rule that guessed from the
+ * type alone would be wrong in both directions at once.
+ */
+const CONTENT_PROPS = new Set([
+  "text",
+  "label",
+  "title",
+  "subtitle",
+  "heading",
+  "subheading",
+  "eyebrow",
+  "caption",
+  "alt",
+  "quote",
+  "question",
+  "answer",
+  "body",
+  "summary",
+  "price",
+  "description",
+  "placeholder",
+  /**
+   * Not `name`. Every module that has one means the FORM FIELD name — the key
+   * a submission arrives under — and a brand renaming it silently breaks the
+   * mapping between the form and whatever reads it. It reads like content and
+   * is wiring.
+   *
+   * Not `role` either: it is the ARIA attribute far more often than it is a
+   * job title on a team card.
+   */
+  "author",
+  "badge",
+  "note",
+  "cta",
+  "buttonLabel",
+  "submitLabel",
+  "successMessage",
+  "errorMessage",
+  "emptyMessage",
+])
+
+/**
+ * May a brand change this field on a design it was given?
+ *
+ * The default: anything whose control is inherently content (a picture, rich
+ * text, a link destination, a colour), plus the plain fields whose NAME says
+ * they are words. Everything else — counts, directions, alignments, tags,
+ * toggles, raw JSON — is the design, and stays with whoever made it.
+ */
+export function isBrandEditable(prop: string, control: PropControl): boolean {
+  if (typeof control.brandEditable === "boolean") return control.brandEditable
+  switch (control.type) {
+    case "richtext":
+    case "media":
+    case "url":
+    case "color":
+      return true
+    case "plain":
+      return CONTENT_PROPS.has(prop)
+    default:
+      return false
+  }
+}
+
+/** The part of a module's schema a brand may be shown. */
+export function brandEditableSchema(schema: PropSchema): PropSchema {
+  const out: PropSchema = {}
+  for (const [prop, control] of Object.entries(schema)) {
+    if (isBrandEditable(prop, control)) out[prop] = control
+  }
+  return out
 }

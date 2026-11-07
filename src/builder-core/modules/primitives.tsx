@@ -461,7 +461,18 @@ const Link: ModuleDefinition = {
 const Embed: ModuleDefinition = {
   name: "embed",
   category: "advanced",
-  schema: { html: { type: "richtext" } },
+  schema: {
+    html: {
+      type: "richtext",
+      /**
+       * Raw HTML, so not something a BRAND may change on a design it was
+       * given. Every other `richtext` field in the engine is copy; this one is
+       * a hole straight through the page into the document, and a brand
+       * pasting a widget into it is a broken layout at best.
+       */
+      brandEditable: false,
+    },
+  },
   // Placeholder markup rather than a styled empty-state frame: it disappears as
   // soon as real embed code is pasted, whereas a dashed placeholder BORDER would
   // linger around the author's iframe and follow it into the published page.
