@@ -8,6 +8,7 @@ import { SettingsFields } from "./settings-fields"
 import { Button } from "./ui/button"
 import { Select } from "./ui/select"
 import { Tabs, TabsList, TabsPanel, TabsTab } from "./ui/tabs"
+import { TemplateFields } from "./template-fields"
 import { cn } from "../lib/utils"
 
 type Anim = NonNullable<Node["anim"]>
@@ -378,6 +379,11 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
         <TabsList className="border-b border-border px-2 pt-1">
           <TabsTab value="style">Styles{activeBp ? ` · ${activeBp}` : ""}</TabsTab>
           <TabsTab value="settings">Settings</TabsTab>
+          {/* Authoring a TEMPLATE rather than a page: which parts of this
+              design a brand's own content fills. Its own tab because it is a
+              different job from styling, done once, by whoever is building
+              the template rather than whoever is using it. */}
+          <TabsTab value="template">Template</TabsTab>
         </TabsList>
 
         <TabsPanel value="settings">
@@ -385,6 +391,10 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
           {/* Scroll-linked motion lives here rather than under Styles: it is a
               behaviour of the element, not a rule in the cascade. */}
           <MotionFields node={node} onChange={patch} />
+        </TabsPanel>
+
+        <TabsPanel value="template">
+          <TemplateFields doc={doc} node={node} onChange={onChange} />
         </TabsPanel>
 
         <TabsPanel value="style">

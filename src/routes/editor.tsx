@@ -166,6 +166,7 @@ import {
   type Doc,
   type Fragment,
   type Node,
+  type TemplateManifest,
 } from "@brandsapp/builder-core"
 import { BuildDialog } from "../components/build-dialog"
 import { CommentsDialog } from "../components/comments-dialog"
@@ -179,6 +180,7 @@ import { ElementSettings, ElementSettingsChip } from "../components/element-sett
 import { SettingsFields } from "../components/settings-fields"
 import { Inspector } from "../components/inspector"
 import { LibraryDialog } from "../components/library-dialog"
+import { TemplateDialog } from "../components/template-dialog"
 import { ThemeDialog } from "../components/theme-dialog"
 import { copyNode, duplicateNode, insertFragmentAt, pasteFragment } from "../lib/actions"
 import { Canvas } from "../lib/canvas"
@@ -294,6 +296,7 @@ export function EditorPage() {
   const [buildOpen, setBuildOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
+  const [templateOpen, setTemplateOpen] = useState(false)
   // When set, the canvas + navigator show a linked component's master subtree for
   // editing (the real doc.rootId is untouched; we just swap the view root).
   const [editingComponent, setEditingComponent] = useState<string | null>(null)
@@ -468,6 +471,17 @@ export function EditorPage() {
   }
   const setTheme = (patch: Partial<Doc["theme"]>, coalesceKey?: string) =>
     apply(updateTheme(docRef.current, patch), coalesceKey)
+  /**
+   * The template manifest lives on `meta`, so it travels with the document and
+   * cannot drift from it the way a file kept alongside would.
+   */
+  const setManifest = (manifest: TemplateManifest | undefined, coalesceKey?: string) => {
+    const current = docRef.current
+    const meta = { ...(current.meta ?? {}) }
+    if (manifest) meta.template = manifest
+    else delete meta.template
+    apply({ ...current, meta }, coalesceKey)
+  }
   // Play a node's animation once in the canvas (Inspector preview).
   const previewAnim = (nodeId: string, anim: { effect: string; duration?: number; delay?: number }) => {
     const el = scrollRef.current?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(nodeId)}"]`)
@@ -1206,6 +1220,13 @@ export function EditorPage() {
             <PaletteIcon className="size-4" />
             Variables
           </Button>
+          {/* Authoring a TEMPLATE: who this design is for, and handing it over
+              as one file. Beside Variables because both are decisions about
+              the whole document rather than about a selected element. */}
+          <Button variant="ghost" size="sm" onClick={() => setTemplateOpen(true)}>
+            <LayoutTemplate className="size-4" />
+            Template
+          </Button>
           <IconButton tip="Insert section" onClick={() => setLibraryOpen(true)}>
             <Plus className="size-4" />
           </IconButton>
@@ -1455,6 +1476,29 @@ export function EditorPage() {
         />
       )}
       {themeOpen && <ThemeDialog theme={doc.theme} onChange={setTheme} onClose={() => setThemeOpen(false)} />}
+      {templateOpen && (
+        <TemplateDialog
+          doc={doc}
+          pages={pages.map((pg) => ({ id: pg.id, title: pg.title, slug: pg.slug }))}
+          currentPageId={pageId}
+          loadPage={async (id) => {
+            if (!tenant) return null
+            try {
+              const res = await fetch(
+                `/api/pages/${encodeURIComponent(id)}?tenant=${encodeURIComponent(tenant)}`
+              )
+              if (!res.ok) return null
+              // `doc`, the same shape the page load above reads.
+              const d = (await res.json()) as { doc?: unknown }
+              return d.doc ? parseDoc(d.doc) : null
+            } catch {
+              return null
+            }
+          }}
+          onChange={setManifest}
+          onClose={() => setTemplateOpen(false)}
+        />
+      )}
 
       {ghost && (
         <div className="drag-ghost" style={{ left: ghost.x + 12, top: ghost.y + 12 }}>

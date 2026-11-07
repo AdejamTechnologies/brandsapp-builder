@@ -7,6 +7,8 @@
 
 import { z } from "zod"
 
+import { templateManifest } from "./template-manifest"
+
 export const CORE_DOC_VERSION = 1
 
 const id = z.string().min(1)
@@ -183,6 +185,15 @@ export const docMeta = z.object({
    * exactly as before.
    */
   residualCss: z.string().optional(),
+  /**
+   * What makes this page part of a TEMPLATE — who it is for, which looks it
+   * allows, which apps it needs, and its place in a multi-page design.
+   *
+   * On the document, like the slots are on the nodes, and for the same reason:
+   * a manifest kept alongside a document drifts the first time somebody edits
+   * one without the other. A page without it is simply a page.
+   */
+  template: templateManifest.optional(),
 })
 
 // A linked component ("symbol"): a named, reusable subtree. Its nodes live in the

@@ -40,6 +40,8 @@ export * from "./choreography"
 export * from "./icons"
 export * from "./phone"
 export * from "./slots"
+export * from "./template-manifest"
+export * from "./template-sources"
 export {
   ALL_BUTTON_TOKENS,
   ANIMATION_LOADER,
