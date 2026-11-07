@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router"
 
 import { NetworkIndicator } from "./components/network-indicator"
+import { SessionBar } from "./components/session-bar"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { CuratePage } from "./routes/curate"
 import { EditorPage } from "./routes/editor"
@@ -26,6 +27,12 @@ const rootRoute = createRootRoute({
             BrandsApp <span className="text-foreground">Builder</span>
           </Link>
           <span className="text-xs text-muted-foreground">central editor</span>
+          {/* Pushed right: who is signed in, and a warning when this brand is
+              not theirs — otherwise every panel degrades politely and none of
+              them says the one thing that is actually wrong. */}
+          <span className="ml-auto flex items-center gap-2">
+            <SessionBar />
+          </span>
         </header>
         <Outlet />
       </div>

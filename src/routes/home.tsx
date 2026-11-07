@@ -16,7 +16,7 @@ export function HomePage() {
     navigate({
       to: "/edit/$pageId",
       params: { pageId: id },
-      search: tenant.trim() ? { tenant: tenant.trim() } : undefined,
+      search: tenant.trim() ? { tenant: tenant.trim().toLowerCase() } : undefined,
     })
   }
 
@@ -68,7 +68,9 @@ export function HomePage() {
       <div className="mt-3 rounded-xl border border-border bg-background p-4">
         <div className="text-sm font-semibold text-foreground">Open a tenant page</div>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Loads and saves against a live tenant — provide the page id and the tenant’s app URL.
+          Loads and saves against a live brand — the page id, and the brand’s
+          slug. The address is built on the server, from a brand you have been
+          granted; a URL typed here would reach nothing.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Input
@@ -79,7 +81,7 @@ export function HomePage() {
           />
           <Input
             className="min-w-64 flex-1"
-            placeholder="https://acme.brandsapp.io"
+            placeholder="acme"
             value={tenant}
             onChange={(e) => setTenant(e.target.value)}
           />
@@ -92,7 +94,7 @@ export function HomePage() {
       <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
         Click to select · double-click text to edit · drag palette chips or layers onto the canvas · ⌘Z/⌘⇧Z
         undo/redo · ⌘D duplicate · ⌘C/⌘V copy-paste · Delete to remove. Realtime collab runs through the
-        DocRoom DO; sign-in gating comes later.
+        DocRoom DO, which is gated on the same session the rest of this is.
       </p>
     </main>
   )

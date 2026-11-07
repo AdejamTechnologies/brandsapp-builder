@@ -990,7 +990,7 @@ export function EditorPage() {
     if (id !== pageId) navigate({ to: "/edit/$pageId", params: { pageId: id }, search: { tenant } })
   }
   const newPage = async () => {
-    if (!tenant) return setStatus("Add ?tenant=<url> to manage pages.")
+    if (!tenant) return setStatus("Add ?tenant=<brand-slug> to manage pages.")
     const title = window.prompt("New page title", "Untitled")
     if (title == null) return
     try {
@@ -1026,7 +1026,7 @@ export function EditorPage() {
    * down and putting it back up.
    */
   const sendPublish = async (goLive: boolean) => {
-    if (!tenant) return setStatus("Add ?tenant=<url> to publish.")
+    if (!tenant) return setStatus("Add ?tenant=<brand-slug> to publish.")
     setStatus(goLive ? "Publishing…" : "Taking down…")
     try {
       const res = await fetch(`/api/pages/${encodeURIComponent(pageId)}/publish?tenant=${encodeURIComponent(tenant)}`, {
@@ -1057,7 +1057,7 @@ export function EditorPage() {
   const takeDown = () => sendPublish(false)
 
   const save = async () => {
-    if (!tenant) return setStatus("Add ?tenant=<url> to save.")
+    if (!tenant) return setStatus("Add ?tenant=<brand-slug> to save.")
     setStatus("Saving…")
     try {
       const res = await fetch(`/api/pages/${encodeURIComponent(pageId)}?tenant=${encodeURIComponent(tenant)}`, {

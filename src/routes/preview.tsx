@@ -11,7 +11,7 @@ import { registry } from "../lib/registry"
 /**
  * Read-only, shareable render of a page — exactly what publishes (isEditor: false),
  * with the interactive runtime (tabs / dropdown / scroll reveal) live. Reached via
- * the Share link in the editor: /preview/<pageId>?tenant=<url>.
+ * the Share link in the editor: /preview/<pageId>?tenant=<brand-slug>.
  */
 export function PreviewPage() {
   const { pageId } = useParams({ from: "/preview/$pageId" })
@@ -24,7 +24,7 @@ export function PreviewPage() {
     // A local demo has no tenant to fetch from — render it straight, so
     // /preview/<demo> shows exactly what publishes.
     if (isDemoPage(pageId)) return setDoc(parseDoc(docFor(pageId)))
-    if (!tenant) return setErr("Add ?tenant=<url> to preview this page.")
+    if (!tenant) return setErr("Add ?tenant=<brand-slug> to preview this page.")
     fetch(`/api/pages/${encodeURIComponent(pageId)}?tenant=${encodeURIComponent(tenant)}`)
       .then((r) => (r.ok ? (r.json() as Promise<{ doc?: unknown }>) : Promise.reject(new Error(`load failed (${r.status})`))))
       .then((d) => setDoc(parseDoc(d.doc)))

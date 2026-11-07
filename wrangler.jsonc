@@ -15,11 +15,20 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DocRoom"] }],
   "observability": { "enabled": true },
   "vars": {
-    // Base URL of a tenant Worker's builder API, e.g. https://<slug>.brandsapp.io.
-    // The editor loads/saves a page's Doc through here. Overridden per-request by
-    // the ?tenant= param in dev.
+    // Brands live at https://<slug>.<TENANT_HOST_SUFFIX>. The client names a
+    // brand by SLUG and this address is built here, on the server — `?tenant=`
+    // used to be a full URL from the query string, which meant anyone could
+    // edit any brand and could also have the fleet service token posted to a
+    // server of their choosing.
+    "TENANT_HOST_SUFFIX": "brandsapp.io",
+    // Local development against a tenant on localhost. Honoured ONLY when
+    // ALLOW_LOCAL_TENANT is "1", which must never be true in production.
     "TENANT_API_BASE": "",
-    "BETTER_AUTH_URL": "https://builder.brandsapp.io",
-    // BUILDER_SERVICE_TOKEN is a secret: `wrangler secret put BUILDER_SERVICE_TOKEN`
+    "ALLOW_LOCAL_TENANT": "0",
+    // Both secrets: `wrangler secret put <name>`
+    //   BUILDER_SERVICE_TOKEN — calls a tenant's builder API. Opens every brand.
+    //   BUILDER_GRANT_SECRET  — signs/verifies who may open the builder, shared
+    //                           with the platform. Separate from the above, so a
+    //                           leaked signing key cannot be replayed at a tenant.
   },
 }
