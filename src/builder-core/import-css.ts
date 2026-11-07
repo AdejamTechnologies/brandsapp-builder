@@ -33,6 +33,7 @@
  * Best-effort by design, like the HTML importer it extends.
  */
 
+import { DAISY_COMPONENT_CLASSES } from "./daisy-components"
 import type { Doc, Node } from "./schema"
 
 export interface CssRule {
@@ -217,8 +218,8 @@ export interface ApplyResult {
   residual: string
   /** `var()` references retargeted onto the theme's own names. */
   retargeted: number
-  /** Nodes given back the margin the browser would have supplied. */
-  uaMargins: number
+  /** Nodes given back a style the browser would have supplied. */
+  uaRestored: number
   /** Class names dropped from nodes because this sheet defined them. */
   classesDropped: number
 }
@@ -280,76 +281,258 @@ function retargetVars(doc: Doc, lifted: Set<string>): number {
 }
 
 /**
- * The margins the BROWSER would have given, where the sheet gave none.
+ * The styles the BROWSER would have given, where the sheet gave none.
  *
- * Our preflight zeroes them —
- * `:where(.bapp-root) :where(h1..h6,p,figure,blockquote,dl,dd,pre){margin:0}` —
- * and a page written against the browser's defaults never said so out loud. A
- * `<figure>` and a `<blockquote>` carry a 40px SIDE margin by UA default, and
- * losing it moves the element: measured over a 97-band sample, 13 of them had
- * a figure or a quote sitting 40px further left and 80px wider than the source.
+ * Our preflight normalises two groups of UA defaults away —
+ * `:where(.bapp-root) :where(h1..h6,p,figure,blockquote,dl,dd,pre){margin:0}`
+ * and `:where(button,input,optgroup,select,textarea){font:inherit}` — and a
+ * page written against the browser's defaults never said so out loud. It is
+ * the right preflight for a page authored HERE, where every design is written
+ * against it, and the wrong one for a page that arrives already finished.
  *
- * Only those two, and only their horizontal margin. The vertical ones on
- * headings and paragraphs are set deliberately by essentially every real
- * design, so adding a UA fallback there would fight the author rather than
- * restore them — the same reason the HTML importer only resets a `<ul>` whose
- * author set no `list-style`.
+ * Measured over 30 of the 200-page corpus with `scripts/check-import-boxes.mts`,
+ * before this pass: 556 of 8,203 elements (6.8%) sat somewhere other than where
+ * the source put them, and every one of the leading signatures was one of these
+ * two losses — `figure y-16`, `blockquote y-15`, `p y-16` (the vertical UA
+ * margin), and `button h+4`, `input h+4` (`font: inherit` handing a control the
+ * body's `line-height` where the UA gives it `normal`), plus the containers
+ * those sit in reporting the same difference one level up.
+ *
+ * ── Why these values ───────────────────────────────────────────────────────
+ *
+ * Read out of a current engine rather than recalled: `getComputedStyle` on a
+ * bare document of one element per tag. The heading margins come back as a
+ * ratio of the heading's OWN font-size (h1 21.44px at 32px, h2 19.92 at 24,
+ * h3 18.72 at 18.72, h4 21.28 at 16, h5 22.1776 at 13.28, h6 24.9776 at
+ * 10.72), so they are restored in `em` — which is also what makes restoring
+ * them safe at a font-size the author changed: `0.67em` is what the UA would
+ * have computed there too, not a 21px guess frozen from a 16px page.
+ *
+ * ── Why this is not "fighting the author" ──────────────────────────────────
+ *
+ * An earlier version of this restored only the horizontal margins on `figure`
+ * and `blockquote`, on the reasoning that vertical margins are set
+ * deliberately by essentially every real design. The first half is true and
+ * the conclusion was wrong: a design that sets them is skipped by the guard
+ * below, and the measurement says the remaining elements — the ones where the
+ * author set NOTHING — are precisely where the loss showed. The guard is per
+ * property group, so a `<p>` that sets `margin-bottom` keeps its own and gains
+ * nothing, and a page carrying its own `*{margin:0}` reset is left alone
+ * entirely (see `universalMarginReset`).
  */
-const UA_SIDE_MARGIN: Record<string, string> = {
-  figure: "40px",
-  blockquote: "40px",
+const UA_MARGIN: Record<string, Record<string, string>> = {
+  p: { "margin-top": "1em", "margin-bottom": "1em" },
+  h1: { "margin-top": "0.67em", "margin-bottom": "0.67em" },
+  h2: { "margin-top": "0.83em", "margin-bottom": "0.83em" },
+  h3: { "margin-top": "1em", "margin-bottom": "1em" },
+  h4: { "margin-top": "1.33em", "margin-bottom": "1.33em" },
+  h5: { "margin-top": "1.67em", "margin-bottom": "1.67em" },
+  h6: { "margin-top": "2.33em", "margin-bottom": "2.33em" },
+  dl: { "margin-top": "1em", "margin-bottom": "1em" },
+  pre: { "margin-top": "1em", "margin-bottom": "1em" },
+  figure: {
+    "margin-top": "1em",
+    "margin-bottom": "1em",
+    "margin-left": "40px",
+    "margin-right": "40px",
+  },
+  blockquote: {
+    "margin-top": "1em",
+    "margin-bottom": "1em",
+    "margin-left": "40px",
+    "margin-right": "40px",
+  },
+  // The only one with a horizontal default and no vertical one.
+  dd: { "margin-left": "40px" },
 }
 
-function restoreUaMargins(doc: Doc, tags: Record<string, string>): number {
+/**
+ * Controls whose metrics `font: inherit` overwrites.
+ *
+ * Only `line-height` is restored, and only that because only that was measured
+ * to be wrong: `button h+4` and `input h+4` were the two leading signatures in
+ * the box comparison, and after this they leave the list entirely.
+ *
+ * The UA also gives a control its own `font-size` (13.333px) and `font-family`
+ * (the system UI face, monospace for a `<textarea>`), and those are NOT
+ * restored. Nothing in the corpus asked for it — a page that styles its
+ * buttons sets the size itself, so the restore would almost always be skipped
+ * by the guard anyway — and handing an unstyled button back 13.333px Arial on
+ * a page whose body font is something else is a bigger change than the one it
+ * would be correcting. If a real page ever turns up needing them, the
+ * measurement is the thing to add them on, not this reasoning.
+ */
+const UA_FORM_TAGS = new Set(["button", "input", "select", "textarea"])
+
+/**
+ * What a `<table>` does before anyone styles it.
+ *
+ * Our preflight carries Tailwind's `table{border-collapse:collapse}`, and the
+ * UA default is `separate` with `border-spacing: 2px`. Two pixels between
+ * every pair of cells sounds like nothing and is not: on the comparison table
+ * in `saas/callframe` it is 24 cells each between 3px and 8px out, because the
+ * spacing accumulates across the row and the collapsed version redistributes
+ * the width differently. Restored only when the author set neither property —
+ * and most real tables do set `border-collapse`, which is why this is a
+ * handful of pages rather than all of them.
+ */
+const UA_TABLE: Record<string, string> = {
+  "border-collapse": "separate",
+  "border-spacing": "2px",
+}
+
+/**
+ * What else can speak for one margin, so the restore keeps quiet.
+ *
+ * Per PROPERTY, not per group. A `<figure class="mb-16">` has said something
+ * about its bottom margin and nothing about its sides, and a group-wide guard
+ * read that as "the author handles margins here" — which left five figures on
+ * one page sitting 40px left and 80px wide of where the source drew them,
+ * the single largest cluster left after the first pass of this restore.
+ *
+ * `style` lists the longhand itself plus every shorthand that would set it;
+ * `utility` matches the class names the generator turns into the same thing.
+ * A shorthand in the class list (`m-4`, `mx-auto`) therefore still silences
+ * all four sides, because it genuinely does set all four.
+ */
+const MARGIN_GUARDS: Record<string, { style: string[]; utility: RegExp }> = {
+  "margin-top": {
+    style: ["margin", "margin-block", "margin-block-start"],
+    utility: /(^|\s)-?m[ty]?-/,
+  },
+  "margin-bottom": {
+    style: ["margin", "margin-block", "margin-block-end"],
+    utility: /(^|\s)-?m[by]?-/,
+  },
+  "margin-left": {
+    style: ["margin", "margin-inline", "margin-inline-start"],
+    utility: /(^|\s)-?m[lsx]?-/,
+  },
+  "margin-right": {
+    style: ["margin", "margin-inline", "margin-inline-end"],
+    utility: /(^|\s)-?m[rex]?-/,
+  },
+}
+
+/** `leading-6`, `leading-tight`, `leading-[1.2]`. */
+const LEADING_UTILITY = /(^|\s)leading-/
+/** For a property no utility class of ours sets. */
+const NO_UTILITY = /(?!)/
+
+/**
+ * Did the author say anything that would set this property?
+ *
+ * Inline and class declarations have both landed on `node.style` by now, and a
+ * utility class never will — the generator turns it into CSS at render time —
+ * so the class list has to be read as well. A responsive override is
+ * deliberately NOT consulted: a margin set only inside a media query leaves the
+ * base unstated, and the base is what the UA would have supplied.
+ */
+function authorSet(
+  node: Doc["nodes"][string],
+  property: string,
+  shorthands: string[],
+  utility: RegExp
+): boolean {
+  const style = node.style ?? {}
+  if (property in style) return true
+  for (const key of shorthands) if (key in style) return true
+  return utility.test(node.classes ?? "")
+}
+
+function restoreUaDefaults(
+  doc: Doc,
+  tags: Record<string, string>,
+  universalMarginReset: boolean
+): number {
   let count = 0
   for (const [id, node] of Object.entries(doc.nodes)) {
-    const side = UA_SIDE_MARGIN[tags[id] ?? ""]
-    if (!side) continue
-    const style = node.style ?? {}
-    // The author said something about margins: theirs wins, whatever it is.
-    if (Object.keys(style).some((k) => k.startsWith("margin"))) continue
-    /**
-     * …including as a utility class. A page that mixes Tailwind with its own
-     * `<style>` block keeps its margins in `m-*`/`mx-*`, which never reach
-     * `node.style`, so without this a `<blockquote class="my-6">` would be
-     * handed a 40px side margin it was never meant to have.
-     */
-    if (/(^|\s)-?m[xylrtbse]?-/.test(node.classes ?? "")) continue
-    node.style = { ...style, "margin-left": side, "margin-right": side }
+    const tag = tags[id] ?? ""
+    const give: Record<string, string> = {}
+
+    const margins = UA_MARGIN[tag]
+    if (margins && !universalMarginReset) {
+      for (const [property, value] of Object.entries(margins)) {
+        const guard = MARGIN_GUARDS[property]!
+        if (authorSet(node, property, guard.style, guard.utility)) continue
+        give[property] = value
+      }
+    }
+
+    if (
+      UA_FORM_TAGS.has(tag) &&
+      // `font: 14px/1.2 sans` sets the line-height too, so the shorthand counts.
+      !authorSet(node, "line-height", ["font"], LEADING_UTILITY)
+    ) {
+      give["line-height"] = "normal"
+    }
+
+    if (tag === "table") {
+      for (const [property, value] of Object.entries(UA_TABLE)) {
+        // `border` is a shorthand for the EDGE, not for collapsing, so only
+        // these two names and their utility classes can speak here.
+        if (authorSet(node, property, [], NO_UTILITY)) continue
+        if (property === "border-collapse" && /(^|\s)border-(collapse|separate)(\s|$)/.test(node.classes ?? "")) continue
+        give[property] = value
+      }
+    }
+
+    if (Object.keys(give).length === 0) continue
+    node.style = { ...(node.style ?? {}), ...give }
     count++
   }
   return count
 }
 
 /**
- * Forget a class name this sheet defined, now its rules are on the node.
+ * Forget a class name that can only do harm now its rules are on the node.
  *
  * The importer keeps `class=""` because a source authored in Tailwind needs it
- * — the generator turns those tokens into CSS at render time. But a class the
- * page defined ITSELF is a different thing: its declarations have just been
- * copied onto the node, and the only thing the bare name can still do is
- * collide. The utility generator also answers to daisyUI's component names, so
- * a hand-written `.hero` picked up `display:grid; place-items:center`, and the
- * generated CSS is concatenated AFTER the node styles, so it won.
+ * — the generator turns those tokens into CSS at render time. Two kinds of
+ * name are dropped anyway.
  *
- * Measured over the same 200 pages: `.hero` on all 200, plus `btn-ghost` (83),
- * `stat-value` (44), `stats` (30), `stat` (28), `stat-title` (25), `tab` and
- * `tab-active` (21 each), `steps` (19) and `badge` (12).
+ * ── A name this sheet DEFINED ──────────────────────────────────────────────
  *
- * Two names are left alone. One the sheet never defined is a real utility, and
- * dropping it would unstyle every Tailwind-authored import. And one the
- * RESIDUAL still mentions is load-bearing: `.card:first-child` could not be
- * resolved onto a node, so it is emitted as a rule, and a rule needs its class
- * on the element to match. Correct residual beats a tidier class list — on the
- * 200-page corpus that holds back three names in total.
+ * Its declarations have just been copied onto the node, so the bare name has
+ * nothing left to contribute and can still collide. The utility generator also
+ * answers to daisyUI's component names, so a hand-written `.hero` picked up
+ * `display:grid; place-items:center`, and the generated CSS is concatenated
+ * AFTER the node styles, so it won. Measured over the 200-page corpus: `.hero`
+ * on all 200, plus `btn-ghost` (83), `stat-value` (44), `stats` (30), `stat`
+ * (28), `stat-title` (25), `tab` and `tab-active` (21 each), `steps` (19) and
+ * `badge` (12).
+ *
+ * ── A daisyUI COMPONENT name, defined here or not ──────────────────────────
+ *
+ * The rule above missed the case where the page never styled the name at all.
+ * `education/mimico` has a plain `<section class="hero">` that its own
+ * stylesheet says nothing about — so the name survived, the generator answered
+ * it with the daisyUI hero component, and the band collapsed from a full-width
+ * stage to a narrow centred box with the mascot sitting on top of the
+ * headline and the call to action gone. Of the 265 distinct class names that
+ * survived the import across those 200 pages, exactly two generated any CSS,
+ * and `hero` was one of them.
+ *
+ * Only names Tailwind itself does not answer to are listed in
+ * `DAISY_COMPONENT_CLASSES`, which is why this cannot cost a page a real
+ * utility: `my-6` on a page that mixes its own `<style>` with Tailwind is not
+ * in the list and stays.
+ *
+ * ── The one exception ──────────────────────────────────────────────────────
+ *
+ * A name the RESIDUAL still mentions is load-bearing: `.card:first-child`
+ * could not be resolved onto a node, so it is emitted as a rule, and a rule
+ * needs its class on the element to match. Correct residual beats a tidier
+ * class list — on the 200-page corpus that holds back three names in total.
  */
-function dropDefinedClasses(doc: Doc, defined: Set<string>): number {
-  if (defined.size === 0) return 0
+function pruneClasses(doc: Doc, defined: Set<string>, spare: Set<string>): number {
   let touched = 0
   for (const node of Object.values(doc.nodes)) {
     if (!node.classes) continue
     const had = node.classes.split(/\s+/).filter(Boolean)
-    const keep = had.filter((c) => !defined.has(c))
+    const keep = had.filter(
+      (c) => spare.has(c) || (!defined.has(c) && !DAISY_COMPONENT_CLASSES.has(c))
+    )
     if (keep.length === had.length) continue
     node.classes = keep.join(" ") || undefined
     touched++
@@ -435,10 +618,31 @@ export function applyStylesheetToDoc(
   for (const rule of rules) {
     for (const m of rule.selector.matchAll(/\.([a-zA-Z0-9_-]+)/g)) defined.add(m[1]!)
   }
-  // …except the ones the residual still has to match on.
-  for (const m of residual.matchAll(/\.([a-zA-Z0-9_-]+)/g)) defined.delete(m[1]!)
-  const classesDropped = dropDefinedClasses(doc, defined)
-  const uaMargins = restoreUaMargins(doc, tags)
+  // …except the ones the residual still has to match on. A daisyUI component
+  // name the residual needs is spared here too, for the same reason.
+  const needed = new Set<string>()
+  for (const m of residual.matchAll(/\.([a-zA-Z0-9_-]+)/g)) needed.add(m[1]!)
+  for (const name of needed) defined.delete(name)
+  /**
+   * A page that zeroes margins with `*` has said something about every tag.
+   *
+   * `matches()` cannot resolve a universal selector onto a node — nothing has
+   * the tag `*` — so `*{margin:0}` never reaches `node.style`, and without
+   * this the restore would hand UA margins back to a page that deliberately
+   * cleared them. The residual is scanned as well as the parsed rules, since
+   * a universal rule this module cannot model is kept there verbatim.
+   */
+  const universalMarginReset =
+    rules.some(
+      (r) =>
+        /(^|[\s,>+~])\*/.test(r.selector) &&
+        Object.keys(r.decls).some((k) => k.startsWith("margin"))
+    ) || /(^|[\s,>+~{])\*[^{]*\{[^}]*margin/.test(residual)
+
+  // Restored BEFORE the classes are pruned: the margin guard reads the class
+  // list as the author wrote it, and `my-6` is the author saying "my margin".
+  const uaRestored = restoreUaDefaults(doc, tags, universalMarginReset)
+  const classesDropped = pruneClasses(doc, defined, needed)
 
   return {
     styledNodes,
@@ -451,7 +655,7 @@ export function applyStylesheetToDoc(
     ),
     retargeted,
     classesDropped,
-    uaMargins,
+    uaRestored,
   }
 }
 

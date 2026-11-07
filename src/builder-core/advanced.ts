@@ -153,6 +153,69 @@ export function filterCustomAttributes(raw: unknown): CustomAttributeEntry[] {
  * case, where overriding it is exactly the point (the element is invisible
  * either way, so losing its layout style doesn't matter).
  */
+/**
+ * HTML attribute name → the prop name React wants for it.
+ *
+ * React keeps its own list of DOM properties and warns — "Invalid DOM property
+ * `colspan`. Did you mean `colSpan`?" — for the lowercase HTML spelling of any
+ * of them, once per element per render, in the editor canvas and in the
+ * Worker log alike. An author (or the HTML importer, which carries `colspan`
+ * through from a `<td>`) should not have to know React's spelling to avoid
+ * that.
+ *
+ * React 19 no longer rewrites the name on the server: it emits the camelCase
+ * prop verbatim, so the published markup says `colSpan="5"`. That is correct
+ * HTML — attribute names are case-insensitive in every HTML parser — and
+ * re-importing our own output normalises it, since the importer stores the
+ * lowercase name. `htmlFor` is the one that is rewritten, to `for`.
+ *
+ * Only the names that actually differ are listed; everything else passes
+ * through untouched.
+ */
+const REACT_ATTR_NAME: Record<string, string> = {
+  for: "htmlFor",
+  colspan: "colSpan",
+  rowspan: "rowSpan",
+  maxlength: "maxLength",
+  minlength: "minLength",
+  readonly: "readOnly",
+  autocomplete: "autoComplete",
+  autoplay: "autoPlay",
+  playsinline: "playsInline",
+  srcset: "srcSet",
+  datetime: "dateTime",
+  referrerpolicy: "referrerPolicy",
+  crossorigin: "crossOrigin",
+  tabindex: "tabIndex",
+  accesskey: "accessKey",
+  contenteditable: "contentEditable",
+  spellcheck: "spellCheck",
+  enctype: "encType",
+  novalidate: "noValidate",
+  formaction: "formAction",
+  usemap: "useMap",
+  hreflang: "hrefLang",
+  marginwidth: "marginWidth",
+  marginheight: "marginHeight",
+  frameborder: "frameBorder",
+  allowfullscreen: "allowFullScreen",
+}
+
+/**
+ * Attributes whose PRESENCE is the value.
+ *
+ * `<input disabled>` and `<input disabled="disabled">` mean the same thing and
+ * both arrive here with the empty string or the name as their value — and the
+ * empty string is falsy, so React would render neither. These are passed as
+ * `true` instead, which is how React spells "this attribute is present".
+ */
+const BOOLEAN_ATTRS = new Set([
+  "checked", "disabled", "readonly", "required", "multiple", "selected",
+  "open", "controls", "autoplay", "loop", "muted", "playsinline", "reversed",
+  "novalidate", "allowfullscreen", "default", "ismap", "nomodule", "async",
+  "defer", "hidden", "inert", "itemscope",
+])
+
 export function rootAttrs(p: ModuleRenderProps): Record<string, unknown> {
   const out: Record<string, unknown> = {}
 
@@ -174,8 +237,28 @@ export function rootAttrs(p: ModuleRenderProps): Record<string, unknown> {
     out.style = style
   }
 
+  /**
+   * A form control's initial content is `defaultValue`, not `value`.
+   *
+   * React treats `value`/`checked` on an input, select or textarea as a
+   * CONTROLLED field and warns that it will render read-only unless an
+   * `onChange` comes with it. A published page is static markup: what the
+   * import read off `<input value="…">` is the field's starting content, which
+   * is what `defaultValue` means, and it renders as the same `value=""`
+   * attribute. Only these three tags behave that way — `value` on an
+   * `<option>`, a `<button>` or an `<li>` is an ordinary attribute and is left
+   * alone.
+   */
+  const tag = String(p.props.tag ?? "").toLowerCase()
+  const controlled = tag === "input" || tag === "select" || tag === "textarea"
+
   for (const attr of filterCustomAttributes(p.props.customAttributes)) {
-    out[attr.name] = attr.value
+    const lower = attr.name.toLowerCase()
+    let name = REACT_ATTR_NAME[lower] ?? attr.name
+    if (controlled && lower === "value") name = "defaultValue"
+    if (controlled && lower === "checked") name = "defaultChecked"
+    const bare = attr.value === "" || attr.value.toLowerCase() === lower
+    out[name] = BOOLEAN_ATTRS.has(lower) && bare ? true : attr.value
   }
 
   return out

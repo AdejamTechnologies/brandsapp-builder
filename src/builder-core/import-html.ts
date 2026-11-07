@@ -7,6 +7,7 @@
  */
 
 import { DEFAULT_BREAKPOINTS } from "./migrate"
+import { sanitizeElementId } from "./advanced"
 import { applyStylesheetToDoc } from "./import-css"
 import { CORE_DOC_VERSION, type Doc, type Node } from "./schema"
 
@@ -18,6 +19,60 @@ const TAG_MODULE: Record<string, string> = {
   h1: "heading", h2: "heading", h3: "heading", h4: "heading", h5: "heading", h6: "heading",
   a: "link", button: "button", img: "image",
 }
+/**
+ * Attributes worth keeping, because nothing else in the Doc carries them.
+ *
+ * The importer used to keep `class`, `style`, `src`, `alt` and `href` and drop
+ * every other attribute on the floor. Most of what it dropped was invisible
+ * until something tried to USE the page:
+ *
+ *   `colspan` — the only one the box check could see. A `<td colspan="5">`
+ *   became an ordinary cell, 704px narrower than the source drew it, and the
+ *   four rows under it re-flowed around the hole.
+ *
+ *   `type`, `name`, `placeholder`, `for`, `value` — an imported form came back
+ *   as a row of identical text boxes with no labels bound to them. It renders,
+ *   it looks approximately right in a screenshot, and it is not a form.
+ *
+ *   `target`, `rel`, `role`, `aria-*`, `lang`, `dir`, `datetime` — meaning the
+ *   source stated out loud. Losing `rel="noopener"` off a `target="_blank"`
+ *   link is a security regression we introduced on the author's behalf.
+ *
+ * The list is not meant to be exhaustive — it is what a real page in the
+ * corpus turned out to need, and adding to it is cheap. `aria-*` and `data-*`
+ * are matched by prefix. `href`, `src` and `alt` are
+ * deliberately absent: those are real props, and `rootAttrs` spreads this set
+ * LAST, so repeating one here would let it overwrite the prop. Everything here
+ * still goes through `filterCustomAttributes`, which refuses `on*`, `style`,
+ * `id`, `class` and a `javascript:` value whatever the name.
+ */
+const KEEP_ATTRS = new Set([
+  // Layout no CSS declaration can express.
+  "colspan", "rowspan", "span", "width", "height", "rows", "cols", "size",
+  "start", "reversed",
+  // What a control IS, as opposed to what it looks like.
+  "type", "name", "placeholder", "value", "for", "checked", "disabled",
+  "readonly", "required", "multiple", "min", "max", "step", "pattern",
+  "autocomplete", "maxlength", "minlength", "accept", "list", "form",
+  // Meaning and behaviour the source stated.
+  "role", "title", "lang", "dir", "datetime", "target", "rel", "download",
+  "open", "controls", "loop", "muted", "autoplay", "playsinline", "poster",
+  "srcset", "sizes", "loading", "decoding", "fetchpriority", "referrerpolicy",
+])
+const KEEP_ATTR_PREFIXES = ["aria-", "data-"]
+/**
+ * …except our own runtime's vocabulary.
+ *
+ * `data-bapp-*` is how a rendered page tells the runtime what to wire up, and
+ * which loaders to ship — `renderDefinitionWithData` decides whether a page
+ * pays for the 3D, shader, lightbox or challenge bundle by looking for exactly
+ * these. An imported page has no business speaking it, and before attributes
+ * were carried through at all it could not; this keeps that true.
+ * `data-node-id` is refused separately, by `filterCustomAttributes`, because
+ * it is how the editor canvas maps an element back to its node.
+ */
+const REFUSED_ATTR_PREFIXES = ["data-bapp-"]
+
 const VOID_TAGS = new Set(["img", "br", "hr", "input", "meta", "link", "source", "area"])
 const SKIP_TAGS = new Set(["script", "style", "head", "svg", "noscript", "template", "iframe"])
 const TEXTY = new Set(["heading", "text", "link", "button"])
@@ -169,6 +224,9 @@ export function extractStylesheets(html: string): string {
   return out.join("\n")
 }
 
+/** h1–h6, which close one another. See the end-tag branch in `tokenize`. */
+const HEADING_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"])
+
 function tokenize(html: string): El[] {
   const root: El = { tag: "#root", attrs: {}, children: [] }
   const stack: El[] = [root]
@@ -188,8 +246,21 @@ function tokenize(html: string): El[] {
     if (closing) {
       if (skip.length && skip[skip.length - 1] === tag) skip.pop()
       else if (!skip.length) {
+        /**
+         * A heading end tag closes ANY open heading, whatever its level.
+         *
+         * The parsing spec says so ("pop elements until an element whose tag
+         * name is one of h1–h6 has been popped"), and hand-written HTML leans
+         * on it more than you would hope: `<h4 class="blogcard-title">…</h3>`
+         * appears four times on one page of the corpus. Matching the level
+         * exactly left the `<h4>` open, so the `<p>` that followed became its
+         * CHILD rather than its sibling — a quiet structural difference that
+         * every count still reads as correct, and that the box check showed as
+         * a heading 18px too tall with the paragraph 194px out of place.
+         */
+        const anyHeading = HEADING_TAGS.has(tag)
         for (let i = stack.length - 1; i > 0; i--) {
-          if (stack[i].tag === tag) {
+          if (stack[i].tag === tag || (anyHeading && HEADING_TAGS.has(stack[i].tag))) {
             stack.length = i
             break
           }
@@ -210,6 +281,19 @@ function tokenize(html: string): El[] {
 }
 
 export function htmlToDoc(html: string): Doc {
+  /**
+   * Read before the walk, because one decision below turns on it.
+   *
+   * A source that ships its own `<style>` is a FINISHED page: whatever the
+   * browser drew for it, it drew with that sheet and the UA defaults, and the
+   * import's job is to reproduce that. A source with no sheet at all — a
+   * HyperUI or Preline block, which is markup and utility classes and nothing
+   * else — was authored against a framework preflight that did not come with
+   * it, so there is no sheet to be faithful TO and the framework's own
+   * normalisation is the best available reading of the author's intent.
+   */
+  const css = extractStylesheets(html)
+  const authored = css.trim().length > 0
   const nodes: Record<string, Node> = {}
   /** id → original tag, so `body`/`h2`/`li` selectors can be resolved. */
   const tags: Record<string, string> = {}
@@ -271,11 +355,27 @@ export function htmlToDoc(html: string): Doc {
     // Keep the original tag on box elements (ul/li/section/nav/…) so structure —
     // and CSS that targets real tags (e.g. daisyUI menu/breadcrumbs) — is faithful.
     if (module === "box" && el.tag !== "div") props.tag = el.tag
-    // Imported markup was authored against Tailwind's PREFLIGHT, which strips a
-    // list's markers and indent. Our generator runs preflight OFF, so an imported
-    // <ul> arrives with UA bullets and a 40px indent it never had at the source.
-    // Only applied when the author set no list-style of their own.
-    if ((el.tag === "ul" || el.tag === "ol") && !/\blist-/.test(el.attrs.class ?? "")) {
+    /**
+     * A list's markers and indent, for a source that brought no stylesheet.
+     *
+     * Markup authored against Tailwind's PREFLIGHT has had both stripped
+     * before it was written, and our generator runs preflight off, so such a
+     * block arrives with UA bullets and a 40px indent it never had.
+     *
+     * Not for a page that ships its own sheet. `ul{list-style:none}` and
+     * nothing more is an extremely common thing to write — the author wants
+     * the bullets gone and the UA indent KEPT — and zeroing the margin and
+     * padding anyway moved every item in every such list 40px left. Measured
+     * across the 200-page corpus it was the largest single cluster left after
+     * the UA-margin restore: `li x-40`, `img x+40`, `div w+40`. There the
+     * sheet is the authority, and `restoreUaDefaults` has already made sure
+     * anything the sheet left unsaid matches the browser.
+     */
+    if (
+      !authored &&
+      (el.tag === "ul" || el.tag === "ol") &&
+      !/\blist-/.test(el.attrs.class ?? "")
+    ) {
       classes = `list-none m-0 p-0 ${classes ?? ""}`.trim()
     }
     if (module === "heading") props.level = el.tag.replace("h", "")
@@ -286,6 +386,32 @@ export function htmlToDoc(html: string): Doc {
       props.alt = el.attrs.alt ?? ""
     }
     if (module === "link" || module === "button") props.href = el.attrs.href ?? ""
+
+    /**
+     * The element's own id, so an in-page anchor still lands.
+     *
+     * Every one of the 200 pages in the corpus navigates itself with
+     * `href="#pricing"`, and the importer kept the link and threw away the
+     * `id` it pointed at — so on an imported page every anchor in the nav did
+     * nothing. It goes through the `elementId` capability rather than a custom
+     * attribute because `filterCustomAttributes` refuses a raw `id` by name,
+     * and rightly: `sanitizeElementId` is where an id is allowed to come from.
+     */
+    if (el.attrs.id) {
+      const safe = sanitizeElementId(el.attrs.id)
+      if (safe) props.elementId = safe
+    }
+
+    const kept: Array<{ name: string; value: string }> = []
+    for (const [name, value] of Object.entries(el.attrs)) {
+      const lower = name.toLowerCase()
+      if (REFUSED_ATTR_PREFIXES.some((p) => lower.startsWith(p))) continue
+      if (!KEEP_ATTRS.has(lower) && !KEEP_ATTR_PREFIXES.some((p) => lower.startsWith(p))) continue
+      kept.push({ name: lower, value })
+    }
+    // Only when there are some: an empty array on every node would be noise in
+    // every stored document.
+    if (kept.length > 0) props.customAttributes = kept
 
     const text = decodeEntities(
       el.children
@@ -327,15 +453,35 @@ export function htmlToDoc(html: string): Doc {
      * `text` child, in place, which also keeps mixed content ("Cancel
      * <b>whenever</b> you like") in the order it was written.
      */
-    for (const c of el.children) {
+    for (let ci = 0; ci < el.children.length; ci++) {
+      const c = el.children[ci]!
       if (typeof c !== "string") {
         walkInto(c, children)
         continue
       }
       // Its words are on the prop, unless they had to become a child.
       if (TEXTY.has(module) && !textAsChild) continue
-      const chunk = decodeEntities(c).trim()
-      if (!chunk) continue
+      /**
+       * The space between a word and the tag beside it is part of the words.
+       *
+       * This run used to be `.trim()`ed, which is right at the ends of the
+       * parent — the browser collapses that whitespace away — and wrong in the
+       * middle, where it is the only thing separating two words. `<h3>It's
+       * time for a <span>better way</span></h3>` came out as "It's time for
+       * abetter way": not a layout difference, the wrong words on the page,
+       * and invisible to every check that compares structure or counts
+       * elements.
+       *
+       * Only an edge against a SIBLING keeps its space. A whitespace-only run
+       * (`</b> <i>`) is a space the browser draws too, but it never reaches
+       * here — `tokenize` drops a text token with nothing but whitespace in
+       * it, so that one is still lost.
+       */
+      const run = decodeEntities(c).replace(/\s+/g, " ")
+      let chunk = run
+      if (ci === 0) chunk = chunk.replace(/^ /, "")
+      if (ci === el.children.length - 1) chunk = chunk.replace(/ $/, "")
+      if (!chunk.trim()) continue
       const textId = nextId()
       nodes[textId] = {
         id: textId,
@@ -389,8 +535,7 @@ export function htmlToDoc(html: string): Doc {
   // The design, not just the structure. Failure here must not lose the import:
   // an unstyled but correct tree is a usable starting point, a thrown parser
   // is not.
-  const css = extractStylesheets(html)
-  if (css.trim()) {
+  if (authored) {
     try {
       const result = applyStylesheetToDoc(doc, css, tags, (px) => {
         // Widest breakpoint at or under the query, so `max-width: 880px` lands
