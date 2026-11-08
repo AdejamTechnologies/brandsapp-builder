@@ -85,9 +85,33 @@ export const templatePage = z.object({
 export type TemplatePage = z.infer<typeof templatePage>
 
 export const templatePalette = z.object({
+  /** Shown in the picker beside the swatch. Never a trademark. */
   name: z.string().min(1),
   colors: z.record(z.string(), z.string()),
   fonts: z.object({ display: z.string().optional(), body: z.string().optional() }).optional(),
+  /**
+   * The art direction that travels with the look: how dense the bands are, how
+   * round the corners, how much the page moves.
+   *
+   * Carried here because a look is not only its colours. Leaving it out of the
+   * manifest meant a design whose palettes each set `choreography: "subtle"`
+   * arrived on the shelf with every one of them stripped — the parse drops
+   * what the schema does not name, so the loss is total and silent.
+   *
+   * Spelled out rather than imported from `schema.ts`: that file imports THIS
+   * one, for `meta.template`, and the two cannot import each other. The shape
+   * mirrors `themeScale` there; the renderer is what validates it properly.
+   */
+  scale: z
+    .object({
+      density: z.number().optional(),
+      radius: z.number().optional(),
+      typeScale: z.number().optional(),
+      motion: z.number().optional(),
+      choreography: z.string().optional(),
+      smoothScroll: z.boolean().optional(),
+    })
+    .optional(),
 })
 
 export const templateManifest = z.object({
