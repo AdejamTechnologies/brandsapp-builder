@@ -146,6 +146,29 @@ export const templateManifest = z.object({
 })
 export type TemplateManifest = z.infer<typeof templateManifest>
 
+/**
+ * The manifest a design starts from, before anybody has named it.
+ *
+ * A blank manifest cannot be PARSED into existence, and the obvious attempt
+ * took the editor down with it: `templateManifest.parse({ id: "", name: "" })`
+ * at the top of a module throws, because both fields are `min(1)`, and a throw
+ * while a module is evaluating is not a validation error an author can act on
+ * — it is an uncaught exception before a single screen has rendered.
+ *
+ * So the defaults are read off the schema once, with a placeholder standing in
+ * for the two required strings, and then blanked. The placeholder is never
+ * seen; the fields it satisfies are overwritten on the next line. The point of
+ * going through the schema at all is that a field added to the manifest with a
+ * default arrives here without anyone remembering to add it twice.
+ *
+ * It is a function, not a shared constant, because the caller spreads it into
+ * a draft the author then edits; handing every caller the same object means
+ * one of them mutating it changes the blank for all of them.
+ */
+export function emptyTemplateManifest(): TemplateManifest {
+  return { ...templateManifest.parse({ id: "x", name: "x" }), id: "", name: "" }
+}
+
 export interface ManifestProblem {
   field: string
   message: string

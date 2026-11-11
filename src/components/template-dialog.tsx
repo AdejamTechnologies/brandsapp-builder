@@ -4,9 +4,9 @@ import { AlertTriangle, Download } from "lucide-react"
 import {
   ARCHETYPE_IDS,
   GOODS_CATEGORY_ID_LIST,
+  emptyTemplateManifest,
   listSlots,
   problemsWithManifest,
-  templateManifest,
   validateTemplate,
   type Doc,
   type TemplateManifest,
@@ -46,12 +46,6 @@ interface Props {
   onClose: () => void
 }
 
-const EMPTY: TemplateManifest = templateManifest.parse({
-  id: "",
-  name: "",
-  page: { slug: "", title: "Home", home: true },
-})
-
 export function TemplateDialog({
   doc,
   pages,
@@ -71,8 +65,16 @@ export function TemplateDialog({
     [manifest, designSystems]
   )
 
+  // A design being described for the first time starts from the schema's own
+  // blank (`emptyTemplateManifest`). Building that blank HERE, with a parse of
+  // two empty strings, threw while this module was evaluating — `id` and
+  // `name` are `min(1)` — which is not a validation message an author can act
+  // on, it is the editor failing to load.
   const set = (patch: Partial<TemplateManifest>) =>
-    onChange({ ...(manifest ?? EMPTY), ...patch }, "template:manifest")
+    onChange(
+      { ...(manifest ?? emptyTemplateManifest()), ...patch },
+      "template:manifest"
+    )
 
   const toggle = (key: "archetypes" | "categories" | "colourways", value: string) => {
     const list = manifest?.[key] ?? []

@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router"
 
 import { NetworkIndicator } from "./components/network-indicator"
+import { RouteError } from "./components/route-error"
 import { SessionBar } from "./components/session-bar"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { CuratePage } from "./routes/curate"
@@ -72,7 +73,13 @@ const curateRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([indexRoute, editRoute, previewRoute, curateRoute])
 
-export const router = createRouter({ routeTree })
+export const router = createRouter({
+  routeTree,
+  // A screen that throws after mount shows something an author can act on,
+  // instead of a blank page whose only explanation is in the console. It
+  // cannot catch a module-scope throw — see `route-error.tsx`.
+  defaultErrorComponent: RouteError,
+})
 
 declare module "@tanstack/react-router" {
   interface Register {
