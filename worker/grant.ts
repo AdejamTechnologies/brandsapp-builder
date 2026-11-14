@@ -138,6 +138,24 @@ export async function verifyGrant(
   // A grant from the future is a clock problem or a forgery attempt; either
   // way it is not something to act on.
   if (typeof grant.iat !== "number" || grant.iat > nowSeconds + 300) return null
+
+  /**
+   * A ceiling on the lifetime, checked HERE and not only at minting.
+   *
+   * Expiry is the only revocation this design has — "a partner removed from a
+   * brand simply stops being given one" — which is true exactly as long as a
+   * grant is short. Nothing enforced that: `mintGrant` takes whatever `exp`
+   * it is handed, and the CLI script is the only thing minting today. A grant
+   * written with a year on it would be a year of access to every brand it
+   * names, with no way to take it back.
+   *
+   * Twelve hours is more than a working day of editing and far less than an
+   * engagement, so a mistake costs a day rather than a season. Checked on the
+   * way IN, because that is the side that cannot be bypassed by whoever is
+   * doing the minting.
+   */
+  const MAX_LIFETIME_SECONDS = 12 * 60 * 60
+  if (grant.exp - grant.iat > MAX_LIFETIME_SECONDS) return null
   return grant
 }
 

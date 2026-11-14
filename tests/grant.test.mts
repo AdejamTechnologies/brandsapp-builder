@@ -91,6 +91,22 @@ await test("a grant naming something that is not a slug is refused", async () =>
   }
 })
 
+await test("expiry is the only revocation, so a grant cannot be long", async () => {
+  // A year-long grant would be a year of access to every brand it names,
+  // with no way to take it back — and `mintGrant` takes whatever `exp` it is
+  // handed. The ceiling is checked on the way IN, where the minting side
+  // cannot skip it.
+  const year = await mintGrant(SECRET, { ...valid, exp: now + 365 * 24 * 3600 })
+  assert.equal(await verifyGrant(SECRET, year, now), null)
+
+  const day = await mintGrant(SECRET, { ...valid, exp: now + 13 * 3600 })
+  assert.equal(await verifyGrant(SECRET, day, now), null)
+
+  // A working day of editing is fine.
+  const shift = await mintGrant(SECRET, { ...valid, exp: now + 11 * 3600 })
+  assert.equal((await verifyGrant(SECRET, shift, now))?.sub, valid.sub)
+})
+
 console.log("\nwho may edit what")
 
 await test("a partner reaches its own brands and no others", () => {

@@ -259,11 +259,28 @@ app.post("/api/pages", async (c) => {
   return new Response(res.body, { status: res.status, headers: { "content-type": "application/json" } })
 })
 
+/**
+ * A page id is put into a url, so it is checked and encoded.
+ *
+ * `${c.req.param("id")}` went in raw. A decoded `%2F` turns one path segment
+ * into two and addresses a different endpoint on the tenant — with the
+ * fleet's builder token attached. Ids here are uuids or short slugs, so the
+ * shape is cheap to state and anything else is refused rather than escaped
+ * into something that merely looks safe.
+ */
+const PAGE_ID_RE = /^[A-Za-z0-9_-]{1,128}$/
+function pageId(c: { req: { param: (k: "id") => string } }): string | null {
+  const raw = c.req.param("id")
+  return PAGE_ID_RE.test(raw) ? encodeURIComponent(raw) : null
+}
+
 /** Load a page's Doc from the tenant. */
 app.get("/api/pages/:id", async (c) => {
   const base = tenantBase(c)
   if (!base) return c.json({ error: NO_TENANT }, 400)
-  const res = await fetch(`${base}/api/builder/pages/${c.req.param("id")}`, {
+  const id = pageId(c)
+  if (!id) return c.json({ error: "no such page" }, 400)
+  const res = await fetch(`${base}/api/builder/pages/${id}`, {
     headers: authHeaders(c.env),
   })
   return new Response(res.body, { status: res.status, headers: { "content-type": "application/json" } })
@@ -273,7 +290,9 @@ app.get("/api/pages/:id", async (c) => {
 app.put("/api/pages/:id", async (c) => {
   const base = tenantBase(c)
   if (!base) return c.json({ error: NO_TENANT }, 400)
-  const res = await fetch(`${base}/api/builder/pages/${c.req.param("id")}`, {
+  const id = pageId(c)
+  if (!id) return c.json({ error: "no such page" }, 400)
+  const res = await fetch(`${base}/api/builder/pages/${id}`, {
     method: "PUT",
     headers: { "content-type": "application/json", ...authHeaders(c.env) },
     body: await c.req.text(),
@@ -301,7 +320,9 @@ app.post("/api/upload", async (c) => {
 app.post("/api/pages/:id/publish", async (c) => {
   const base = tenantBase(c)
   if (!base) return c.json({ error: NO_TENANT }, 400)
-  const res = await fetch(`${base}/api/builder/pages/${c.req.param("id")}/publish`, {
+  const id = pageId(c)
+  if (!id) return c.json({ error: "no such page" }, 400)
+  const res = await fetch(`${base}/api/builder/pages/${id}/publish`, {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders(c.env) },
     body: await c.req.text(),
