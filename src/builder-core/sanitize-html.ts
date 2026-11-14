@@ -36,6 +36,17 @@ const ALLOWED_TAGS = new Set([
   "strong", "b", "em", "i", "u", "s", "del", "ins", "mark", "sub", "sup", "small",
   "ul", "ol", "li", "blockquote", "pre", "code", "kbd",
   "a", "img", "figure", "figcaption",
+  /**
+   * Semantic containers, added when this became everybody's sanitiser.
+   *
+   * It was written for article bodies, where a tag outside the list simply
+   * lost its wrapper and kept its text — fine for a blog post. It now also
+   * cleans rich text a brand typed into admin (course and job descriptions,
+   * product copy) and `richtext` props inside authored designs, which do use
+   * these. None of them carries a script surface; they are boxes.
+   */
+  "section", "article", "header", "footer", "aside", "main",
+  "dl", "dt", "dd", "abbr", "cite", "q", "time",
   "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption", "colgroup", "col",
   "div", "span", "details", "summary",
 ])
