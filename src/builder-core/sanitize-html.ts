@@ -157,6 +157,23 @@ export function sanitizeHtml(input: string | null | undefined): string {
       }
       if (name === "src" && !isSafeUrl(value, { allowMailto: false })) continue
       if (name === "target" && value !== "_blank" && value !== "_self") continue
+      /**
+       * `class` is allowed on `pre` and `code` for ONE reason — the
+       * `language-xyz` hint a highlighter reads — and it used to accept any
+       * value at all.
+       *
+       * The page's own utility classes are in scope for authored content, so
+       * a class list was a style injection: `class="fixed inset-0 z-50 bg-black"`
+       * on a `<pre>` inside a blog comment or an imported page is a
+       * full-screen overlay covering the brand's own site, with no script
+       * involved and nothing for the tag allow-list to catch. It is the same
+       * shape as the attribute allow-list itself — permitted by name, with the
+       * value unexamined.
+       *
+       * One or more `language-*` / `lang-*` tokens, nothing else.
+       */
+      if (name === "class" && !/^(?:(?:language|lang)-[\w+#.-]+\s*)+$/i.test(value))
+        continue
       attrs += ` ${name}="${escapeAttr(value)}"`
     }
     if (tag === "a" && href !== null && / target="_blank"/.test(attrs)) {
