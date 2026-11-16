@@ -21,7 +21,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "daisyui": "^3.9.4",
-    "hono": "^4.7.10",
+    "hono": "^4.13.18",
     "lucide-react": "^1.26.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

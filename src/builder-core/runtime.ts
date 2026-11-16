@@ -1244,6 +1244,30 @@ export const BUILDER_RUNTIME = `(function(){
 
   function init(scope){
     var d=scope||DOC;
+    /* ── Content is visible unless THIS says otherwise ───────────────────────
+       Every entrance effect starts at opacity 0. Hiding is therefore gated on
+       this class, and this is the line that turns it on -- so a page whose
+       script is slow, blocked or threw shows its text instead of a blank
+       screen. It has to run before injectCss, because the moment the rules
+       exist the hiding is live.
+
+       The watchdog below is the second half: the gate being on means something
+       must eventually add .bapp-in, and the observer is not guaranteed to --
+       an element inside an ancestor that never becomes visible, a browser that
+       throttles a background tab, a layout that settles late. After three
+       seconds nothing is worth waiting for, so everything is revealed. A late
+       reveal is a missed animation; no reveal is a missing page.            */
+    try{
+      DOC.documentElement.classList.add('bapp-anim-on');
+      if(!window.__bappGateTimer){
+        window.__bappGateTimer=setTimeout(function(){
+          try{
+            DOC.documentElement.classList.remove('bapp-anim-on');
+            [].slice.call(DOC.querySelectorAll('.bapp-reveal')).forEach(function(e){ e.classList.add('bapp-in') });
+          }catch(e){}
+        },3000);
+      }
+    }catch(e){}
     injectCss();
     /* ONE FLAG PER INITIALISER, and never a shared one.
        These all used to guard on the same el.__bapp, which made them mutually

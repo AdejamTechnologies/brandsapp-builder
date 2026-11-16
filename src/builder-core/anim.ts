@@ -74,6 +74,28 @@ export const ANIMATION_KEYFRAMES =
   "@media (prefers-reduced-motion:reduce){.bapp-anim{animation:none!important;opacity:1!important;transform:none!important}}" +
   ATMOSPHERE_KEYFRAMES
 
+/**
+ * The class that TURNS ON the hidden starting state. (R5-07)
+ *
+ * Every entrance effect works by starting at `opacity:0` and animating to 1.
+ * That is correct while the script runs and catastrophic when it does not: a
+ * scroll-revealed section waits for `.bapp-in`, which only the runtime's
+ * observer adds, so a script that is slow, blocked, or threw leaves the brand's
+ * page with its whole text present in the document and nothing on the screen.
+ * Observed live on a brand's home page: the copy was in the HTML while the
+ * visitor saw a blank page with "Powered by BrandsApp" on it.
+ *
+ * The audience here is a mid-range Android phone on patchy data — the brief's
+ * own user — which is precisely the visitor most likely to be looking at the
+ * blank version.
+ *
+ * So the default is VISIBLE, and hiding is opt-in: the runtime puts this class
+ * on <html> as its first act, and only then does any `opacity:0` apply. No
+ * script now means no animation, instead of no content. The reduced-motion
+ * override below still wins over both.
+ */
+export const ANIM_GATE = "bapp-anim-on"
+
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(n)))
 
 /** Per-node animation CSS. `.n-<id>` (load) or `.n-<id>.bapp-in` (scroll reveal). */
@@ -88,7 +110,7 @@ export function animCss(id: string, anim: NodeAnim): string {
   const entrance = anim.text
     ? textCss(sel, dur, delay, anim.trigger === "scroll")
     : anim.trigger === "scroll"
-      ? `${sel}{opacity:0}${sel}.bapp-in{animation:${a}}`
+      ? `.${ANIM_GATE} ${sel}{opacity:0}${sel}.bapp-in{animation:${a}}`
       : `${sel}{animation:${a}}`
   return entrance + scrollCss(id, anim.scroll)
 }
@@ -110,7 +132,10 @@ function textCss(sel: string, dur: number, delay: number, onScroll: boolean): st
   const play = onScroll ? `${sel}.bapp-in .bapp-w>span` : `${sel} .bapp-w>span`
   return (
     `${sel} .bapp-w{display:inline-block;overflow:hidden;vertical-align:bottom}` +
-    `${sel} .bapp-w>span{display:inline-block;opacity:0;transform:translateY(110%)}` +
+    // The word spans hide only behind the gate, for the same reason: a headline
+    // whose words are masked with nothing to unmask them is a missing headline.
+    `${sel} .bapp-w>span{display:inline-block}` +
+    `.${ANIM_GATE} ${sel} .bapp-w>span{opacity:0;transform:translateY(110%)}` +
     `${play}{animation:bapp-word ${dur}ms cubic-bezier(.16,1,.3,1) ` +
     `calc(${delay}ms + var(--bapp-i,0) * ${step}ms) both}`
   )
