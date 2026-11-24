@@ -165,6 +165,17 @@ function tenantBase(c: {
   }
   if (!SLUG_RE.test(slug)) return ""
   if (!maySee(c.get("grant"), slug)) return ""
+  /**
+   * Local development: EVERY granted brand is the tenant on localhost.
+   *
+   * The override used to apply only when no brand was named — but the sign-in
+   * link always names one (`/?tenant=fresh`), so local runs built
+   * `https://fresh.brandsapp.io` and sent the service token to the LIVE
+   * address with it, and every load came back "Not found" (23 Nov 2026).
+   * The grant check above still applies, so a local run refuses a brand the
+   * link does not cover exactly as production does.
+   */
+  if (c.env.ALLOW_LOCAL_TENANT === "1" && c.env.TENANT_API_BASE) return c.env.TENANT_API_BASE
   return `https://${slug}.${c.env.TENANT_HOST_SUFFIX || "brandsapp.io"}`
 }
 

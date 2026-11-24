@@ -119,6 +119,11 @@ export const BUILDER_RUNTIME = `(function(){
       +'[data-bapp-navbar][data-nav-mobile=\"fullscreen\"]:not([data-open]) [data-bapp-nav-menu]{opacity:0}'
       +'[data-bapp-navbar][data-nav-mobile=\"dropdown\"] [data-bapp-nav-menu]{left:auto;right:0;width:max-content;min-width:12rem}'
       +'[data-bapp-navbar][data-nav-mobile=\"dropdown\"]:not([data-open]) [data-bapp-nav-menu]{opacity:0;transform:translateY(-.4rem)}'
+      // The sheet and dropdown menus hang below the bar, inside a sticky
+      // header: a menu taller than the screen could not be scrolled at all
+      // (owner, 23 Nov 2026). Capped to the screen below the bar, they scroll
+      // on their own without moving the page. (Drawer/fullscreen already do.)
+      +'[data-bapp-navbar][data-nav-mobile=\"sheet\"] [data-bapp-nav-menu],[data-bapp-navbar][data-nav-mobile=\"dropdown\"] [data-bapp-nav-menu]{max-height:calc(100dvh - 5rem);overflow-y:auto;overscroll-behavior:contain}'
       /* Where you are. ONE rule for both the current page and a link to the
          section containing it, so they read alike; which of the two it is lives
          in the attribute's value for anyone who wants to tell them apart.
@@ -477,6 +482,28 @@ export const BUILDER_RUNTIME = `(function(){
     var open=false;
     function desktop(){ return window.innerWidth>=bp }
 
+    /* THE OPEN PANEL MUST BE ON TOP OF THE PAGE. An entrance or scroll reveal
+       leaves a transform on the header's band once it has played, and a
+       transformed element is its own stacking context -- so the band AFTER it
+       (the hero, revealed the same way) painted over the whole open menu: the
+       toggle turned into an X and nothing appeared (found 23 Nov 2026 on a
+       live design page). While open, the band holding the navbar is raised
+       above its siblings; on close it gets its own styles back. A band that is
+       already positioned (an absolute header over a hero) keeps its position. */
+    var band=root;
+    while(band.parentElement&&band.parentElement.parentElement&&
+      !(band.parentElement.parentElement.classList&&band.parentElement.parentElement.classList.contains('bapp-root'))&&
+      band.parentElement!==DOC.body)band=band.parentElement;
+    var bandZ='',bandPos='';
+    function liftBand(v){
+      if(!band||band===DOC.body)return;
+      if(v){
+        bandZ=band.style.zIndex; bandPos=band.style.position;
+        if(getComputedStyle(band).position==='static')band.style.position='relative';
+        band.style.zIndex='60';
+      } else { band.style.zIndex=bandZ; band.style.position=bandPos }
+    }
+
     /* Which modes COVER the page. The scroll lock for these is pure CSS (see
        injectCss); this flag is what the Tab trap below keys off, because a
        sheet or a compact dropdown leaves the page visible and reachable on
@@ -497,6 +524,7 @@ export const BUILDER_RUNTIME = `(function(){
          selector off the navbar -- CSS cannot reach an ancestor from the
          toggle's own aria-expanded. */
       if(v)root.setAttribute('data-open','');else root.removeAttribute('data-open');
+      liftBand(v);
       if(v){ menu.style.display=menu.getAttribute('data-open-display')||'flex'; animateOpen(menu) }
       else animateClose(menu,function(){ menu.style.display='' });
       /* FOCUS MOVES IN. The menu comes BEFORE the toggle in the authored

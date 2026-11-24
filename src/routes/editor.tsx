@@ -469,6 +469,32 @@ export function EditorPage() {
       setSelectedId(id)
     }
   }
+  /**
+   * A whole SECTION, clicked in the library, goes on the page — after the
+   * section that holds the selection, or at the end — never INSIDE whatever is
+   * selected. It used to go through installFragment, so the first section
+   * became the selection and every section clicked after it was nested in the
+   * one before: a page of thirteen sections came out as one box thirteen deep
+   * (found building a site from scratch, 23 Nov 2026). Dragging still drops
+   * exactly where the pointer says.
+   */
+  const installSection = (frag: Fragment) => {
+    const current = docRef.current
+    const root = current.nodes[current.rootId]
+    let band: string | null = selectedId
+    while (band && band !== current.rootId) {
+      const up = parentOf(current, band)
+      if (!up || up.id === current.rootId) break
+      band = up.id
+    }
+    const kids = root?.children ?? []
+    const at = band && band !== current.rootId && kids.includes(band) ? kids.indexOf(band) + 1 : kids.length
+    const { doc: next, id } = insertFragmentAt(current, frag, current.rootId, at)
+    if (id) {
+      apply(next)
+      setSelectedId(id)
+    }
+  }
   const setTheme = (patch: Partial<Doc["theme"]>, coalesceKey?: string) =>
     apply(updateTheme(docRef.current, patch), coalesceKey)
   /**
@@ -980,7 +1006,7 @@ export function EditorPage() {
         label: t.name,
         dragModule: frag.nodes[frag.rootId]?.module ?? "box",
         insert: (pid, idx) => insertFragmentAt(docRef.current, frag, pid, idx),
-        onClick: () => installFragment(t.make()),
+        onClick: () => installSection(t.make()),
       },
       e
     )

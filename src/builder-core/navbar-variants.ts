@@ -570,7 +570,17 @@ export function appLinksVariant(
   }
 }
 
-export const NAVBAR_VARIANTS: NavbarVariant[] = CATALOG.map((v) => ({
+/**
+ * Navbar rules (23 Nov 2026): every brand page has a floating bottom bar with
+ * alerts, chat, cart, account and a full site menu (More). A designed navbar
+ * that adds its own cart, account or avatar menu shows them twice, with fake
+ * data, so those presets are no longer offered. Their definitions stay so an
+ * existing page built from them keeps rendering; nothing reads them by id.
+ * A brand's navbar = logo, its page links, at most one main action.
+ */
+const DUPLICATES_THE_BOTTOM_BAR = new Set(["avatar", "ecommerce"])
+
+export const NAVBAR_VARIANTS: NavbarVariant[] = CATALOG.filter((v) => !DUPLICATES_THE_BOTTOM_BAR.has(v.id)).map((v) => ({
   ...v,
   classes: /(^|\s)relative(\s|$)/.test(v.classes) ? v.classes : `relative ${v.classes}`,
 }))

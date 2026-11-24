@@ -253,5 +253,50 @@ await test("the local-tenant override is off unless it is switched on", async ()
   assert.equal(calls[0]!.url, "http://localhost:8787/api/builder/pages")
 })
 
+await test("locally, a NAMED brand goes to the local tenant — never to the live address", async () => {
+  /**
+   * The sign-in link always names a brand (`/?tenant=fresh`). The override
+   * used to apply only when none was named, so a local run sent the service
+   * token to https://fresh.brandsapp.io (23 Nov 2026). The grant still
+   * decides which brands a local run may open.
+   */
+  const token = await mintGrant(SECRET, partner)
+  const local = {
+    ...env,
+    TENANT_API_BASE: "http://localhost:8790",
+    ALLOW_LOCAL_TENANT: "1",
+  } as typeof env
+  calls = []
+  const mine = await app.request(
+    "/api/pages?tenant=acme",
+    { headers: { cookie: `bapp_builder=${encodeURIComponent(token)}` } },
+    local
+  )
+  assert.equal(mine.status, 200)
+  assert.equal(calls[0]!.url, "http://localhost:8790/api/builder/pages")
+  assert.ok(!calls.some((c) => c.url.includes("brandsapp.io")), "the live address was called")
+
+  calls = []
+  const theirs = await app.request(
+    "/api/pages?tenant=someone-else",
+    { headers: { cookie: `bapp_builder=${encodeURIComponent(token)}` } },
+    local
+  )
+  assert.equal(theirs.status, 400)
+  assert.deepEqual(calls, [])
+})
+
+await test("the Worker runs before the app for its own routes (sign-in is a navigation)", async () => {
+  // With SPA not-found handling, a NAVIGATION to /auth/claim was answered with
+  // index.html before the Worker ran — the sign-in link landed on "Not Found".
+  const { readFileSync } = await import("node:fs")
+  const cfg = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8")
+  const first = /"run_worker_first"\s*:\s*\[([^\]]*)\]/.exec(cfg)
+  assert.ok(first, "wrangler.jsonc has no run_worker_first")
+  for (const route of ["/auth/*", "/api/*", "/parties/*"]) {
+    assert.ok(first![1]!.includes(`"${route}"`), `${route} is answered by the app before the Worker`)
+  }
+})
+
 globalThis.fetch = realFetch
 console.log(`\n${passed} passed`)

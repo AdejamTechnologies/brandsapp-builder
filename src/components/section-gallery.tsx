@@ -254,35 +254,52 @@ export function SectionGallery({
     [lazy, query]
   )
 
-  // Fetch when a lazy category is opened, once.
+  /**
+   * Fetch when a lazy category is opened, once.
+   *
+   * `fetched` used to be a dependency of this effect. Marking the row as
+   * loading (`null`) changed it, the effect re-ran, its cleanup cancelled the
+   * request it had just started, and the second run saw "already loading" and
+   * did nothing — so every lazy category stayed on "loading…" for ever, with
+   * the blocks downloaded and thrown away (23 Nov 2026). Whether a row was
+   * requested is now kept in a ref, which re-renders nothing, and a request is
+   * only ignored if the gallery itself goes away.
+   */
+  const requested = useRef(new Set<string>())
+  const alive = useRef(true)
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
   useEffect(() => {
     if (!open) return
     const row = lazy.find((l) => l.label === open)
-    if (!row || fetched[open] !== undefined) return
-    setFetched((prev) => ({ ...prev, [open]: null }))
-    let cancelled = false
+    if (!row || requested.current.has(open)) return
+    requested.current.add(open)
+    const label = open
+    setFetched((prev) => ({ ...prev, [label]: null }))
     row
       .load()
       .then((list) => {
-        if (!cancelled) setFetched((prev) => ({ ...prev, [open]: list }))
+        if (alive.current) setFetched((prev) => ({ ...prev, [label]: list }))
       })
       .catch((e: unknown) => {
-        if (cancelled) return
-        // Cleared from `fetched` so opening it again tries again.
+        if (!alive.current) return
+        // Forgotten, so opening it again tries again.
+        requested.current.delete(label)
         setFetched((prev) => {
           const next = { ...prev }
-          delete next[open]
+          delete next[label]
           return next
         })
         setFailed((prev) => ({
           ...prev,
-          [open]: e instanceof Error ? e.message : "could not be loaded",
+          [label]: e instanceof Error ? e.message : "could not be loaded",
         }))
       })
-    return () => {
-      cancelled = true
-    }
-  }, [open, lazy, fetched])
+  }, [open, lazy])
 
   const loadingOpen = !!open && fetched[open] === null
   const shown = open

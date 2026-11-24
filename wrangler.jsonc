@@ -8,6 +8,13 @@
     "directory": "./dist/client",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
+    // The Worker FIRST for its own routes. With SPA not-found handling, a page
+    // NAVIGATION that matches no file is answered with index.html before the
+    // Worker runs — so the sign-in link (/auth/claim, always opened as a
+    // navigation) never reached the Worker: no session cookie, and the SPA
+    // drew "Not Found". fetch() calls got through, which is why /api worked.
+    // Found testing the builder against a local tenant, 23 Nov 2026.
+    "run_worker_first": ["/auth/*", "/api/*", "/parties/*"],
   },
   "durable_objects": {
     "bindings": [{ "name": "DOC_ROOM", "class_name": "DocRoom" }],

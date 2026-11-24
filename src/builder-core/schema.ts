@@ -166,6 +166,14 @@ export const themeTokens = z.object({
   // exactly as they are", which is both the correct behaviour and what keeps
   // every existing theme literal in the codebase valid without edits.
   scale: themeScale.optional(),
+  /**
+   * Whether the page takes the brand's colours, fonts and corners when it is
+   * rendered for a brand (lib/builder/brand-doc-theme.ts). Absent = yes; a
+   * page that wants its design's own palette says `false`. Hosts without a
+   * brand (the standalone builder, a template preview) ignore it.
+   * (Added for theming Phase 3; optional so every existing doc stays valid.)
+   */
+  followBrand: z.boolean().optional(),
 })
 export type ThemeTokens = z.infer<typeof themeTokens>
 

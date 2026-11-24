@@ -12,6 +12,7 @@ import { SessionBar } from "./components/session-bar"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { CuratePage } from "./routes/curate"
 import { EditorPage } from "./routes/editor"
+import { NarrowGate } from "./components/narrow-gate"
 import { HomePage } from "./routes/home"
 import { PreviewPage } from "./routes/preview"
 
@@ -53,7 +54,13 @@ const editRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): { tenant?: string } => ({
     tenant: typeof search.tenant === "string" ? search.tenant : undefined,
   }),
-  component: EditorPage,
+  // Behind the narrow-screen notice: the three-column editor has no room on
+  // a phone (components/narrow-gate.tsx).
+  component: () => (
+    <NarrowGate>
+      <EditorPage />
+    </NarrowGate>
+  ),
 })
 
 const previewRoute = createRoute({
