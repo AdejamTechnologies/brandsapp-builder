@@ -3,6 +3,7 @@ import { ChevronDown, Frame, LayoutGrid, Maximize2, Move, PaintBucket, Sparkles,
 
 import { type Doc, type Node } from "@brandsapp/builder-core"
 import { addClassToNode, createClass, removeClassFromNode, updateClassStyle, updateResponsiveStyle } from "../lib/doc-ops"
+import { InteractionFields } from "./interaction-fields"
 import { MotionFields } from "./motion-fields"
 import { SettingsFields } from "./settings-fields"
 import { Button } from "./ui/button"
@@ -190,8 +191,15 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
   const patch = (p: Partial<Node>, key?: string) =>
     onChange({ ...doc, nodes: { ...doc.nodes, [node.id]: { ...node, ...p } } }, key)
   const animKey = `anim:${node.id}`
-  const setEffect = (e: string) =>
-    patch({ anim: e === "none" ? undefined : { trigger: "load", duration: 600, delay: 0, ...node.anim, effect: e } }, animKey)
+  // "none" keeps the animation when it still carries a preset, a morph or
+  // scroll motion (24 Nov 2026) — clearing the entrance must not clear those.
+  const setEffect = (e: string) => {
+    const keep = node.anim && (node.anim.preset || node.anim.morph || node.anim.scroll || node.anim.text)
+    patch(
+      { anim: e === "none" ? (keep ? { ...node.anim!, effect: "none" } : undefined) : { trigger: "load", duration: 600, delay: 0, ...node.anim, effect: e } },
+      animKey
+    )
+  }
   const setAnim = (field: keyof Anim, val: string | number) =>
     patch({ anim: { effect: "fade", ...node.anim, [field]: val } as Anim }, animKey)
 
@@ -391,6 +399,8 @@ export function Inspector({ doc, node, onChange, activeBp, onPreview }: Inspecto
           {/* Scroll-linked motion lives here rather than under Styles: it is a
               behaviour of the element, not a rule in the cascade. */}
           <MotionFields node={node} onChange={patch} />
+          {/* States and what switches them — Framer's variants (24 Nov 2026). */}
+          <InteractionFields doc={doc} node={node} onChange={patch} onDocChange={onChange} />
         </TabsPanel>
 
         <TabsPanel value="template">

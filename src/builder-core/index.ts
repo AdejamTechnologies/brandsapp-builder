@@ -42,6 +42,12 @@ export * from "./phone"
 export * from "./slots"
 export * from "./template-manifest"
 export * from "./template-sources"
+// 24 Nov 2026: one list of page runtimes for the live site and the pitch file.
+export * from "./page-scripts"
+// 24 Nov 2026: motion presets, interactions, page transitions.
+export * from "./motion"
+// 25 Nov 2026: drop triggers left pointing at deleted nodes or states.
+export * from "./interactions"
 export {
   ALL_BUTTON_TOKENS,
   ANIMATION_LOADER,

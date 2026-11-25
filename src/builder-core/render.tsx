@@ -6,6 +6,8 @@
  * Worker-safe. See docs/builder-foundation-spec.md §5.
  */
 
+// 24 Nov 2026: presets, interactions, page transitions.
+import { MOTION_CSS, pageTransitionCss, stateClasses } from "./motion"
 import { createElement, Fragment as RFragment, type ReactNode } from "react"
 import { renderToString } from "react-dom/server"
 
@@ -83,6 +85,12 @@ class RenderCtx {
   sawFirstBand = false
   /** A word-split heading is present → the runtime has to do the splitting. */
   usesSplit = false
+  /** Presets or states are present → MOTION_CSS (24 Nov 2026, motion.ts). */
+  usesMotion = false
+  /** Interactions by node id, shipped as a JSON block for MOTION_RUNTIME. */
+  interactions: Record<string, unknown[]> = {}
+  /** Nodes another node's interaction points at — they need their `n-<id>` hook. */
+  targetIds = new Set<string>()
   /** >0 while rendering inside a linked-component instance → suppress internal
    * editor selection (the instance is an opaque unit; edit via the master). */
   instanceDepth = 0
@@ -108,7 +116,9 @@ class RenderCtx {
     readonly isEditor: boolean,
     readonly loopSources: Record<string, LoopSource>,
     readonly previewBreakpoint: string | null = null
-  ) {}
+  ) {
+    for (const n of Object.values(doc.nodes)) for (const it of n.on ?? []) for (const t of it.targets ?? []) this.targetIds.add(t)
+  }
 
   useStyleRule(id: string): void {
     if (this.seenStyle.has(id)) return
@@ -209,9 +219,32 @@ function classNamesFor(node: Node, ctx: RenderCtx): string {
       if (s.stagger) classes.push("bapp-stagger")
       if (s.pin) classes.push("bapp-pin")
     }
+    // A named behaviour (24 Nov 2026, motion.ts). Publish-only, like entrances.
+    if (node.anim.preset) {
+      classes.push("bapp-fx", `bapp-fx-${node.anim.preset}`)
+      ctx.usesMotion = true
+    }
     ctx.useNodeAnim(node)
   }
-  return classes.join(" ")
+  // States: each look is ordinary utilities behind `data-[bapp-state~=name]:`,
+  // so switching is one attribute and the move is a CSS transition. Emitted in
+  // the editor too, so the canvas has the rules when a state is previewed.
+  if (node.states && Object.keys(node.states).length) {
+    classes.push("bapp-stateful", classForNode(node.id))
+    for (const c of stateClasses(node.states)) {
+      classes.push(c)
+      ctx.classes.add(c)
+    }
+    ctx.usesMotion = true
+  }
+  if (node.on?.length && !ctx.isEditor) {
+    classes.push(classForNode(node.id))
+    ctx.interactions[node.id] = node.on
+    ctx.usesMotion = true
+  }
+  if (ctx.targetIds.has(node.id)) classes.push(classForNode(node.id))
+  // One node can collect its `n-<id>` hook from several of the above.
+  return [...new Set(classes)].join(" ")
 }
 
 /**
@@ -363,10 +396,20 @@ export function renderDocToReact(input: unknown, opts: RenderOptions): ReactRend
   )
   const data = opts.data ?? emptyDataContext()
   const rootEl = renderNode(parsed.rootId, ctx, data, parsed.rootId)
+  // Interactions travel as DATA (24 Nov 2026): a JSON block MOTION_RUNTIME
+  // reads, not script, so a hash-pinned CSP passes it like any other content.
+  // `<` is escaped so no string in it can close the tag.
+  const interactions = Object.keys(ctx.interactions).length
+    ? createElement("script", {
+        type: "application/json",
+        "data-bapp-interactions": "",
+        dangerouslySetInnerHTML: { __html: JSON.stringify(ctx.interactions).replace(/</g, "\\u003c") },
+      })
+    : null
   // The wrapper carries the page's motion contract, so the runtime can read it
   // without the renderer needing to reach outside its own subtree (it cannot set
   // attributes on <html>, and a tenant page is not the only host).
-  const node = createElement("div", { className: ROOT_CLASS, ...rootMotionAttrs(parsed, ctx) }, rootEl)
+  const node = createElement("div", { className: ROOT_CLASS, ...rootMotionAttrs(parsed, ctx) }, rootEl, interactions)
   const themeCss = themeToCss(parsed.theme, `.${ROOT_CLASS}`)
   /**
    * The rules an HTML import could not turn into node styles — a `:hover`, a
@@ -382,7 +425,15 @@ export function renderDocToReact(input: unknown, opts: RenderOptions): ReactRend
   const residual = parsed.meta?.residualCss
     ? scopeCss(parsed.meta.residualCss, `.${ROOT_CLASS}`)
     : ""
-  const css = [themeCss, ctx.usesAnim ? ANIMATION_KEYFRAMES : "", ...ctx.cssParts, residual]
+  const css = [
+    themeCss,
+    ctx.usesAnim ? ANIMATION_KEYFRAMES : "",
+    ctx.usesMotion ? MOTION_CSS : "",
+    // How the browser moves INTO this page (24 Nov 2026). Never in the editor.
+    ctx.isEditor ? "" : pageTransitionCss(parsed.meta?.pageTransition),
+    ...ctx.cssParts,
+    residual,
+  ]
     .filter(Boolean)
     .join("")
   return { node, css, missing: ctx.missing, classes: [...ctx.classes], usesRuntime: ctx.usesRuntime }

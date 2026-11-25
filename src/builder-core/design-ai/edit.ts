@@ -14,6 +14,8 @@
 // vocabulary serves both and an unknown module is refused the same way.
 
 import { createDefaultRegistry, safeParseDoc, type Doc, type Node } from "../index"
+import { pruneInteractions } from "../interactions"
+import { PAGE_TRANSITIONS, safeStateName } from "../motion"
 import { closedSetValue, docFromAiPage, type AiNode } from "./author"
 
 /** A node as an MCP client reads it: the compact format plus its id. */
@@ -41,6 +43,9 @@ export function treeFromDoc(doc: Doc, maxNodes = 600): { root: TreeNode | null; 
     if (n.classes) out.c = n.classes
     if (n.props && Object.keys(n.props).length) out.p = n.props
     if (n.anim) out.a = n.anim as Record<string, unknown>
+    // 24 Nov 2026: states and interactions read back in the same short keys they are written in.
+    if (n.states && Object.keys(n.states).length) out.s = n.states
+    if (n.on?.length) out.o = n.on as unknown as Array<Record<string, unknown>>
     const extra: string[] = []
     if (n.styleIds?.length || (n.style && Object.keys(n.style).length)) extra.push("styles")
     if (n.responsive && Object.keys(n.responsive).length) extra.push("breakpoints")
@@ -71,7 +76,11 @@ export type EditOp =
   /** Move an existing node to a new parent/index. */
   | { op: "move"; id: string; parentId: string; index?: number }
   /** Page title / description. */
-  | { op: "set_meta"; title?: string; description?: string }
+  | { op: "set_meta"; title?: string; description?: string; pageTransition?: string }
+  /** Replace a node's named states (null clears them). 24 Nov 2026. */
+  | { op: "set_states"; id: string; states: Record<string, string> | null }
+  /** Replace a node's interactions (null clears them). Targets are node ids. */
+  | { op: "set_on"; id: string; on: Array<Record<string, unknown>> | null }
 
 export type EditResult =
   | { ok: true; doc: Doc; applied: number; notes: string[] }
@@ -106,7 +115,13 @@ function subtree(node: AiNode, notes: string[]): { nodes: Record<string, Node>; 
   const nodes: Record<string, Node> = {}
   for (const id of order) {
     const n = built.doc.nodes[id]!
-    nodes[map.get(id)!] = { ...n, id: map.get(id)!, children: (n.children ?? []).map((c) => map.get(c)!) }
+    nodes[map.get(id)!] = {
+      ...n,
+      id: map.get(id)!,
+      children: (n.children ?? []).map((c) => map.get(c)!),
+      // An interaction inside the new subtree may target a sibling in it (24 Nov 2026).
+      ...(n.on ? { on: n.on.map((it) => ({ ...it, ...(it.targets ? { targets: it.targets.map((t) => map.get(t) ?? t) } : {}) })) } : {}),
+    }
   }
   return { nodes, rootId: map.get(firstId)! }
 }
@@ -226,11 +241,39 @@ export function applyEdits(input: Doc, ops: EditOp[]): EditResult {
           break
         }
         case "set_meta": {
+          if (op.pageTransition !== undefined && !(PAGE_TRANSITIONS as readonly string[]).includes(op.pageTransition)) {
+            throw new Error(`operation ${i + 1}: pageTransition is one of ${PAGE_TRANSITIONS.join(", ")}`)
+          }
           doc.meta = {
             ...(doc.meta ?? {}),
             ...(op.title !== undefined ? { title: op.title } : {}),
             ...(op.description !== undefined ? { description: op.description } : {}),
+            ...(op.pageTransition !== undefined ? { pageTransition: op.pageTransition as never } : {}),
           }
+          break
+        }
+        case "set_states": {
+          const n = need(op.id, i)
+          if (!op.states || !Object.keys(op.states).length) {
+            delete n.states
+            break
+          }
+          const next: Record<string, string> = {}
+          for (const [name, cls] of Object.entries(op.states)) {
+            if (!safeStateName(name) || typeof cls !== "string") throw new Error(`operation ${i + 1}: state "${name}" — names are lowercase words, values are classes`)
+            next[name] = cls
+          }
+          n.states = next
+          break
+        }
+        case "set_on": {
+          const n = need(op.id, i)
+          if (!op.on || !op.on.length) {
+            delete n.on
+            break
+          }
+          for (const it of op.on) for (const t of (it.targets as string[] | undefined) ?? []) need(t, i)
+          n.on = op.on as never // the schema check below refuses a malformed one, with the reason
           break
         }
         default:
@@ -241,7 +284,10 @@ export function applyEdits(input: Doc, ops: EditOp[]): EditResult {
     return { ok: false, reason: e instanceof Error ? e.message : "edit failed" }
   }
 
-  const parsed = safeParseDoc(doc)
+  // Triggers left pointing at a removed node or state are dropped (25 Nov 2026).
+  const pruned = pruneInteractions(doc)
+  if (pruned.removed) notes.push(`dropped ${pruned.removed} trigger(s) that pointed at something no longer on the page`)
+  const parsed = safeParseDoc(pruned.doc)
   if (!parsed.success) {
     return {
       ok: false,

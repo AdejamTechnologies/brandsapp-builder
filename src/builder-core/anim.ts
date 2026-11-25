@@ -7,6 +7,8 @@
 
 import { ATMOSPHERE_KEYFRAMES } from "./modules/atmosphere"
 import { classForNode } from "./style"
+// 24 Nov 2026: preset intensity and morph names (motion.ts).
+import { nodeMotionCss, type MotionPreset } from "./motion"
 
 export interface NodeScrollMotion {
   parallax?: number
@@ -58,6 +60,12 @@ export interface NodeAnim {
    * crawler that runs no JavaScript.
    */
   text?: "words" | "lines"
+  /** A named behaviour (motion.ts). */
+  preset?: MotionPreset
+  /** Scales the preset. */
+  intensity?: number
+  /** Morph into the same-named element on the next page. */
+  morph?: string
 }
 
 export const ANIM_EFFECTS = ["fade", "fade-up", "fade-down", "fade-left", "fade-right", "zoom"] as const
@@ -107,12 +115,16 @@ export function animCss(id: string, anim: NodeAnim): string {
   const sel = `.${classForNode(id)}`
   // A split heading is NOT hidden as a block: the words carry the reveal, and
   // fading the container as well would just cross-fade the whole line back in.
-  const entrance = anim.text
+  // effect "none" (24 Nov 2026): a node that only wants a preset or a morph
+  // must not be given a fade it did not ask for.
+  const entrance = anim.effect === "none" && !anim.text
+    ? ""
+    : anim.text
     ? textCss(sel, dur, delay, anim.trigger === "scroll")
     : anim.trigger === "scroll"
       ? `.${ANIM_GATE} ${sel}{opacity:0}${sel}.bapp-in{animation:${a}}`
       : `${sel}{animation:${a}}`
-  return entrance + scrollCss(id, anim.scroll)
+  return entrance + scrollCss(id, anim.scroll) + nodeMotionCss(sel, anim)
 }
 
 /**

@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useSearch } from "@tanstack/react-router"
 
-import { ANIMATION_LOADER,
-  LIGHTBOX_RUNTIME,
-  CHALLENGE_LOADER,
-  BUILDER_RUNTIME, SCENE_LOADER, SHADER_LOADER, generateUtilityCss, parseDoc, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
+// pageScripts replaces the hand-kept loader list (24 Nov 2026).
+import { generateUtilityCss, pageScripts, parseDoc, renderDocToReact, themeFontHref, type Doc } from "@brandsapp/builder-core"
 import { docFor, isDemoPage } from "../lib/demo-docs"
 import { registry } from "../lib/registry"
 
@@ -55,22 +53,21 @@ export function PreviewPage() {
   // Interactive runtime (tabs / dropdown / scroll reveal) — inject as a live script
   // once the tree is mounted so behaviours match the published page.
   useEffect(() => {
-    if (!result?.usesRuntime) return
+    // Presets and interactions run without the core runtime (24 Nov 2026).
+    if (!result) return
+    if (!pageScripts({ html: document.body.innerHTML, usesRuntime: result.usesRuntime }).length) return
     const s = document.createElement("script")
     // Same rule as the tenant host: the animation loader only ships when the
     // page actually contains one of those elements.
-    s.textContent =
-      BUILDER_RUNTIME +
-      (/data-bapp-(lottie|spline|rive)/.test(document.body.innerHTML) ? "\n" + ANIMATION_LOADER : "") +
-      (/data-bapp-(challenge|form)/.test(document.body.innerHTML) ? "\n" + CHALLENGE_LOADER : "") +
-      (/data-bapp-lightbox/.test(document.body.innerHTML) ? "\n" + LIGHTBOX_RUNTIME : "") +
-      (/data-bapp-aurora/.test(document.body.innerHTML) ? "\n" + SHADER_LOADER : "") +
-      (/data-bapp-scene/.test(document.body.innerHTML) ? "\n" + SCENE_LOADER : "")
+    // The shared list (24 Nov 2026, builder-core/page-scripts.ts) — the same
+    // runtimes the brand's live page and the pitch file load, presets and
+    // interactions included.
+    s.textContent = pageScripts({ html: document.body.innerHTML, usesRuntime: result.usesRuntime }).join("\n")
     document.body.appendChild(s)
     return () => {
       s.remove()
     }
-  }, [result?.usesRuntime, doc])
+  }, [result, doc])
 
   if (err) return <div className="p-8 text-sm text-muted-foreground">{err}</div>
   if (!result) return <div className="p-8 text-sm text-muted-foreground">Loading preview…</div>

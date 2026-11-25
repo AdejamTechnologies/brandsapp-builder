@@ -1,4 +1,6 @@
-import type { Node } from "@brandsapp/builder-core"
+import { MOTION_PRESET_HELP, MOTION_PRESETS, type Node } from "@brandsapp/builder-core"
+
+import { Select } from "./ui/select"
 
 import { cn } from "../lib/utils"
 
@@ -59,10 +61,11 @@ export function MotionFields({
       onChange({ anim: undefined }, key)
       return
     }
-    onChange(
-      { anim: { effect: anim?.effect ?? "fade", trigger: anim?.trigger, duration: anim?.duration, delay: anim?.delay, ...(hasAny ? { scroll: next } : {}) } },
-      key
-    )
+    // `...anim` first (24 Nov 2026): rebuilding from named fields wiped a
+    // preset, an intensity or a morph every time a slider moved.
+    const { scroll: _old, ...rest } = anim ?? { effect: "fade" }
+    void _old
+    onChange({ anim: { ...rest, effect: anim?.effect ?? "fade", ...(hasAny ? { scroll: next } : {}) } }, key)
   }
 
   const active = Object.keys(scroll).length > 0
@@ -142,8 +145,13 @@ export function MotionFields({
           checked={anim?.text === "words"}
           onChange={(e) =>
             onChange(
-              { anim: { effect: anim?.effect ?? "fade", trigger: anim?.trigger ?? "scroll", duration: anim?.duration, delay: anim?.delay,
-                        ...(Object.keys(scroll).length ? { scroll } : {}), ...(e.target.checked ? { text: "words" as const } : {}) } },
+              { anim: (() => {
+                  // Keep everything else on the animation (24 Nov 2026) — preset and morph included.
+                  const { text: _t, ...rest } = anim ?? { effect: "fade" }
+                  void _t
+                  return { ...rest, effect: anim?.effect ?? "fade", trigger: anim?.trigger ?? "scroll",
+                           ...(e.target.checked ? { text: "words" as const } : {}) }
+                })() },
               "motion:text"
             )
           }
@@ -158,6 +166,58 @@ export function MotionFields({
           checked={!!scroll.fade}
           onChange={(e) => setScroll({ fade: e.target.checked }, "motion:fade")}
           className="size-3.5 cursor-pointer accent-primary"
+        />
+      </label>
+
+      {/* ── Presets and morph (24 Nov 2026, builder-core/motion.ts) ── */}
+      <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+        <span className="text-xs text-foreground">Effect preset</span>
+        <Select
+          value={anim?.preset ?? ""}
+          onValueChange={(v) => {
+            const base = anim ?? { effect: "none" }
+            const { preset: _p, intensity: _i, ...rest } = base
+            void _p
+            void _i
+            onChange({ anim: v ? { ...rest, preset: v as (typeof MOTION_PRESETS)[number] } : (Object.keys(rest).length > 1 || rest.effect !== "none" ? rest : undefined) }, "motion:preset")
+          }}
+          options={[{ value: "", label: "None" }, ...MOTION_PRESETS.map((p) => ({ value: p, label: p.replace("-", " ") }))]}
+        />
+        {anim?.preset ? (
+          <>
+            <span className="text-[10.5px] leading-relaxed text-muted-foreground">{MOTION_PRESET_HELP[anim.preset]}</span>
+            <label className="flex flex-col gap-1">
+              <span className="flex items-center justify-between text-xs text-foreground">
+                Intensity
+                <span className="tabular-nums">{(anim.intensity ?? 1).toFixed(1)}×</span>
+              </span>
+              <input
+                type="range"
+                min={0.2}
+                max={3}
+                step={0.1}
+                value={anim.intensity ?? 1}
+                onChange={(e) => onChange({ anim: { ...anim, intensity: Number(e.target.value) } }, "motion:intensity")}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary"
+              />
+            </label>
+          </>
+        ) : null}
+      </div>
+
+      <label className="flex flex-col gap-1" title="Give the same name to an element on another page and it flies into place when the visitor moves between them.">
+        <span className="text-xs text-foreground">Morph between pages</span>
+        <input
+          className="h-7 w-full rounded-[7px] border border-input bg-white px-2 text-xs outline-none focus-visible:border-ring"
+          placeholder="e.g. hero — same name on both pages"
+          defaultValue={anim?.morph ?? ""}
+          onBlur={(e) => {
+            const v = e.target.value.trim()
+            const base = anim ?? { effect: "none" }
+            const { morph: _m, ...rest } = base
+            void _m
+            onChange({ anim: v ? { ...rest, morph: v } : (Object.keys(rest).length > 1 || rest.effect !== "none" ? rest : undefined) }, "motion:morph")
+          }}
         />
       </label>
 

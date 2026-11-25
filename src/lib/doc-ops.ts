@@ -1,3 +1,4 @@
+import { pruneInteractions } from "@brandsapp/builder-core"
 import type { DefaultChild, Doc, Node, PropBinding, StyleRule } from "@brandsapp/builder-core"
 
 /** Immutable Doc operations for the editor (no external state lib needed). */
@@ -266,7 +267,8 @@ export function removeNode(doc: Doc, id: string): Doc {
   if (parent) {
     nodes[parent.id] = { ...parent, children: parent.children.filter((c) => c !== id) }
   }
-  return { ...doc, nodes }
+  // Triggers elsewhere that pointed into the deleted subtree go with it (25 Nov 2026).
+  return pruneInteractions({ ...doc, nodes }).doc
 }
 
 export function moveChild(doc: Doc, parentId: string, from: number, to: number): Doc {

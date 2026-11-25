@@ -10,6 +10,7 @@ import {
   type NodeSpec,
 } from "../index"
 import type { DesignSystemSpec } from "../design-systems"
+import { INTERACTION_TRIGGERS, PAGE_TRANSITIONS, safeStateName, type Interaction } from "../motion"
 import { vocabularyText } from "./vocabulary"
 import { craftText, type CraftId } from "./craft"
 import { WORKED_EXAMPLES } from "./examples"
@@ -24,8 +25,14 @@ export interface AiNode {
   p?: Record<string, unknown>
   /** children */
   k?: AiNode[]
-  /** animation: { effect, trigger, duration, delay, text, scroll } */
+  /** animation: { effect, trigger, duration, delay, text, scroll, preset, intensity, morph } */
   a?: Record<string, unknown>
+  /** states (24 Nov 2026): { name: "classes while on" } */
+  s?: Record<string, string>
+  /** interactions: [{ trigger: tap|hover|inview|load, state, targets?: [ref], mode?, once? }] */
+  o?: Array<Record<string, unknown>>
+  /** a local name this node can be targeted by */
+  r?: string
 }
 
 export interface AiPage {
@@ -34,7 +41,7 @@ export interface AiPage {
     fonts?: { display?: string; body?: string }
     scale?: Record<string, unknown>
   }
-  meta?: { title?: string; description?: string }
+  meta?: { title?: string; description?: string; pageTransition?: string }
   root: AiNode
 }
 
@@ -212,9 +219,10 @@ ${craftText(craft)}
 
 # Output
 
-{ "meta": { "title", "description" }, "root": <node> }
+{ "meta": { "title", "description", "pageTransition"? }, "root": <node> }
 
-A node is { "m": module, "c": "utility classes", "p": { props }, "k": [children], "a": { motion } }.
+A node is { "m": module, "c": "utility classes", "p": { props }, "k": [children], "a": { motion },
+            "s": { states }, "o": [interactions], "r": "local name" }.
 Only "m" is required. Emit the tree nested; ids are assigned for you.
 
 # Elements available
@@ -260,6 +268,33 @@ values are allowed: text-[clamp(2.5rem,9vw,7rem)], h-[78vh], col-start-6.
 
 Inside a pinned section, children MUST use "driver": "pin" — a pinned section does
 not move, so viewport-measured motion freezes there.
+
+Named presets — "a": { "effect": "none", "preset": "<name>", "intensity": 1 }
+(keep the effect if the element should also enter):
+  magnetic   leans toward the cursor — buttons, icons
+  tilt       3D tilt toward the cursor with a glare — cards, product shots
+  spotlight  a soft light follows the cursor — dark cards and bands
+  marquee    children scroll sideways forever, pause on hover — logos, reviews
+  count-up   numbers ALREADY in the text count up when seen — never invent one
+  scramble   short text decodes from random characters when seen
+  float      a slow weightless bob — a badge, a decorative shape
+  glow       an animated gradient edge in theme colours — ONE key card or button
+One or two presets on a page; a preset on every card is a template.
+
+States and interactions — Framer's variants. "s" names looks as classes, "o" says
+what switches them, "r" gives a node a name others can target:
+  { "m": "button", "p": { "label": "Menu" },
+    "o": [{ "trigger": "tap", "state": "open", "targets": ["sheet"] }] }
+  { "m": "box", "r": "sheet", "c": "max-h-0 overflow-hidden opacity-0",
+    "s": { "open": "max-h-[80vh] opacity-100" } }
+Triggers: tap (toggles), hover, inview, load. Moves between states are animated.
+A child follows its parent's state with "group" on the parent and
+"group-data-[bapp-state~=open]:…" on the child. Use states for things that
+open, reveal or answer a hand — an FAQ, a menu, a before/after, a card that turns.
+
+Between pages: "a": { "morph": "hero" } on the same element on two pages makes it
+fly into place on the next page. The page's own move in is
+meta.pageTransition: fade | slide-up | slide-left | zoom | wipe | none.
 
 3D and atmosphere: scene(preset: orb|grid|field) is real WebGL with a camera the
 scroll drives; aurora/light/grain/vignette are decorative layers. All of them are
@@ -365,10 +400,36 @@ function toSpec(node: AiNode, registry = createDefaultRegistry(), depth = 0, bud
     props[k] = fixed.value
   }
 
+  // States, interactions and a local name (24 Nov 2026). Malformed entries are
+  // dropped and said, like an unknown prop: the schema would refuse the page.
+  const states: Record<string, string> = {}
+  for (const [name, cls] of Object.entries(node.s ?? {})) {
+    if (safeStateName(name) && typeof cls === "string") states[name] = cls
+    else dropped?.push(`state "${name}" on "${node.m}" — names are lowercase words, values are classes`)
+  }
+  const on: Interaction[] = []
+  for (const it of Array.isArray(node.o) ? node.o : []) {
+    const trigger = String(it?.trigger ?? "")
+    const state = String(it?.state ?? "")
+    if (!(INTERACTION_TRIGGERS as readonly string[]).includes(trigger) || !safeStateName(state)) {
+      dropped?.push(`interaction on "${node.m}" — trigger is one of ${INTERACTION_TRIGGERS.join("|")}, state a lowercase word`)
+      continue
+    }
+    on.push({
+      trigger: trigger as Interaction["trigger"],
+      state,
+      ...(Array.isArray(it.targets) ? { targets: it.targets.map(String).slice(0, 12) } : {}),
+      ...(it.mode === "toggle" || it.mode === "set" || it.mode === "clear" ? { mode: it.mode } : {}),
+      ...(it.once === true ? { once: true } : {}),
+    })
+  }
   return el(node.m, {
     ...(Object.keys(props).length ? { props } : {}),
     ...(typeof node.c === "string" && node.c.trim() ? { classes: node.c.trim() } : {}),
     ...(node.a && typeof node.a === "object" ? { anim: node.a as never } : {}),
+    ...(Object.keys(states).length ? { states } : {}),
+    ...(on.length ? { on: on.slice(0, 8) } : {}),
+    ...(typeof node.r === "string" && node.r.trim() ? { ref: node.r.trim() } : {}),
   }, ...kids)
 }
 
@@ -399,7 +460,15 @@ export function docFromAiPage(
         { id: "mobile", label: "Mobile", maxWidth: 767 },
       ],
     } as never,
-    meta: page.meta ?? {},
+    // An unknown page transition is dropped and said (24 Nov 2026), not a refused page.
+    meta: (() => {
+      const meta = { ...(page.meta ?? {}) } as Record<string, unknown>
+      if (meta.pageTransition !== undefined && !(PAGE_TRANSITIONS as readonly string[]).includes(String(meta.pageTransition))) {
+        dropped?.push(`pageTransition "${String(meta.pageTransition)}" — use one of ${PAGE_TRANSITIONS.join(", ")}`)
+        delete meta.pageTransition
+      }
+      return meta as never
+    })(),
   })
 
   const parsed = safeParseDoc(built)

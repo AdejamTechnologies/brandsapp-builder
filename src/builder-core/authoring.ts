@@ -5,6 +5,7 @@
  */
 
 import type { NodeAnim } from "./anim"
+import type { Interaction } from "./motion"
 import {
   CORE_DOC_VERSION,
   type Doc,
@@ -36,8 +37,12 @@ function compileTree(root: NodeSpec, prefix: string): { nodes: Record<string, No
   const nodes: Record<string, Node> = {}
   let n = 0
   const nextId = () => `${prefix}${(n++).toString(36)}`
+  // Local names → generated ids (24 Nov 2026), so an interaction can point at a
+  // node that has no id yet: `on: [{ targets: ["menu"] }]` + `ref: "menu"`.
+  const refs: Record<string, string> = {}
   const walk = (spec: NodeSpec): string => {
     const id = nextId()
+    if (spec.ref) refs[spec.ref] = id
     const children = (spec.children ?? []).map(walk)
     nodes[id] = {
       id,
@@ -49,10 +54,24 @@ function compileTree(root: NodeSpec, prefix: string): { nodes: Record<string, No
       ...(spec.classes ? { classes: spec.classes } : {}),
       ...(spec.anim ? { anim: spec.anim } : {}),
       ...(spec.bindings ? { bindings: spec.bindings } : {}),
+      ...(spec.states ? { states: spec.states } : {}),
+      ...(spec.on ? { on: spec.on } : {}),
     }
     return id
   }
-  return { nodes, rootId: walk(root) }
+  const rootId = walk(root)
+  // Resolve interaction targets: a local name becomes its id; a name nobody
+  // declared is dropped rather than left pointing at nothing.
+  for (const node of Object.values(nodes)) {
+    if (!node.on) continue
+    node.on = node.on.map((it) => ({
+      ...it,
+      ...(it.targets
+        ? { targets: it.targets.map((t) => refs[t] ?? (nodes[t] ? t : null)).filter((t): t is string => !!t) }
+        : {}),
+    }))
+  }
+  return { nodes, rootId }
 }
 
 export interface NodeSpec {
@@ -65,6 +84,12 @@ export interface NodeSpec {
   styleIds?: string[]
   bindings?: Record<string, PropBinding>
   children?: NodeSpec[]
+  /** Named looks (24 Nov 2026, motion.ts): `{ open: "rotate-45" }`. */
+  states?: Record<string, string>
+  /** What switches states; `targets` may name a sibling's `ref`. */
+  on?: Interaction[]
+  /** A local name other nodes' interactions can target. Not stored. */
+  ref?: string
 }
 
 /** Author a node: `el("box", { styleIds:["wrap"] }, el("text", { props:{text:"hi"} }))`. */

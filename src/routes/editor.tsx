@@ -1437,6 +1437,26 @@ export function EditorPage() {
               onBlur={(e) => setPageMeta({ collection: e.target.value.trim() || undefined })}
             />
           </label>
+          {/* How a visitor arrives on this page from another (24 Nov 2026,
+              builder-core/motion.ts). A cross-document view transition: the
+              ARRIVING page decides, so it is set per page. */}
+          <label className="mt-3 flex flex-col gap-1 text-xs">
+            <span className="text-muted-foreground">Page transition — how visitors arrive on this page</span>
+            <select
+              className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs outline-none focus-visible:border-ring"
+              value={doc.meta?.pageTransition ?? ""}
+              onChange={(e) =>
+                setPageMeta({ pageTransition: (e.target.value || undefined) as NonNullable<Doc["meta"]>["pageTransition"] })
+              }
+            >
+              <option value="">Cross-fade (default)</option>
+              <option value="slide-up">Slide up</option>
+              <option value="slide-left">Slide in from the side</option>
+              <option value="zoom">Zoom</option>
+              <option value="wipe">Wipe up</option>
+              <option value="none">None — instant</option>
+            </select>
+          </label>
         </div>
         {!tenant ? (
           <div className="text-xs text-muted-foreground">

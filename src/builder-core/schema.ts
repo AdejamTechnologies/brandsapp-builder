@@ -8,6 +8,8 @@
 import { z } from "zod"
 
 import { templateManifest } from "./template-manifest"
+// 24 Nov 2026: presets, interactions and page transitions (see motion.ts).
+import { INTERACTION_TRIGGERS, MOTION_PRESETS, PAGE_TRANSITIONS } from "./motion"
 
 export const CORE_DOC_VERSION = 1
 
@@ -40,6 +42,19 @@ export const node = z.object({
       delay: z.number().optional(),
       /** Reveal the node's own text a word or a line at a time, from behind a mask. */
       text: z.enum(["words", "lines"]).optional(),
+      /**
+       * A named behaviour (24 Nov 2026, motion.ts): magnetic, tilt, spotlight,
+       * marquee, count-up, scramble, float, glow. Picked by name rather than
+       * built from parts. `effect: "none"` when it is the only motion wanted.
+       */
+      preset: z.enum(MOTION_PRESETS).optional(),
+      /** Scales the preset (and nothing else): 1 as designed, 0.2–3. */
+      intensity: z.number().min(0.2).max(3).optional(),
+      /**
+       * Morph this element into the element of the SAME name on the next page
+       * (a cross-document view transition) — a hero photo flying into place.
+       */
+      morph: z.string().max(40).optional(),
       /**
        * Scroll-LINKED motion, as distinct from the entrance animation above: an
        * entrance plays once, this tracks the element's progress through the
@@ -96,6 +111,25 @@ export const node = z.object({
     )
     .optional(),
   children: z.array(id).default([]),
+  /**
+   * Named looks this node can switch into (24 Nov 2026, motion.ts) — Framer's
+   * variants. Each is utility classes applied while the state is on; the move
+   * between states is a CSS transition. `{ open: "rotate-45 bg-primary" }`.
+   */
+  states: z.record(z.string().regex(/^[a-z][a-z0-9-]{0,23}$/), z.string().max(600)).optional(),
+  /** What switches a state, on this node or others. */
+  on: z
+    .array(
+      z.object({
+        trigger: z.enum(INTERACTION_TRIGGERS),
+        state: z.string().regex(/^[a-z][a-z0-9-]{0,23}$/),
+        targets: z.array(id).max(12).optional(),
+        mode: z.enum(["toggle", "set", "clear"]).optional(),
+        once: z.boolean().optional(),
+      })
+    )
+    .max(8)
+    .optional(),
   label: z.string().optional(),
   hidden: z.boolean().optional(),
   locked: z.boolean().optional(),
@@ -193,6 +227,8 @@ export const docMeta = z.object({
    * exactly as before.
    */
   residualCss: z.string().optional(),
+  /** How the browser moves INTO this page from another (24 Nov 2026, motion.ts). */
+  pageTransition: z.enum(PAGE_TRANSITIONS).optional(),
   /**
    * What makes this page part of a TEMPLATE — who it is for, which looks it
    * allows, which apps it needs, and its place in a multi-page design.

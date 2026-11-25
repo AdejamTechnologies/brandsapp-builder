@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEven
 import {
   ANIMATION_KEYFRAMES,
   BUILDER_RUNTIME,
+  // Presets and interactions in Interact mode (24 Nov 2026).
+  MOTION_RUNTIME,
   generateUtilityCss,
   renderDocToReact,
   themeFontHref,
@@ -136,17 +138,30 @@ export function Canvas({
   const pageRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!interactive || !pageRef.current) return
-    const w = window as unknown as { __bappRuntime?: (scope: HTMLElement) => void }
+    const w = window as unknown as {
+      __bappRuntime?: (scope: HTMLElement) => void
+      __bappMotion?: (scope: HTMLElement) => void
+    }
     if (!w.__bappRuntime) {
       const s = document.createElement("script")
       s.id = "bapp-runtime-editor"
       s.textContent = BUILDER_RUNTIME
       document.head.appendChild(s)
     }
+    // The presets/interactions runtime (24 Nov 2026) — separate, like on a page.
+    if (!w.__bappMotion) {
+      const m = document.createElement("script")
+      m.id = "bapp-motion-editor"
+      m.textContent = MOTION_RUNTIME
+      document.head.appendChild(m)
+    }
     // A frame later: the remount has to have committed before the runtime can find
     // anything to enhance.
     const id = requestAnimationFrame(() => {
-      if (pageRef.current) w.__bappRuntime?.(pageRef.current)
+      if (pageRef.current) {
+        w.__bappRuntime?.(pageRef.current)
+        w.__bappMotion?.(pageRef.current)
+      }
     })
     return () => cancelAnimationFrame(id)
   }, [interactive, doc])

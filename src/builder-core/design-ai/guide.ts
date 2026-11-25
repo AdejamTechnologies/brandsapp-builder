@@ -119,5 +119,17 @@ ${images.team.map((u) => `  ${u}`).join("\n")}
 Any other url is refused, unless the agency's brief itself contains it (the
 business's own photos). get_design_guide with image_category gives another set.
 
+# Interaction states — how a page answers a hand
+
+Entrance and scroll motion are below under "Motion". What a page does when it
+is touched lives in the classes, as Tailwind variants, and is generated for
+you (added 24 Nov 2026):
+  hover:   "transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+  press:   "active:scale-95"
+  reveal on hover of a parent: parent "group", child "opacity-0 group-hover:opacity-100 transition"
+  image zoom in a card: card "group overflow-hidden", image "transition duration-500 group-hover:scale-105"
+Use them on things a visitor can act on — buttons, cards that link, gallery
+tiles. A page where nothing responds to the cursor reads as a document.
+
 ${buildSystem(input.playbook)}`
 }
